@@ -86,6 +86,10 @@ substitutions:
   # Hardware entities
   battery_entity: "sensor.m2101k7bny_battery_level"
 
+  # Music Assistant card: "deck" (vinyl turntable) or "studio" (EQ + meter console)
+  music_variant: "studio"
+  music_player_entity: "media_player.music_assistant_player"
+
   # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
   claude_variant: "stage"
   # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
@@ -108,9 +112,12 @@ esphome:
       - lambda: "id(last_touch_ms) = millis();"
       - delay: 5s
       - script.execute: update_grow_ui
+      - script.execute: update_music_ui
 
 packages:
   claude: !include claude/${claude_variant}.yaml
+  music_common: !include music/common.yaml
+  music: !include music/${music_variant}.yaml
 
 esp32:
   variant: esp32s3
@@ -133,6 +140,7 @@ api:
   on_client_connected:
     - delay: 1s
     - script.execute: update_grow_ui
+    - script.execute: update_music_ui
 
 ota:
   - platform: esphome
@@ -270,6 +278,9 @@ globals:
   - id: wake_lock
     type: bool
     initial_value: "false"
+  - id: active_tab
+    type: int
+    initial_value: "0"
 
 # ============================================================================
 # 3. FONTS & MDI ICONS
@@ -333,6 +344,8 @@ font:
       - "\U000F06B5" # lightbulb (day)
       - "\U000F06B8" # lightbulb-off (night)
       - "\U000F03E4" # pause
+      - "\U000F0387" # music-note
+      - "\U000F0E66" # sprout
 
   - file: "fonts/materialdesignicons-webfont.ttf"
     id: icons_24
@@ -355,6 +368,27 @@ font:
       - "\U000F0159" # close-circle
       - "\U000F0141" # chevron-left
       - "\U000F0142" # chevron-right
+
+# ============================================================================
+# 3b. EXPOSED DISPLAY VIEW SELECT ENTITY (Controlled by HA Assist / Local LLM)
+# ============================================================================
+select:
+  - platform: template
+    id: display_view
+    name: "Display View"
+    icon: "mdi:monitor-dashboard"
+    options:
+      - "Growspace"
+      - "Music"
+      - "AI"
+    initial_option: "Growspace"
+    optimistic: true
+    set_action:
+      - lambda: |-
+          int target = 0;
+          if (x == "Music") target = 1;
+          else if (x == "AI") target = 2;
+          id(switch_tab).execute(target);
 
 # ============================================================================
 # 4. LVGL 480x320 UI (GitHub Dark Theme)
@@ -483,10 +517,19 @@ lvgl:
             styles: nav_btn_active
             widgets:
               - label:
-                  text: "GROW"
-                  text_font: font_14
+                  id: nav_grow_icon
+                  text: "\U000F0E66"
+                  text_font: icons_20
                   text_color: 0xFFFFFF
-                  align: CENTER
+                  align: TOP_MID
+                  y: 18
+              - label:
+                  id: nav_grow_lbl
+                  text: "GROW"
+                  text_font: font_12
+                  text_color: 0xFFFFFF
+                  align: BOTTOM_MID
+                  y: -14
             on_press:
               then:
                 - if:
@@ -507,10 +550,19 @@ lvgl:
             styles: nav_btn
             widgets:
               - label:
-                  text: "MUSIC"
-                  text_font: font_14
+                  id: nav_music_icon
+                  text: "\U000F0387"
+                  text_font: icons_20
                   text_color: 0x8B949E
-                  align: CENTER
+                  align: TOP_MID
+                  y: 18
+              - label:
+                  id: nav_music_lbl
+                  text: "MUSIC"
+                  text_font: font_12
+                  text_color: 0x8B949E
+                  align: BOTTOM_MID
+                  y: -14
             on_press:
               then:
                 - if:
@@ -530,11 +582,37 @@ lvgl:
             y: 230
             styles: nav_btn
             widgets:
+              - obj:
+                  id: nav_clawd_box
+                  width: 28
+                  height: 22
+                  align: TOP_MID
+                  y: 18
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  clickable: false
+                  scrollbar_mode: "off"
               - label:
+                  id: nav_ai_lbl
                   text: "AI"
-                  text_font: font_14
+                  text_font: font_12
                   text_color: 0x8B949E
-                  align: CENTER
+                  align: BOTTOM_MID
+                  y: -14
+              - obj:
+                  id: ai_alert_badge
+                  width: 10
+                  height: 10
+                  align: TOP_RIGHT
+                  x: -5
+                  y: 5
+                  radius: 5
+                  bg_color: 0xFF5252
+                  bg_opa: COVER
+                  border_width: 0
+                  hidden: true
             on_press:
               then:
                 - if:
@@ -819,34 +897,9 @@ lvgl:
                             - lambda: "id(nav_direction) = 1;"
                             - script.execute: navigate_space
 
-        # ── CARD 2: SPOTIFY MEDIA BAR (Hidden initially) ────────────────────
-        - obj:
-            id: music_card
-            width: 390
-            height: 266
-            align: TOP_RIGHT
-            x: -6
-            y: 48
-            styles: card_style
-            hidden: true
-            scrollbar_mode: "off"
-            widgets:
-              - label:
-                  id: lbl_track_title
-                  text: "Spotify Media Bar"
-                  text_font: font_20
-                  text_color: 0x1DB954
-                  align: TOP_LEFT
-                  x: 0
-                  y: 0
-              - label:
-                  id: lbl_track_artist
-                  text: "Ready to wire media_player.spotify"
-                  text_font: font_14
-                  text_color: 0x8B949E
-                  align: TOP_LEFT
-                  x: 0
-                  y: 30
+        # ── CARD 2: MUSIC ASSISTANT (Hidden initially) ───────────────────────
+        # Widgets live in music/<variant>_card.yaml, logic in music/<variant>.yaml.
+        - obj: !include music/${music_variant}_card.yaml
 
         # ── CARD 3: CLAUDE CODE (Hidden initially) ─────────────────────────
         # Widgets live in claude/<variant>_card.yaml, logic in claude/<variant>.yaml.
@@ -868,9 +921,9 @@ time:
 
 sensor:
   # Growspace 0: 4x4
-  - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_vpd}" }
-  - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_temp}" }
-  - { platform: homeassistant, id: gs0_hum, entity_id: "${gs_0_hum}" }
+  - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs0_hum, entity_id: "${gs_0_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs0_vpd_tgt_min, entity_id: "${gs_0_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs0_vpd_tgt_max, entity_id: "${gs_0_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs0_vpd_dng_min, entity_id: "${gs_0_metrics}", attribute: vpd_danger_min }
@@ -879,9 +932,9 @@ sensor:
   - { platform: homeassistant, id: gs0_circ, entity_id: "${gs_0_circ}", attribute: percentage }
 
   # Growspace 1: SOG 2x5
-  - { platform: homeassistant, id: gs1_vpd, entity_id: "${gs_1_vpd}" }
-  - { platform: homeassistant, id: gs1_temp, entity_id: "${gs_1_temp}" }
-  - { platform: homeassistant, id: gs1_hum, entity_id: "${gs_1_hum}" }
+  - { platform: homeassistant, id: gs1_vpd, entity_id: "${gs_1_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs1_temp, entity_id: "${gs_1_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs1_hum, entity_id: "${gs_1_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs1_vpd_tgt_min, entity_id: "${gs_1_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs1_vpd_tgt_max, entity_id: "${gs_1_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs1_vpd_dng_min, entity_id: "${gs_1_metrics}", attribute: vpd_danger_min }
@@ -890,9 +943,9 @@ sensor:
   - { platform: homeassistant, id: gs1_circ, entity_id: "${gs_1_circ}", attribute: percentage }
 
   # Growspace 2: Nursery Dome
-  - { platform: homeassistant, id: gs2_vpd, entity_id: "${gs_2_vpd}" }
-  - { platform: homeassistant, id: gs2_temp, entity_id: "${gs_2_temp}" }
-  - { platform: homeassistant, id: gs2_hum, entity_id: "${gs_2_hum}" }
+  - { platform: homeassistant, id: gs2_vpd, entity_id: "${gs_2_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs2_temp, entity_id: "${gs_2_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs2_hum, entity_id: "${gs_2_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs2_vpd_tgt_min, entity_id: "${gs_2_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs2_vpd_tgt_max, entity_id: "${gs_2_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs2_vpd_dng_min, entity_id: "${gs_2_metrics}", attribute: vpd_danger_min }
@@ -901,9 +954,9 @@ sensor:
   - { platform: homeassistant, id: gs2_circ, entity_id: "${gs_2_circ}", attribute: percentage }
 
   # Growspace 3: Clone
-  - { platform: homeassistant, id: gs3_vpd, entity_id: "${gs_3_vpd}" }
-  - { platform: homeassistant, id: gs3_temp, entity_id: "${gs_3_temp}" }
-  - { platform: homeassistant, id: gs3_hum, entity_id: "${gs_3_hum}" }
+  - { platform: homeassistant, id: gs3_vpd, entity_id: "${gs_3_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs3_temp, entity_id: "${gs_3_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs3_hum, entity_id: "${gs_3_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs3_vpd_tgt_min, entity_id: "${gs_3_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs3_vpd_tgt_max, entity_id: "${gs_3_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs3_vpd_dng_min, entity_id: "${gs_3_metrics}", attribute: vpd_danger_min }
@@ -912,9 +965,9 @@ sensor:
   - { platform: homeassistant, id: gs3_circ, entity_id: "${gs_3_circ}", attribute: percentage }
 
   # Growspace 4: Mother
-  - { platform: homeassistant, id: gs4_vpd, entity_id: "${gs_4_vpd}" }
-  - { platform: homeassistant, id: gs4_temp, entity_id: "${gs_4_temp}" }
-  - { platform: homeassistant, id: gs4_hum, entity_id: "${gs_4_hum}" }
+  - { platform: homeassistant, id: gs4_vpd, entity_id: "${gs_4_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs4_temp, entity_id: "${gs_4_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs4_hum, entity_id: "${gs_4_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs4_vpd_tgt_min, entity_id: "${gs_4_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs4_vpd_tgt_max, entity_id: "${gs_4_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs4_vpd_dng_min, entity_id: "${gs_4_metrics}", attribute: vpd_danger_min }
@@ -923,9 +976,9 @@ sensor:
   - { platform: homeassistant, id: gs4_circ, entity_id: "${gs_4_circ}", attribute: percentage }
 
   # Growspace 5: Dry
-  - { platform: homeassistant, id: gs5_vpd, entity_id: "${gs_5_vpd}" }
-  - { platform: homeassistant, id: gs5_temp, entity_id: "${gs_5_temp}" }
-  - { platform: homeassistant, id: gs5_hum, entity_id: "${gs_5_hum}" }
+  - { platform: homeassistant, id: gs5_vpd, entity_id: "${gs_5_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs5_temp, entity_id: "${gs_5_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs5_hum, entity_id: "${gs_5_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs5_vpd_tgt_min, entity_id: "${gs_5_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs5_vpd_tgt_max, entity_id: "${gs_5_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs5_vpd_dng_min, entity_id: "${gs_5_metrics}", attribute: vpd_danger_min }
@@ -934,9 +987,9 @@ sensor:
   - { platform: homeassistant, id: gs5_circ, entity_id: "${gs_5_circ}", attribute: percentage }
 
   # Growspace 6: Cure
-  - { platform: homeassistant, id: gs6_vpd, entity_id: "${gs_6_vpd}" }
-  - { platform: homeassistant, id: gs6_temp, entity_id: "${gs_6_temp}" }
-  - { platform: homeassistant, id: gs6_hum, entity_id: "${gs_6_hum}" }
+  - { platform: homeassistant, id: gs6_vpd, entity_id: "${gs_6_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs6_temp, entity_id: "${gs_6_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs6_hum, entity_id: "${gs_6_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs6_vpd_tgt_min, entity_id: "${gs_6_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs6_vpd_tgt_max, entity_id: "${gs_6_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs6_vpd_dng_min, entity_id: "${gs_6_metrics}", attribute: vpd_danger_min }
@@ -1001,6 +1054,11 @@ text_sensor:
   - platform: homeassistant
     id: claude_request
     entity_id: input_text.claude_request
+  - platform: homeassistant
+    id: claude_steps
+    entity_id: input_text.claude_steps
+    on_value:
+      - script.execute: update_ai_ui
 
   # Growspace Metrics Bridge + Humidifiers
   - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage }
@@ -1054,10 +1112,16 @@ script:
       tab_idx: int
     then:
       - lambda: |-
+          id(active_tab) = tab_idx;
           lv_obj_t* cards[] = { id(grow_card), id(music_card), id(ai_card) };
           lv_obj_t* btns[]  = { id(nav_grow), id(nav_music), id(nav_ai) };
+          lv_obj_t* icons[] = { id(nav_grow_icon), id(nav_music_icon), nullptr };
+          lv_obj_t* lbls[]  = { id(nav_grow_lbl), id(nav_music_lbl), id(nav_ai_lbl) };
+          const char* opts[] = { "Growspace", "Music", "AI" };
           for (int i = 0; i < 3; i++) {
-            if (i == tab_idx) {
+            const bool active = (i == tab_idx);
+            const uint32_t fg = active ? 0xFFFFFF : 0x8B949E;
+            if (active) {
               lv_obj_clear_flag(cards[i], LV_OBJ_FLAG_HIDDEN);
               lv_obj_set_style_bg_color(btns[i], lv_color_hex(0x1F6FEB), 0);
               lv_obj_set_style_border_color(btns[i], lv_color_hex(0x58A6FF), 0);
@@ -1066,8 +1130,24 @@ script:
               lv_obj_set_style_bg_color(btns[i], lv_color_hex(0x161B22), 0);
               lv_obj_set_style_border_color(btns[i], lv_color_hex(0x30363D), 0);
             }
+            if (icons[i] != nullptr) lv_obj_set_style_text_color(icons[i], lv_color_hex(fg), 0);
+            if (lbls[i] != nullptr) lv_obj_set_style_text_color(lbls[i], lv_color_hex(fg), 0);
+          }
+          if (tab_idx == 1) {
+            // Keep Growspace auto-cycling paused while Music View is active
+            id(cycle_paused) = true;
+            id(pause_timer) = 3600;
+          } else if (tab_idx == 0 && id(pause_timer) > ${pause_timeout}) {
+            id(pause_timer) = ${pause_timeout};
+          }
+          if (tab_idx == 2) {
+            lv_obj_add_flag(id(ai_alert_badge), LV_OBJ_FLAG_HIDDEN);
+          }
+          if (id(display_view).current_option() != opts[tab_idx]) {
+            id(display_view).publish_state(opts[tab_idx]);
           }
           lv_obj_invalidate(lv_scr_act());
+      - script.execute: update_pause_indicator
 
   - id: navigate_space
     then:
@@ -1081,7 +1161,7 @@ script:
           };
           for (int i = 0; i < total; i++) {
             idx = (idx + dir + total) % total;
-            if (phase_s[idx]->has_state() && phase_s[idx]->state != "empty") break;
+            if (phase_s[idx] != nullptr && phase_s[idx]->has_state() && phase_s[idx]->state != "empty") break;
           }
           id(vpd_sensor_index) = idx;
           id(cycle_timer) = ${cycle_interval};
@@ -1148,13 +1228,36 @@ script:
           esphome::text_sensor::TextSensor* fw_s[] = { id(gs0_flower_week), id(gs1_flower_week), id(gs2_flower_week), id(gs3_flower_week), id(gs4_flower_week), id(gs5_flower_week), id(gs6_flower_week) };
           esphome::text_sensor::TextSensor* vw_s[] = { id(gs0_veg_week), id(gs1_veg_week), id(gs2_veg_week), id(gs3_veg_week), id(gs4_veg_week), id(gs5_veg_week), id(gs6_veg_week) };
 
-          float vpd = (vpd_s[idx] != nullptr && vpd_s[idx]->has_state()) ? vpd_s[idx]->state : 0.0f;
-          float temp = (temp_s[idx] != nullptr && temp_s[idx]->has_state()) ? temp_s[idx]->state : 0.0f;
-          float hum = (hum_s[idx] != nullptr && hum_s[idx]->has_state()) ? hum_s[idx]->state : 0.0f;
-          float tgt_min = (tgt_min_s[idx] != nullptr && tgt_min_s[idx]->has_state()) ? tgt_min_s[idx]->state : 0.8f;
-          float tgt_max = (tgt_max_s[idx] != nullptr && tgt_max_s[idx]->has_state()) ? tgt_max_s[idx]->state : 1.2f;
-          float dng_min = (dng_min_s[idx] != nullptr && dng_min_s[idx]->has_state()) ? dng_min_s[idx]->state : 0.4f;
-          float dng_max = (dng_max_s[idx] != nullptr && dng_max_s[idx]->has_state()) ? dng_max_s[idx]->state : 1.6f;
+          auto is_valid = [](esphome::sensor::Sensor* s) -> bool {
+            return s != nullptr && s->has_state() && std::isfinite(s->state);
+          };
+
+          auto resolve_vpd = [&](int space_idx, float& out_vpd) -> bool {
+            if (is_valid(vpd_s[space_idx])) {
+              out_vpd = vpd_s[space_idx]->state;
+              return true;
+            }
+            if (is_valid(temp_s[space_idx]) && is_valid(hum_s[space_idx])) {
+              float t = temp_s[space_idx]->state;
+              float rh = hum_s[space_idx]->state;
+              float svp = 0.61078f * expf((17.27f * t) / (t + 237.3f));
+              float calc = svp * (1.0f - rh / 100.0f);
+              out_vpd = calc < 0.0f ? 0.0f : calc;
+              return true;
+            }
+            return false;
+          };
+
+          float vpd = 0.0f;
+          bool has_vpd = resolve_vpd(idx, vpd);
+          bool has_temp = is_valid(temp_s[idx]);
+          bool has_hum = is_valid(hum_s[idx]);
+          float temp = has_temp ? temp_s[idx]->state : 0.0f;
+          float hum = has_hum ? hum_s[idx]->state : 0.0f;
+          float tgt_min = is_valid(tgt_min_s[idx]) ? tgt_min_s[idx]->state : 0.8f;
+          float tgt_max = is_valid(tgt_max_s[idx]) ? tgt_max_s[idx]->state : 1.2f;
+          float dng_min = is_valid(dng_min_s[idx]) ? dng_min_s[idx]->state : 0.4f;
+          float dng_max = is_valid(dng_max_s[idx]) ? dng_max_s[idx]->state : 1.6f;
 
           // Grow Stage badge
           std::string phase = (phase_s[idx] != nullptr && phase_s[idx]->has_state()) ? phase_s[idx]->state : "unknown";
@@ -1197,15 +1300,21 @@ script:
 
           // VPD Value & Status Color
           char buf[48];
-          snprintf(buf, sizeof(buf), "%.2f kPa", vpd);
-          lv_label_set_text(id(gs_vpd_val), buf);
+          if (has_vpd) {
+            snprintf(buf, sizeof(buf), "%.2f kPa", vpd);
+            lv_label_set_text(id(gs_vpd_val), buf);
+          } else {
+            lv_label_set_text(id(gs_vpd_val), "-- kPa");
+          }
 
           snprintf(buf, sizeof(buf), "Target\n%.1f - %.1f", tgt_min, tgt_max);
           lv_label_set_text(id(gs_vpd_range), buf);
 
           uint32_t sc;
           const char* si;
-          if (vpd >= tgt_min && vpd <= tgt_max) {
+          if (!has_vpd) {
+            sc = 0x6E7681; si = "\U000F012C";
+          } else if (vpd >= tgt_min && vpd <= tgt_max) {
             sc = 0x4CAF50; si = "\U000F012C";
           } else if (vpd >= dng_min && vpd <= dng_max) {
             sc = 0xFFC107; si = "\U000F0029";
@@ -1217,7 +1326,7 @@ script:
 
           // VPD Gauge Bar (366 px width)
           float gw = 366.0f, gmin = ${vpd_gauge_min}f, gmax = ${vpd_gauge_max}f, gr = gmax - gmin;
-          float mp = (vpd - gmin) / gr;
+          float mp = has_vpd ? (vpd - gmin) / gr : 0.0f;
           if (mp < 0) mp = 0; if (mp > 1) mp = 1;
           lv_obj_set_x(id(gs_gauge_marker), (int)(mp * gw) - 4);
           lv_obj_set_style_bg_color(id(gs_gauge_marker), lv_color_hex(sc), 0);
@@ -1230,17 +1339,25 @@ script:
           lv_obj_set_width(id(gs_gauge_zone), zw);
 
           // Temp & Humidity
-          snprintf(buf, sizeof(buf), "%.1f °C", temp);
-          lv_label_set_text(id(gs_temp_val), buf);
-          snprintf(buf, sizeof(buf), "%.0f %%", hum);
-          lv_label_set_text(id(gs_hum_val), buf);
+          if (has_temp) {
+            snprintf(buf, sizeof(buf), "%.1f °C", temp);
+            lv_label_set_text(id(gs_temp_val), buf);
+          } else {
+            lv_label_set_text(id(gs_temp_val), "--.- °C");
+          }
+          if (has_hum) {
+            snprintf(buf, sizeof(buf), "%.0f %%", hum);
+            lv_label_set_text(id(gs_hum_val), buf);
+          } else {
+            lv_label_set_text(id(gs_hum_val), "-- %");
+          }
 
           // Equipment readouts (nullptr-safe)
           if (exh_s[idx] == nullptr) {
             lv_label_set_text(id(gs_exh_lbl), "Exh: --");
             lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(0x6E7681), 0);
           } else {
-            float exh_v = exh_s[idx]->has_state() ? exh_s[idx]->state : 0;
+            float exh_v = is_valid(exh_s[idx]) ? exh_s[idx]->state : 0;
             snprintf(buf, sizeof(buf), exh_v > 0 ? "Exh: %.0f%%" : "Exh: Off", exh_v);
             lv_label_set_text(id(gs_exh_lbl), buf);
             lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(exh_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
@@ -1250,7 +1367,7 @@ script:
             lv_label_set_text(id(gs_circ_lbl), "Circ: --");
             lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(0x6E7681), 0);
           } else {
-            float circ_v = circ_s[idx]->has_state() ? circ_s[idx]->state : 0;
+            float circ_v = is_valid(circ_s[idx]) ? circ_s[idx]->state : 0;
             snprintf(buf, sizeof(buf), circ_v > 0 ? "Circ: %.0f%%" : "Circ: Off", circ_v);
             lv_label_set_text(id(gs_circ_lbl), buf);
             lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(circ_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
@@ -1268,10 +1385,11 @@ script:
           // Global Danger Alert across all 7 growspaces
           bool global_danger = false;
           for (int i = 0; i < MAX_SPACES; i++) {
-            if (phase_s[i]->has_state() && phase_s[i]->state != "empty") {
-              float v = vpd_s[i]->has_state() ? vpd_s[i]->state : 0.0f;
-              float d_min = dng_min_s[i]->has_state() ? dng_min_s[i]->state : 0.4f;
-              float d_max = dng_max_s[i]->has_state() ? dng_max_s[i]->state : 1.6f;
+            if (phase_s[i] != nullptr && phase_s[i]->has_state() && phase_s[i]->state != "empty") {
+              float v = 0.0f;
+              if (!resolve_vpd(i, v)) continue;
+              float d_min = is_valid(dng_min_s[i]) ? dng_min_s[i]->state : 0.4f;
+              float d_max = is_valid(dng_max_s[i]) ? dng_max_s[i]->state : 1.6f;
               if (v < d_min || v > d_max) {
                 global_danger = true;
                 break;

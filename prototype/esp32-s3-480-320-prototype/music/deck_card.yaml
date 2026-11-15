@@ -1,0 +1,455 @@
+# Variant A, "Deck": Tactile Hi-Fi Vinyl Turntable on the top-left, transport & volume console below/right.
+# Content box is 366 x 242 (390 x 266 card, 2 px border, 10 px padding).
+id: music_card
+width: 390
+height: 266
+align: TOP_RIGHT
+x: -6
+y: 48
+styles: card_style
+hidden: true
+scrollbar_mode: "off"
+widgets:
+  # ── Top-Left Turntable Stage (134 x 136) ─────────────────────────────────
+  - obj:
+      id: ma_deck_stage
+      width: 134
+      height: 136
+      align: TOP_LEFT
+      x: 0
+      y: 0
+      bg_color: 0x0D1117
+      bg_opa: COVER
+      border_color: 0x21262D
+      border_width: 1
+      radius: 10
+      pad_all: 0
+      scrollbar_mode: "off"
+      widgets:
+        # Outer vinyl platter (100 x 100)
+        - obj:
+            id: ma_vinyl_platter
+            width: 100
+            height: 100
+            align: TOP_MID
+            x: 0
+            y: 6
+            bg_color: 0x161B22
+            bg_opa: COVER
+            border_color: 0x30363D
+            border_width: 2
+            radius: 50
+            pad_all: 0
+            scrollbar_mode: "off"
+            widgets:
+              # Groove rings
+              - obj:
+                  width: 76
+                  height: 76
+                  align: CENTER
+                  bg_opa: TRANSP
+                  border_color: 0x262C36
+                  border_width: 1
+                  radius: 38
+                  pad_all: 0
+              - obj:
+                  width: 52
+                  height: 52
+                  align: CENTER
+                  bg_opa: TRANSP
+                  border_color: 0x262C36
+                  border_width: 1
+                  radius: 26
+                  pad_all: 0
+              # Center record label
+              - obj:
+                  id: ma_vinyl_label
+                  width: 34
+                  height: 34
+                  align: CENTER
+                  bg_color: 0x30363D
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 17
+                  pad_all: 0
+                  widgets:
+                    - obj:
+                        width: 10
+                        height: 10
+                        align: CENTER
+                        bg_color: 0x0D1117
+                        bg_opa: COVER
+                        border_width: 0
+                        radius: 5
+              # Orbiting strobe/groove dot (moved at 10 Hz by music_tick)
+              - obj:
+                  id: ma_vinyl_dot
+                  width: 8
+                  height: 8
+                  align: TOP_LEFT
+                  x: 80
+                  y: 44
+                  bg_color: 0x6E7681
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 4
+
+        # Tonearm pivot + indicator bar
+        - obj:
+            width: 10
+            height: 10
+            align: TOP_RIGHT
+            x: -6
+            y: 8
+            bg_color: 0x30363D
+            bg_opa: COVER
+            border_width: 0
+            radius: 5
+        - obj:
+            id: ma_tonearm
+            width: 4
+            height: 38
+            align: TOP_RIGHT
+            x: -9
+            y: 14
+            bg_color: 0x6E7681
+            bg_opa: COVER
+            border_width: 0
+            radius: 2
+
+        # Active Music Assistant player chip
+        - obj:
+            width: 122
+            height: 18
+            align: BOTTOM_MID
+            x: 0
+            y: -5
+            bg_color: 0x161B22
+            bg_opa: COVER
+            border_color: 0x21262D
+            border_width: 1
+            radius: 5
+            pad_left: 5
+            pad_right: 5
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: ma_player_lbl
+                  text: "Music Assistant"
+                  text_font: font_12
+                  text_color: 0x8B949E
+                  align: CENTER
+                  width: 110
+                  text_align: CENTER
+                  long_mode: DOT
+
+  # ── Top-Right Track & Progress (x: 146..366, width: 220) ─────────────────
+  - obj:
+      id: ma_state_pill
+      align: TOP_LEFT
+      x: 146
+      y: 2
+      width: 68
+      height: 18
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_width: 0
+      radius: 5
+      pad_all: 0
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: ma_state_lbl
+            text: "IDLE"
+            text_font: font_12
+            text_color: 0x8B949E
+            align: CENTER
+
+  - label:
+      id: ma_album_lbl
+      text: ""
+      text_font: font_12
+      text_color: 0x6E7681
+      align: TOP_LEFT
+      x: 220
+      y: 4
+      width: 146
+      long_mode: DOT
+
+  - label:
+      id: ma_title_lbl
+      text: "Nothing Playing"
+      text_font: font_20
+      text_color: 0xF0F6FC
+      align: TOP_LEFT
+      x: 146
+      y: 26
+      width: 220
+      height: 24
+      long_mode: SCROLL_CIRCULAR
+
+  - label:
+      id: ma_artist_lbl
+      text: "Music Assistant"
+      text_font: font_14
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 146
+      y: 54
+      width: 220
+      height: 18
+      long_mode: DOT
+
+  # Progress Bar & Timecodes
+  - label:
+      id: ma_pos_lbl
+      text: "0:00"
+      text_font: font_12
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 146
+      y: 88
+
+  - label:
+      id: ma_dur_lbl
+      text: "0:00"
+      text_font: font_12
+      text_color: 0x6E7681
+      align: TOP_RIGHT
+      x: 0
+      y: 88
+      width: 48
+      text_align: RIGHT
+
+  - bar:
+      id: ma_prog_bar
+      width: 220
+      height: 6
+      align: TOP_LEFT
+      x: 146
+      y: 108
+      min_value: 0
+      max_value: 1000
+      value: 0
+      bg_color: 0x21262D
+      bg_opa: COVER
+      radius: 3
+      indicator:
+        bg_color: 0xFF6B4A
+        bg_opa: COVER
+        radius: 3
+
+  # ── Transport Dock (y: 146..190) ─────────────────────────────────────────
+  - button:
+      id: btn_ma_shuffle
+      width: 52
+      height: 44
+      align: TOP_LEFT
+      x: 0
+      y: 146
+      bg_color: 0x21262D
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            id: lbl_ma_shuffle
+            text: "\U000F049D"
+            text_font: ma_icons_20
+            text_color: 0x6E7681
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - script.execute: ma_action_shuffle
+
+  - button:
+      id: btn_ma_prev
+      width: 62
+      height: 44
+      align: TOP_LEFT
+      x: 60
+      y: 146
+      bg_color: 0x21262D
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "\U000F04AE"
+            text_font: ma_icons_24
+            text_color: 0xF0F6FC
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - script.execute: ma_action_prev
+
+  - button:
+      id: btn_ma_play
+      width: 106
+      height: 44
+      align: TOP_LEFT
+      x: 130
+      y: 146
+      bg_color: 0xFF6B4A
+      border_color: 0xFF8A70
+      border_width: 1
+      radius: 10
+      widgets:
+        - label:
+            id: lbl_ma_play
+            text: "\U000F040A"
+            text_font: ma_icons_24
+            text_color: 0x0A0C10
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - script.execute: ma_action_play_pause
+
+  - button:
+      id: btn_ma_next
+      width: 62
+      height: 44
+      align: TOP_LEFT
+      x: 244
+      y: 146
+      bg_color: 0x21262D
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "\U000F04AD"
+            text_font: ma_icons_24
+            text_color: 0xF0F6FC
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - script.execute: ma_action_next
+
+  - button:
+      id: btn_ma_repeat
+      width: 52
+      height: 44
+      align: TOP_LEFT
+      x: 314
+      y: 146
+      bg_color: 0x21262D
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            id: lbl_ma_repeat
+            text: "\U000F0456"
+            text_font: ma_icons_20
+            text_color: 0x6E7681
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - script.execute: ma_action_repeat
+
+  # ── Bottom Volume Cluster (y: 198..242) ──────────────────────────────────
+  - button:
+      id: btn_ma_vol_down
+      width: 112
+      height: 44
+      align: TOP_LEFT
+      x: 0
+      y: 198
+      bg_color: 0x161B22
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "\U000F075E"
+            text_font: ma_icons_20
+            text_color: 0xC9D1D9
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - script.execute: ma_action_vol_down
+
+  - button:
+      id: btn_ma_mute
+      width: 126
+      height: 44
+      align: TOP_LEFT
+      x: 120
+      y: 198
+      bg_color: 0x161B22
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      pad_all: 0
+      widgets:
+        - label:
+            id: lbl_ma_mute_icon
+            text: "\U000F057E"
+            text_font: ma_icons_20
+            text_color: 0xC9D1D9
+            align: TOP_MID
+            y: 3
+        - label:
+            id: ma_vol_lbl
+            text: "50%"
+            text_font: font_12
+            text_color: 0x8B949E
+            align: BOTTOM_MID
+            y: -3
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - script.execute: ma_action_mute
+
+  - button:
+      id: btn_ma_vol_up
+      width: 112
+      height: 44
+      align: TOP_LEFT
+      x: 254
+      y: 198
+      bg_color: 0x161B22
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "\U000F075D"
+            text_font: ma_icons_20
+            text_color: 0xC9D1D9
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - script.execute: ma_action_vol_up

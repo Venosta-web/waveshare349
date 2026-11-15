@@ -1,0 +1,109 @@
+# Variant A, "Deck" — state rendering & 10 Hz vinyl strobe animation for music/deck_card.yaml.
+# Pulled in by infoscreen.yaml as packages: music: !include music/${music_variant}.yaml
+
+script:
+  - id: update_music_ui
+    mode: queued
+    then:
+      - lambda: |-
+          auto clean_str = [](const std::string &s, const char *fallback) -> std::string {
+            if (s.empty() || s == "unknown" || s == "unavailable" || s == "None" || s == "null") {
+              return fallback;
+            }
+            return s;
+          };
+
+          std::string st = id(ma_state)->has_state() ? id(ma_state)->state : "idle";
+          bool playing = (st == "playing");
+          bool paused  = (st == "paused");
+          id(ma_is_playing) = playing;
+
+          // Sync shuffle/repeat/mute from HA when available
+          if (id(ma_shuffle)->has_state()) {
+            const std::string &sh = id(ma_shuffle)->state;
+            if (sh == "true" || sh == "True" || sh == "on") id(ma_shuffle_on) = true;
+            else if (sh == "false" || sh == "False" || sh == "off") id(ma_shuffle_on) = false;
+          }
+          if (id(ma_repeat)->has_state()) {
+            const std::string &rp = id(ma_repeat)->state;
+            if (rp == "all") id(ma_repeat_mode) = 1;
+            else if (rp == "one") id(ma_repeat_mode) = 2;
+            else if (rp == "off") id(ma_repeat_mode) = 0;
+          }
+          if (id(ma_is_muted)->has_state()) {
+            const std::string &mt = id(ma_is_muted)->state;
+            if (mt == "true" || mt == "True" || mt == "on") id(ma_muted) = true;
+            else if (mt == "false" || mt == "False" || mt == "off") id(ma_muted) = false;
+          }
+
+          // State pill & vinyl label accent
+          uint32_t accent = playing ? 0xFF6B4A : (paused ? 0xD29922 : 0x6E7681);
+          const char *st_word = playing ? "PLAYING" : (paused ? "PAUSED" : "IDLE");
+          lv_label_set_text(id(ma_state_lbl), st_word);
+          lv_obj_set_style_text_color(id(ma_state_lbl), lv_color_hex(playing ? 0x0A0C10 : (paused ? 0x0A0C10 : 0x8B949E)), 0);
+          lv_obj_set_style_bg_color(id(ma_state_pill), lv_color_hex(playing ? 0xFF6B4A : (paused ? 0xD29922 : 0x21262D)), 0);
+
+          lv_obj_set_style_bg_color(id(ma_vinyl_label), lv_color_hex(playing ? 0xFF6B4A : (paused ? 0xD29922 : 0x30363D)), 0);
+          lv_obj_set_style_bg_color(id(ma_vinyl_dot), lv_color_hex(playing ? 0xF0F6FC : 0x6E7681), 0);
+          lv_obj_set_style_bg_color(id(ma_tonearm), lv_color_hex(playing ? 0xFF6B4A : (paused ? 0xD29922 : 0x6E7681)), 0);
+          lv_obj_set_x(id(ma_tonearm), playing ? -18 : (paused ? -13 : -9));
+
+          // Track metadata
+          std::string title  = clean_str(id(ma_title)->has_state() ? id(ma_title)->state : "", "Nothing Playing");
+          std::string artist = clean_str(id(ma_artist)->has_state() ? id(ma_artist)->state : "", "Music Assistant");
+          std::string album  = clean_str(id(ma_album)->has_state() ? id(ma_album)->state : "", "");
+          std::string player = clean_str(id(ma_friendly_name)->has_state() ? id(ma_friendly_name)->state : "", "Music Assistant");
+
+          lv_label_set_text(id(ma_title_lbl), title.c_str());
+          lv_label_set_text(id(ma_artist_lbl), artist.c_str());
+          lv_label_set_text(id(ma_album_lbl), album.c_str());
+          lv_label_set_text(id(ma_player_lbl), player.c_str());
+
+          // Hero Play/Pause button
+          lv_label_set_text(id(lbl_ma_play), playing ? "\U000F03E4" : "\U000F040A");
+          lv_obj_set_style_bg_color(id(btn_ma_play), lv_color_hex(playing ? 0xFF6B4A : 0x238636), 0);
+          lv_obj_set_style_border_color(id(btn_ma_play), lv_color_hex(playing ? 0xFF8A70 : 0x2EA043), 0);
+          lv_obj_set_style_text_color(id(lbl_ma_play), lv_color_hex(playing ? 0x0A0C10 : 0xFFFFFF), 0);
+
+          // Shuffle & Repeat
+          bool shuf = id(ma_shuffle_on);
+          lv_obj_set_style_text_color(id(lbl_ma_shuffle), lv_color_hex(shuf ? 0xFF6B4A : 0x6E7681), 0);
+          lv_obj_set_style_border_color(id(btn_ma_shuffle), lv_color_hex(shuf ? 0xFF6B4A : 0x30363D), 0);
+
+          int rep = id(ma_repeat_mode);
+          lv_label_set_text(id(lbl_ma_repeat), rep == 2 ? "\U000F0458" : "\U000F0456");
+          lv_obj_set_style_text_color(id(lbl_ma_repeat), lv_color_hex(rep > 0 ? 0xFF6B4A : 0x6E7681), 0);
+          lv_obj_set_style_border_color(id(btn_ma_repeat), lv_color_hex(rep > 0 ? 0xFF6B4A : 0x30363D), 0);
+
+          // Volume & Mute
+          bool muted = id(ma_muted);
+          int vol = id(ma_vol_pct);
+          lv_label_set_text(id(lbl_ma_mute_icon), muted ? "\U000F0581" : (vol > 50 ? "\U000F057E" : "\U000F0580"));
+          lv_obj_set_style_text_color(id(lbl_ma_mute_icon), lv_color_hex(muted ? 0xF85149 : 0xC9D1D9), 0);
+          lv_obj_set_style_border_color(id(btn_ma_mute), lv_color_hex(muted ? 0xF85149 : 0x30363D), 0);
+          char vbuf[8];
+          snprintf(vbuf, sizeof(vbuf), muted ? "MUTE" : "%d%%", vol);
+          lv_label_set_text(id(ma_vol_lbl), vbuf);
+          lv_obj_set_style_text_color(id(ma_vol_lbl), lv_color_hex(muted ? 0xF85149 : 0x8B949E), 0);
+
+          (void)accent;
+      - script.execute: update_music_progress
+
+  - id: music_tick
+    then:
+      - lambda: |-
+          if (lv_obj_has_flag(id(music_card), LV_OBJ_FLAG_HIDDEN)) return;
+          if (!id(ma_is_playing)) return;
+
+          static int step = 0;
+          step = (step + 1) % 36;
+          // Orbit around platter center (50, 50) at radius 36; dot is 8x8 so offset by 4.
+          float angle = step * (2.0f * 3.14159265f / 36.0f);
+          int dx = (int)(46.0f + 36.0f * cosf(angle));
+          int dy = (int)(46.0f + 36.0f * sinf(angle));
+          lv_obj_set_pos(id(ma_vinyl_dot), dx, dy);
+
+interval:
+  - interval: 100ms
+    then:
+      - script.execute: music_tick
