@@ -149,11 +149,12 @@ script:
           lv_obj_set_height(id(lbl_agent_detail), clawd::g_project.empty() ? 82 : 66);
           id(claude_tick).execute();
 
-  # One animation frame. Runs at 10 Hz, and only draws while the AI tab is up.
+  # One animation frame. Runs at 10 Hz; nav icon always updates, card only while AI tab is up.
   - id: claude_tick
     then:
       - lambda: |-
           using namespace clawd;
+          tick_nav(id(nav_clawd_box));
           static Puppet p;
           if (p.root == nullptr) build(p, id(clawd_box), 7);
           if (lv_obj_has_flag(id(ai_card), LV_OBJ_FLAG_HIDDEN)) return;

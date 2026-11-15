@@ -88,7 +88,9 @@ font:
       - "\U000F040A" # play
       - "\U000F04AE" # skip-next
       - "\U000F04AD" # skip-previous
-      - "\U000F075A" # music-note
+      - "\U000F075A" # music
+      - "\U000F0387" # music-note
+      - "\U000F0E66" # sprout
 
   - file: "fonts/materialdesignicons-webfont.ttf"
     id: icons_24
@@ -191,8 +193,9 @@ lvgl:
             styles: nav_btn_active
             widgets:
               - label:
-                  text: "GROW"
-                  text_font: font_12
+                  id: nav_grow_icon
+                  text: "\U000F0E66"
+                  text_font: icons_20
                   text_color: 0xFFFFFF
                   align: CENTER
             on_press:
@@ -211,8 +214,9 @@ lvgl:
             styles: nav_btn
             widgets:
               - label:
-                  text: "MUSIC"
-                  text_font: font_12
+                  id: nav_music_icon
+                  text: "\U000F0387"
+                  text_font: icons_20
                   text_color: 0x8B949E
                   align: CENTER
             on_press:
@@ -230,11 +234,17 @@ lvgl:
             y: 86
             styles: nav_btn
             widgets:
-              - label:
-                  text: "AI"
-                  text_font: font_12
-                  text_color: 0x8B949E
+              - obj:
+                  id: nav_clawd_box
+                  width: 28
+                  height: 22
                   align: CENTER
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  clickable: false
+                  scrollbar_mode: "off"
               - obj:
                   id: ai_alert_badge
                   width: 10
@@ -706,9 +716,12 @@ script:
           id(active_tab) = tab_idx;
           lv_obj_t* cards[] = { id(grow_card), id(music_card), id(ai_card) };
           lv_obj_t* btns[]  = { id(nav_grow), id(nav_music), id(nav_ai) };
+          lv_obj_t* icons[] = { id(nav_grow_icon), id(nav_music_icon), nullptr };
           const char* opts[] = { "Growspace", "Music", "AI" };
           for (int i = 0; i < 3; i++) {
-            if (i == tab_idx) {
+            const bool active = (i == tab_idx);
+            const uint32_t fg = active ? 0xFFFFFF : 0x8B949E;
+            if (active) {
               lv_obj_clear_flag(cards[i], LV_OBJ_FLAG_HIDDEN);
               lv_obj_set_style_bg_color(btns[i], lv_color_hex(0x1F6FEB), 0);
               lv_obj_set_style_border_color(btns[i], lv_color_hex(0x58A6FF), 0);
@@ -717,6 +730,7 @@ script:
               lv_obj_set_style_bg_color(btns[i], lv_color_hex(0x161B22), 0);
               lv_obj_set_style_border_color(btns[i], lv_color_hex(0x30363D), 0);
             }
+            if (icons[i] != nullptr) lv_obj_set_style_text_color(icons[i], lv_color_hex(fg), 0);
           }
           if (tab_idx == 1) {
             // Keep Growspace auto-cycling paused while Music View is active
