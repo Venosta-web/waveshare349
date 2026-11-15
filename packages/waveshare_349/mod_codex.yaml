@@ -65,6 +65,9 @@ text_sensor:
     id: codex_status
     entity_id: input_text.codex_status
     on_value:
+      - lambda: |-
+          auto chime = ai_sounds::codex_tracker().on_status<codex_pet::Mode>(x, codex_pet::parse_status, true);
+          ai_sounds::maybe_play(id(spk_i2s), chime, id(ai_sound_enabled).state, id(ai_sound_volume).state, id(voice_active));
       - script.execute: update_codex_ui
       - if:
           condition:

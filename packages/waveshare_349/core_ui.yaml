@@ -20,6 +20,9 @@ globals:
   - id: voice_muted
     type: bool
     initial_value: "false"
+  - id: voice_active
+    type: bool
+    initial_value: "false"
 
 esphome:
   on_boot:

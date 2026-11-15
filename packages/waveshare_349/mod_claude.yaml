@@ -70,6 +70,9 @@ text_sensor:
     id: claude_status
     entity_id: input_text.claude_status
     on_value:
+      - lambda: |-
+          auto chime = ai_sounds::claude_tracker().on_status<clawd::Mode>(x, clawd::parse_status, false);
+          ai_sounds::maybe_play(id(spk_i2s), chime, id(ai_sound_enabled).state, id(ai_sound_volume).state, id(voice_active));
       - script.execute: update_ai_ui
       - if:
           condition:
