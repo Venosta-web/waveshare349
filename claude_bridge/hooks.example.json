@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PermissionRequest": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "/usr/bin/python3 /home/maxi/dev/EspHome/Waveshare349/claude_bridge/claude_ha_bridge.py hook", "timeout": 120 } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "/usr/bin/python3 /home/maxi/dev/EspHome/Waveshare349/claude_bridge/claude_ha_bridge.py hook", "timeout": 10 } ] }
+    ],
+    "Notification": [
+      { "matcher": "idle_prompt", "hooks": [ { "type": "command", "command": "/usr/bin/python3 /home/maxi/dev/EspHome/Waveshare349/claude_bridge/claude_ha_bridge.py hook", "timeout": 10 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "/usr/bin/python3 /home/maxi/dev/EspHome/Waveshare349/claude_bridge/claude_ha_bridge.py hook", "timeout": 10 } ] }
+    ]
+  }
+}
