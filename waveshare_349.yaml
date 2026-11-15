@@ -94,6 +94,10 @@ substitutions:
   claude_variant: "stage"
   claude_decision_timeout: "110"
 
+  # Codex card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  codex_variant: "stage"
+  codex_decision_timeout: "110"
+
   # VPD gauge scale
   vpd_gauge_min: "0.4"
   vpd_gauge_max: "1.8"
@@ -104,6 +108,7 @@ esphome:
   min_version: 2025.11.0
   includes:
     - claude/clawd.h
+    - codex/codex_pet.h
   on_boot:
     priority: -100
     then:
@@ -128,6 +133,7 @@ psram:
 packages:
   ui: !include packages/display_ui.yaml
   claude: !include claude/${claude_variant}.yaml
+  codex: !include codex/${codex_variant}.yaml
   music_common: !include music/common.yaml
   music: !include music/${music_variant}.yaml
 

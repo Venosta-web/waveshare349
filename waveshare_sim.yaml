@@ -87,6 +87,10 @@ substitutions:
   # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
   claude_decision_timeout: "110"
 
+  # Codex card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  codex_variant: "terminal"
+  codex_decision_timeout: "110"
+
   # Music Assistant card: "deck" (vinyl turntable) or "studio" (EQ + meter console)
   music_variant: "studio"
   music_player_entity: "media_player.music_assistant_player"
@@ -100,6 +104,7 @@ esphome:
   friendly_name: ${friendly_name}
   includes:
     - claude/clawd.h
+    - codex/codex_pet.h
   on_boot:
     priority: -100
     then:
@@ -110,6 +115,7 @@ esphome:
 packages:
   ui: !include packages/display_ui.yaml
   claude: !include claude/${claude_variant}.yaml
+  codex: !include codex/${codex_variant}.yaml
   music_common: !include music/common.yaml
   music: !include music/${music_variant}.yaml
 

@@ -11,7 +11,7 @@
 #   3. TTS: Wyoming Protocol -> piper (e.g., en_US-lessac-medium)
 #
 # Expose these ESPHome entities to Assist:
-#   - select.waveshare_349_voice_display_view   (Options: Growspace, Music, AI)
+#   - select.waveshare_349_voice_display_view   (Options: Growspace, Music, AI, Codex)
 #   - media_player.music_assistant_player       (or your configured media_player)
 #   - script.open_music_view_and_play
 #   - script.switch_display_view
@@ -19,10 +19,10 @@
 script:
   switch_display_view:
     alias: "Switch ESP32 Display View"
-    description: "Switch the Waveshare 3.49 screen to Growspace, Music, or AI view."
+    description: "Switch the Waveshare 3.49 screen to Growspace, Music, AI, or Codex view."
     fields:
       view:
-        description: "Target view: Growspace, Music, or AI"
+        description: "Target view: Growspace, Music, AI, or Codex"
         required: true
         selector:
           select:
@@ -30,6 +30,7 @@ script:
               - Growspace
               - Music
               - AI
+              - Codex
     sequence:
       - service: select.select_option
         target:

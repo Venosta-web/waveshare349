@@ -115,6 +115,7 @@ select:
       - "Growspace"
       - "Music"
       - "AI"
+      - "Codex"
     initial_option: "Growspace"
     optimistic: true
     set_action:
@@ -122,6 +123,7 @@ select:
           int target = 0;
           if (x == "Music") target = 1;
           else if (x == "AI") target = 2;
+          else if (x == "Codex") target = 3;
           id(switch_tab).execute(target);
 
 # ============================================================================
@@ -273,6 +275,41 @@ lvgl:
                       - script.execute:
                           id: switch_tab
                           tab_idx: 2
+
+              - button:
+                  id: nav_codex
+                  width: 64
+                  height: 50
+                  styles: nav_btn
+                  widgets:
+                    - obj:
+                        id: nav_codex_box
+                        width: 28
+                        height: 22
+                        align: CENTER
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        radius: 0
+                        clickable: false
+                        scrollbar_mode: "off"
+                    - obj:
+                        id: codex_alert_badge
+                        width: 10
+                        height: 10
+                        align: TOP_RIGHT
+                        x: -4
+                        y: 4
+                        radius: 5
+                        bg_color: 0xFF5252
+                        bg_opa: COVER
+                        border_width: 0
+                        hidden: true
+                  on_click:
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 3
 
               - button:
                   id: nav_mic
@@ -531,6 +568,10 @@ lvgl:
         # Widgets live in claude/<variant>_card.yaml, logic in claude/<variant>.yaml.
         - obj: !include ../claude/${claude_variant}_card.yaml
 
+        # ── CARD 4: CODEX (Hidden initially) ───────────────────────────────
+        # Widgets live in codex/<variant>_card.yaml, logic in codex/<variant>.yaml.
+        - obj: !include ../codex/${codex_variant}_card.yaml
+
         # ── GLOBAL VOICE OVERLAY (Shown while Voice Satellite is active) ───
         - obj:
             id: voice_overlay
@@ -670,6 +711,26 @@ text_sensor:
     on_value:
       - script.execute: update_ai_ui
 
+  # Codex bridge
+  - platform: homeassistant
+    id: codex_status
+    entity_id: input_text.codex_status
+    on_value:
+      - script.execute: update_codex_ui
+  - platform: homeassistant
+    id: codex_detail
+    entity_id: input_text.codex_detail
+    on_value:
+      - script.execute: update_codex_ui
+  - platform: homeassistant
+    id: codex_request
+    entity_id: input_text.codex_request
+  - platform: homeassistant
+    id: codex_steps
+    entity_id: input_text.codex_steps
+    on_value:
+      - script.execute: update_codex_ui
+
   - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage }
   - { platform: homeassistant, id: gs0_is_day, entity_id: "${gs_0_metrics}", attribute: is_day }
   - { platform: homeassistant, id: gs0_flower_week, entity_id: "${gs_0_metrics}", attribute: flower_week }
@@ -722,11 +783,11 @@ script:
     then:
       - lambda: |-
           id(active_tab) = tab_idx;
-          lv_obj_t* cards[] = { id(grow_card), id(music_card), id(ai_card) };
-          lv_obj_t* btns[]  = { id(nav_grow), id(nav_music), id(nav_ai) };
-          lv_obj_t* icons[] = { id(nav_grow_icon), id(nav_music_icon), nullptr };
-          const char* opts[] = { "Growspace", "Music", "AI" };
-          for (int i = 0; i < 3; i++) {
+          lv_obj_t* cards[] = { id(grow_card), id(music_card), id(ai_card), id(codex_card) };
+          lv_obj_t* btns[]  = { id(nav_grow), id(nav_music), id(nav_ai), id(nav_codex) };
+          lv_obj_t* icons[] = { id(nav_grow_icon), id(nav_music_icon), nullptr, nullptr };
+          const char* opts[] = { "Growspace", "Music", "AI", "Codex" };
+          for (int i = 0; i < 4; i++) {
             const bool active = (i == tab_idx);
             const uint32_t fg = active ? 0xFFFFFF : 0x8B949E;
             if (active) {
@@ -740,7 +801,7 @@ script:
             }
             if (icons[i] != nullptr) lv_obj_set_style_text_color(icons[i], lv_color_hex(fg), 0);
           }
-          if (tab_idx >= 0 && tab_idx < 3) {
+          if (tab_idx >= 0 && tab_idx < 4) {
             lv_obj_scroll_to_view(btns[tab_idx], LV_ANIM_ON);
           }
           if (tab_idx == 1) {
@@ -752,6 +813,8 @@ script:
           }
           if (tab_idx == 2) {
             lv_obj_add_flag(id(ai_alert_badge), LV_OBJ_FLAG_HIDDEN);
+          } else if (tab_idx == 3) {
+            lv_obj_add_flag(id(codex_alert_badge), LV_OBJ_FLAG_HIDDEN);
           }
           if (id(display_view).current_option() != opts[tab_idx]) {
             id(display_view).publish_state(opts[tab_idx]);
