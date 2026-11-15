@@ -3,24 +3,80 @@ substitutions:
   friendly_name: "Waveshare 3.49 SDL Simulator"
 
   # ══════════════════════════════════════════════════════════════════════════
-  # GROWSPACE CONFIGURATION (Live Home Assistant Entities)
+  # GROWSPACE CONFIGURATION (Direct HA Entities + Metrics Bridge Templates)
+  # See ha_metrics_bridge.yaml and docs/adr/0001-hybrid-ha-metrics-bridge.md
   # ══════════════════════════════════════════════════════════════════════════
   gs_count: "7"
 
-  gs_0_entity: "sensor.4x4"
+  # Space 0: 4x4
   gs_0_name: "4x4"
-  gs_1_entity: "sensor.sog_2x5"
+  gs_0_metrics: "sensor.4x4_metrics_bridge"
+  gs_0_vpd: "sensor.4x4_calculated_vpd"
+  gs_0_temp: "sensor.4x4_temperature"
+  gs_0_hum: "sensor.4x4_humidity"
+  gs_0_exhaust: "fan.4x4_exhaust"
+  gs_0_circ: "fan.4x4_circulation"
+  gs_0_humid: "humidifier.4x4_humidifier"
+
+  # Space 1: SOG 2x5
   gs_1_name: "SOG 2x5"
-  gs_2_entity: "sensor.nursery_dome_overview"
+  gs_1_metrics: "sensor.sog_2x5_metrics_bridge"
+  gs_1_vpd: "sensor.sog_2x5_calculated_vpd"
+  gs_1_temp: "sensor.sog_2x5_temperature"
+  gs_1_hum: "sensor.sog_2x5_humidity"
+  gs_1_exhaust: "fan.sog_2x5_exhaust"
+  gs_1_circ: "fan.sog_2x5_circulation"
+  gs_1_humid: "humidifier.sog_2x5_humidifier"
+
+  # Space 2: Nursery Dome
   gs_2_name: "Nursery Dome"
-  gs_3_entity: "sensor.clone"
+  gs_2_metrics: "sensor.nursery_dome_metrics_bridge"
+  gs_2_vpd: "sensor.nursery_dome_calculated_vpd"
+  gs_2_temp: "sensor.nursery_dome_temperature"
+  gs_2_hum: "sensor.nursery_dome_humidity"
+  gs_2_exhaust: "fan.nursery_dome_exhaust"
+  gs_2_circ: "fan.nursery_dome_circulation"
+  gs_2_humid: "humidifier.nursery_dome_humidifier"
+
+  # Space 3: Clone
   gs_3_name: "Clone"
-  gs_4_entity: "sensor.mother"
+  gs_3_metrics: "sensor.clone_metrics_bridge"
+  gs_3_vpd: "sensor.clone_calculated_vpd"
+  gs_3_temp: "sensor.clone_temperature"
+  gs_3_hum: "sensor.clone_humidity"
+  gs_3_exhaust: "fan.clone_exhaust"
+  gs_3_circ: "fan.clone_circulation"
+  gs_3_humid: "humidifier.clone_humidifier"
+
+  # Space 4: Mother
   gs_4_name: "Mother"
-  gs_5_entity: "sensor.dry"
+  gs_4_metrics: "sensor.mother_metrics_bridge"
+  gs_4_vpd: "sensor.mother_calculated_vpd"
+  gs_4_temp: "sensor.mother_temperature"
+  gs_4_hum: "sensor.mother_humidity"
+  gs_4_exhaust: "fan.mother_exhaust"
+  gs_4_circ: "fan.mother_circulation"
+  gs_4_humid: "humidifier.mother_humidifier"
+
+  # Space 5: Dry
   gs_5_name: "Dry"
-  gs_6_entity: "sensor.cure"
+  gs_5_metrics: "sensor.dry_metrics_bridge"
+  gs_5_vpd: "sensor.dry_calculated_vpd"
+  gs_5_temp: "sensor.dry_temperature"
+  gs_5_hum: "sensor.dry_humidity"
+  gs_5_exhaust: "fan.dry_exhaust"
+  gs_5_circ: "fan.dry_circulation"
+  gs_5_humid: "humidifier.dry_humidifier"
+
+  # Space 6: Cure
   gs_6_name: "Cure"
+  gs_6_metrics: "sensor.cure_metrics_bridge"
+  gs_6_vpd: "sensor.cure_calculated_vpd"
+  gs_6_temp: "sensor.cure_temperature"
+  gs_6_hum: "sensor.cure_humidity"
+  gs_6_exhaust: "fan.cure_exhaust"
+  gs_6_circ: "fan.cure_circulation"
+  gs_6_humid: "humidifier.cure_humidifier"
 
   # Timing (seconds)
   cycle_interval: "15"
@@ -615,88 +671,81 @@ lvgl:
 # ============================================================================
 sensor:
   # Space 0: 4x4
-  - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_entity}", attribute: vpd }
-  - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_entity}", attribute: temperature }
-  - { platform: homeassistant, id: gs0_hum, entity_id: "${gs_0_entity}", attribute: humidity }
-  - { platform: homeassistant, id: gs0_vpd_tgt_min, entity_id: "${gs_0_entity}", attribute: vpd_target_min }
-  - { platform: homeassistant, id: gs0_vpd_tgt_max, entity_id: "${gs_0_entity}", attribute: vpd_target_max }
-  - { platform: homeassistant, id: gs0_vpd_dng_min, entity_id: "${gs_0_entity}", attribute: vpd_danger_min }
-  - { platform: homeassistant, id: gs0_vpd_dng_max, entity_id: "${gs_0_entity}", attribute: vpd_danger_max }
-  - { platform: homeassistant, id: gs0_exhaust, entity_id: "${gs_0_entity}", attribute: exhaust_state }
-  - { platform: homeassistant, id: gs0_circ, entity_id: "${gs_0_entity}", attribute: circulation_fan_state }
-  - { platform: homeassistant, id: gs0_humid, entity_id: "${gs_0_entity}", attribute: humidifier_state }
+  - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_vpd}" }
+  - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_temp}" }
+  - { platform: homeassistant, id: gs0_hum, entity_id: "${gs_0_hum}" }
+  - { platform: homeassistant, id: gs0_vpd_tgt_min, entity_id: "${gs_0_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs0_vpd_tgt_max, entity_id: "${gs_0_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs0_vpd_dng_min, entity_id: "${gs_0_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs0_vpd_dng_max, entity_id: "${gs_0_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs0_exhaust, entity_id: "${gs_0_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs0_circ, entity_id: "${gs_0_circ}", attribute: percentage }
 
   # Space 1: SOG 2x5
-  - { platform: homeassistant, id: gs1_vpd, entity_id: "${gs_1_entity}", attribute: vpd }
-  - { platform: homeassistant, id: gs1_temp, entity_id: "${gs_1_entity}", attribute: temperature }
-  - { platform: homeassistant, id: gs1_hum, entity_id: "${gs_1_entity}", attribute: humidity }
-  - { platform: homeassistant, id: gs1_vpd_tgt_min, entity_id: "${gs_1_entity}", attribute: vpd_target_min }
-  - { platform: homeassistant, id: gs1_vpd_tgt_max, entity_id: "${gs_1_entity}", attribute: vpd_target_max }
-  - { platform: homeassistant, id: gs1_vpd_dng_min, entity_id: "${gs_1_entity}", attribute: vpd_danger_min }
-  - { platform: homeassistant, id: gs1_vpd_dng_max, entity_id: "${gs_1_entity}", attribute: vpd_danger_max }
-  - { platform: homeassistant, id: gs1_exhaust, entity_id: "${gs_1_entity}", attribute: exhaust_state }
-  - { platform: homeassistant, id: gs1_circ, entity_id: "${gs_1_entity}", attribute: circulation_fan_state }
-  - { platform: homeassistant, id: gs1_humid, entity_id: "${gs_1_entity}", attribute: humidifier_state }
+  - { platform: homeassistant, id: gs1_vpd, entity_id: "${gs_1_vpd}" }
+  - { platform: homeassistant, id: gs1_temp, entity_id: "${gs_1_temp}" }
+  - { platform: homeassistant, id: gs1_hum, entity_id: "${gs_1_hum}" }
+  - { platform: homeassistant, id: gs1_vpd_tgt_min, entity_id: "${gs_1_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs1_vpd_tgt_max, entity_id: "${gs_1_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs1_vpd_dng_min, entity_id: "${gs_1_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs1_vpd_dng_max, entity_id: "${gs_1_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs1_exhaust, entity_id: "${gs_1_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs1_circ, entity_id: "${gs_1_circ}", attribute: percentage }
 
   # Space 2: Nursery Dome
-  - { platform: homeassistant, id: gs2_vpd, entity_id: "${gs_2_entity}", attribute: vpd }
-  - { platform: homeassistant, id: gs2_temp, entity_id: "${gs_2_entity}", attribute: temperature }
-  - { platform: homeassistant, id: gs2_hum, entity_id: "${gs_2_entity}", attribute: humidity }
-  - { platform: homeassistant, id: gs2_vpd_tgt_min, entity_id: "${gs_2_entity}", attribute: vpd_target_min }
-  - { platform: homeassistant, id: gs2_vpd_tgt_max, entity_id: "${gs_2_entity}", attribute: vpd_target_max }
-  - { platform: homeassistant, id: gs2_vpd_dng_min, entity_id: "${gs_2_entity}", attribute: vpd_danger_min }
-  - { platform: homeassistant, id: gs2_vpd_dng_max, entity_id: "${gs_2_entity}", attribute: vpd_danger_max }
-  - { platform: homeassistant, id: gs2_exhaust, entity_id: "${gs_2_entity}", attribute: exhaust_state }
-  - { platform: homeassistant, id: gs2_circ, entity_id: "${gs_2_entity}", attribute: circulation_fan_state }
-  - { platform: homeassistant, id: gs2_humid, entity_id: "${gs_2_entity}", attribute: humidifier_state }
+  - { platform: homeassistant, id: gs2_vpd, entity_id: "${gs_2_vpd}" }
+  - { platform: homeassistant, id: gs2_temp, entity_id: "${gs_2_temp}" }
+  - { platform: homeassistant, id: gs2_hum, entity_id: "${gs_2_hum}" }
+  - { platform: homeassistant, id: gs2_vpd_tgt_min, entity_id: "${gs_2_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs2_vpd_tgt_max, entity_id: "${gs_2_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs2_vpd_dng_min, entity_id: "${gs_2_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs2_vpd_dng_max, entity_id: "${gs_2_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs2_exhaust, entity_id: "${gs_2_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs2_circ, entity_id: "${gs_2_circ}", attribute: percentage }
 
   # Space 3: Clone
-  - { platform: homeassistant, id: gs3_vpd, entity_id: "${gs_3_entity}", attribute: vpd }
-  - { platform: homeassistant, id: gs3_temp, entity_id: "${gs_3_entity}", attribute: temperature }
-  - { platform: homeassistant, id: gs3_hum, entity_id: "${gs_3_entity}", attribute: humidity }
-  - { platform: homeassistant, id: gs3_vpd_tgt_min, entity_id: "${gs_3_entity}", attribute: vpd_target_min }
-  - { platform: homeassistant, id: gs3_vpd_tgt_max, entity_id: "${gs_3_entity}", attribute: vpd_target_max }
-  - { platform: homeassistant, id: gs3_vpd_dng_min, entity_id: "${gs_3_entity}", attribute: vpd_danger_min }
-  - { platform: homeassistant, id: gs3_vpd_dng_max, entity_id: "${gs_3_entity}", attribute: vpd_danger_max }
-  - { platform: homeassistant, id: gs3_exhaust, entity_id: "${gs_3_entity}", attribute: exhaust_state }
-  - { platform: homeassistant, id: gs3_circ, entity_id: "${gs_3_entity}", attribute: circulation_fan_state }
-  - { platform: homeassistant, id: gs3_humid, entity_id: "${gs_3_entity}", attribute: humidifier_state }
+  - { platform: homeassistant, id: gs3_vpd, entity_id: "${gs_3_vpd}" }
+  - { platform: homeassistant, id: gs3_temp, entity_id: "${gs_3_temp}" }
+  - { platform: homeassistant, id: gs3_hum, entity_id: "${gs_3_hum}" }
+  - { platform: homeassistant, id: gs3_vpd_tgt_min, entity_id: "${gs_3_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs3_vpd_tgt_max, entity_id: "${gs_3_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs3_vpd_dng_min, entity_id: "${gs_3_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs3_vpd_dng_max, entity_id: "${gs_3_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs3_exhaust, entity_id: "${gs_3_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs3_circ, entity_id: "${gs_3_circ}", attribute: percentage }
 
   # Space 4: Mother
-  - { platform: homeassistant, id: gs4_vpd, entity_id: "${gs_4_entity}", attribute: vpd }
-  - { platform: homeassistant, id: gs4_temp, entity_id: "${gs_4_entity}", attribute: temperature }
-  - { platform: homeassistant, id: gs4_hum, entity_id: "${gs_4_entity}", attribute: humidity }
-  - { platform: homeassistant, id: gs4_vpd_tgt_min, entity_id: "${gs_4_entity}", attribute: vpd_target_min }
-  - { platform: homeassistant, id: gs4_vpd_tgt_max, entity_id: "${gs_4_entity}", attribute: vpd_target_max }
-  - { platform: homeassistant, id: gs4_vpd_dng_min, entity_id: "${gs_4_entity}", attribute: vpd_danger_min }
-  - { platform: homeassistant, id: gs4_vpd_dng_max, entity_id: "${gs_4_entity}", attribute: vpd_danger_max }
-  - { platform: homeassistant, id: gs4_exhaust, entity_id: "${gs_4_entity}", attribute: exhaust_state }
-  - { platform: homeassistant, id: gs4_circ, entity_id: "${gs_4_entity}", attribute: circulation_fan_state }
-  - { platform: homeassistant, id: gs4_humid, entity_id: "${gs_4_entity}", attribute: humidifier_state }
+  - { platform: homeassistant, id: gs4_vpd, entity_id: "${gs_4_vpd}" }
+  - { platform: homeassistant, id: gs4_temp, entity_id: "${gs_4_temp}" }
+  - { platform: homeassistant, id: gs4_hum, entity_id: "${gs_4_hum}" }
+  - { platform: homeassistant, id: gs4_vpd_tgt_min, entity_id: "${gs_4_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs4_vpd_tgt_max, entity_id: "${gs_4_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs4_vpd_dng_min, entity_id: "${gs_4_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs4_vpd_dng_max, entity_id: "${gs_4_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs4_exhaust, entity_id: "${gs_4_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs4_circ, entity_id: "${gs_4_circ}", attribute: percentage }
 
   # Space 5: Dry
-  - { platform: homeassistant, id: gs5_vpd, entity_id: "${gs_5_entity}", attribute: vpd }
-  - { platform: homeassistant, id: gs5_temp, entity_id: "${gs_5_entity}", attribute: temperature }
-  - { platform: homeassistant, id: gs5_hum, entity_id: "${gs_5_entity}", attribute: humidity }
-  - { platform: homeassistant, id: gs5_vpd_tgt_min, entity_id: "${gs_5_entity}", attribute: vpd_target_min }
-  - { platform: homeassistant, id: gs5_vpd_tgt_max, entity_id: "${gs_5_entity}", attribute: vpd_target_max }
-  - { platform: homeassistant, id: gs5_vpd_dng_min, entity_id: "${gs_5_entity}", attribute: vpd_danger_min }
-  - { platform: homeassistant, id: gs5_vpd_dng_max, entity_id: "${gs_5_entity}", attribute: vpd_danger_max }
-  - { platform: homeassistant, id: gs5_exhaust, entity_id: "${gs_5_entity}", attribute: exhaust_state }
-  - { platform: homeassistant, id: gs5_circ, entity_id: "${gs_5_entity}", attribute: circulation_fan_state }
-  - { platform: homeassistant, id: gs5_humid, entity_id: "${gs_5_entity}", attribute: humidifier_state }
+  - { platform: homeassistant, id: gs5_vpd, entity_id: "${gs_5_vpd}" }
+  - { platform: homeassistant, id: gs5_temp, entity_id: "${gs_5_temp}" }
+  - { platform: homeassistant, id: gs5_hum, entity_id: "${gs_5_hum}" }
+  - { platform: homeassistant, id: gs5_vpd_tgt_min, entity_id: "${gs_5_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs5_vpd_tgt_max, entity_id: "${gs_5_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs5_vpd_dng_min, entity_id: "${gs_5_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs5_vpd_dng_max, entity_id: "${gs_5_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs5_exhaust, entity_id: "${gs_5_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs5_circ, entity_id: "${gs_5_circ}", attribute: percentage }
 
   # Space 6: Cure
-  - { platform: homeassistant, id: gs6_vpd, entity_id: "${gs_6_entity}", attribute: vpd }
-  - { platform: homeassistant, id: gs6_temp, entity_id: "${gs_6_entity}", attribute: temperature }
-  - { platform: homeassistant, id: gs6_hum, entity_id: "${gs_6_entity}", attribute: humidity }
-  - { platform: homeassistant, id: gs6_vpd_tgt_min, entity_id: "${gs_6_entity}", attribute: vpd_target_min }
-  - { platform: homeassistant, id: gs6_vpd_tgt_max, entity_id: "${gs_6_entity}", attribute: vpd_target_max }
-  - { platform: homeassistant, id: gs6_vpd_dng_min, entity_id: "${gs_6_entity}", attribute: vpd_danger_min }
-  - { platform: homeassistant, id: gs6_vpd_dng_max, entity_id: "${gs_6_entity}", attribute: vpd_danger_max }
-  - { platform: homeassistant, id: gs6_exhaust, entity_id: "${gs_6_entity}", attribute: exhaust_state }
-  - { platform: homeassistant, id: gs6_circ, entity_id: "${gs_6_entity}", attribute: circulation_fan_state }
-  - { platform: homeassistant, id: gs6_humid, entity_id: "${gs_6_entity}", attribute: humidifier_state }
+  - { platform: homeassistant, id: gs6_vpd, entity_id: "${gs_6_vpd}" }
+  - { platform: homeassistant, id: gs6_temp, entity_id: "${gs_6_temp}" }
+  - { platform: homeassistant, id: gs6_hum, entity_id: "${gs_6_hum}" }
+  - { platform: homeassistant, id: gs6_vpd_tgt_min, entity_id: "${gs_6_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs6_vpd_tgt_max, entity_id: "${gs_6_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs6_vpd_dng_min, entity_id: "${gs_6_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs6_vpd_dng_max, entity_id: "${gs_6_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs6_exhaust, entity_id: "${gs_6_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs6_circ, entity_id: "${gs_6_circ}", attribute: percentage }
 
 text_sensor:
   # Claude Code bridge (written by claude_bridge/claude_ha_bridge.py)
@@ -714,40 +763,47 @@ text_sensor:
     id: claude_request
     entity_id: input_text.claude_request
 
-  - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_entity}", attribute: granular_stage }
-  - { platform: homeassistant, id: gs0_is_day, entity_id: "${gs_0_entity}", attribute: is_day }
-  - { platform: homeassistant, id: gs0_flower_week, entity_id: "${gs_0_entity}", attribute: flower_week }
-  - { platform: homeassistant, id: gs0_veg_week, entity_id: "${gs_0_entity}", attribute: veg_week }
+  - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs0_is_day, entity_id: "${gs_0_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs0_flower_week, entity_id: "${gs_0_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs0_veg_week, entity_id: "${gs_0_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs0_humid, entity_id: "${gs_0_humid}" }
 
-  - { platform: homeassistant, id: gs1_phase, entity_id: "${gs_1_entity}", attribute: granular_stage }
-  - { platform: homeassistant, id: gs1_is_day, entity_id: "${gs_1_entity}", attribute: is_day }
-  - { platform: homeassistant, id: gs1_flower_week, entity_id: "${gs_1_entity}", attribute: flower_week }
-  - { platform: homeassistant, id: gs1_veg_week, entity_id: "${gs_1_entity}", attribute: veg_week }
+  - { platform: homeassistant, id: gs1_phase, entity_id: "${gs_1_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs1_is_day, entity_id: "${gs_1_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs1_flower_week, entity_id: "${gs_1_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs1_veg_week, entity_id: "${gs_1_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs1_humid, entity_id: "${gs_1_humid}" }
 
-  - { platform: homeassistant, id: gs2_phase, entity_id: "${gs_2_entity}", attribute: granular_stage }
-  - { platform: homeassistant, id: gs2_is_day, entity_id: "${gs_2_entity}", attribute: is_day }
-  - { platform: homeassistant, id: gs2_flower_week, entity_id: "${gs_2_entity}", attribute: flower_week }
-  - { platform: homeassistant, id: gs2_veg_week, entity_id: "${gs_2_entity}", attribute: veg_week }
+  - { platform: homeassistant, id: gs2_phase, entity_id: "${gs_2_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs2_is_day, entity_id: "${gs_2_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs2_flower_week, entity_id: "${gs_2_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs2_veg_week, entity_id: "${gs_2_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs2_humid, entity_id: "${gs_2_humid}" }
 
-  - { platform: homeassistant, id: gs3_phase, entity_id: "${gs_3_entity}", attribute: granular_stage }
-  - { platform: homeassistant, id: gs3_is_day, entity_id: "${gs_3_entity}", attribute: is_day }
-  - { platform: homeassistant, id: gs3_flower_week, entity_id: "${gs_3_entity}", attribute: flower_week }
-  - { platform: homeassistant, id: gs3_veg_week, entity_id: "${gs_3_entity}", attribute: veg_week }
+  - { platform: homeassistant, id: gs3_phase, entity_id: "${gs_3_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs3_is_day, entity_id: "${gs_3_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs3_flower_week, entity_id: "${gs_3_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs3_veg_week, entity_id: "${gs_3_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs3_humid, entity_id: "${gs_3_humid}" }
 
-  - { platform: homeassistant, id: gs4_phase, entity_id: "${gs_4_entity}", attribute: granular_stage }
-  - { platform: homeassistant, id: gs4_is_day, entity_id: "${gs_4_entity}", attribute: is_day }
-  - { platform: homeassistant, id: gs4_flower_week, entity_id: "${gs_4_entity}", attribute: flower_week }
-  - { platform: homeassistant, id: gs4_veg_week, entity_id: "${gs_4_entity}", attribute: veg_week }
+  - { platform: homeassistant, id: gs4_phase, entity_id: "${gs_4_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs4_is_day, entity_id: "${gs_4_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs4_flower_week, entity_id: "${gs_4_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs4_veg_week, entity_id: "${gs_4_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs4_humid, entity_id: "${gs_4_humid}" }
 
-  - { platform: homeassistant, id: gs5_phase, entity_id: "${gs_5_entity}", attribute: granular_stage }
-  - { platform: homeassistant, id: gs5_is_day, entity_id: "${gs_5_entity}", attribute: is_day }
-  - { platform: homeassistant, id: gs5_flower_week, entity_id: "${gs_5_entity}", attribute: flower_week }
-  - { platform: homeassistant, id: gs5_veg_week, entity_id: "${gs_5_entity}", attribute: veg_week }
+  - { platform: homeassistant, id: gs5_phase, entity_id: "${gs_5_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs5_is_day, entity_id: "${gs_5_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs5_flower_week, entity_id: "${gs_5_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs5_veg_week, entity_id: "${gs_5_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs5_humid, entity_id: "${gs_5_humid}" }
 
-  - { platform: homeassistant, id: gs6_phase, entity_id: "${gs_6_entity}", attribute: granular_stage }
-  - { platform: homeassistant, id: gs6_is_day, entity_id: "${gs_6_entity}", attribute: is_day }
-  - { platform: homeassistant, id: gs6_flower_week, entity_id: "${gs_6_entity}", attribute: flower_week }
-  - { platform: homeassistant, id: gs6_veg_week, entity_id: "${gs_6_entity}", attribute: veg_week }
+  - { platform: homeassistant, id: gs6_phase, entity_id: "${gs_6_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs6_is_day, entity_id: "${gs_6_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs6_flower_week, entity_id: "${gs_6_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs6_veg_week, entity_id: "${gs_6_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs6_humid, entity_id: "${gs_6_humid}" }
 
 # ============================================================================
 # 6. SCRIPTS (Tab Switching, Space Navigation & VPD Gauge Rendering)
@@ -841,7 +897,7 @@ script:
           };
           for (int i = 0; i < total; i++) {
             idx = (idx + dir + total) % total;
-            if (phase_s[idx]->has_state() && phase_s[idx]->state != "empty") break;
+            if (phase_s[idx] != nullptr && phase_s[idx]->has_state() && phase_s[idx]->state != "empty") break;
           }
           id(vpd_sensor_index) = idx;
           id(cycle_timer) = ${cycle_interval};
@@ -872,30 +928,30 @@ script:
           esphome::sensor::Sensor* dng_max_s[] = { id(gs0_vpd_dng_max), id(gs1_vpd_dng_max), id(gs2_vpd_dng_max), id(gs3_vpd_dng_max), id(gs4_vpd_dng_max), id(gs5_vpd_dng_max), id(gs6_vpd_dng_max) };
           esphome::sensor::Sensor* exh_s[] = { id(gs0_exhaust), id(gs1_exhaust), id(gs2_exhaust), id(gs3_exhaust), id(gs4_exhaust), id(gs5_exhaust), id(gs6_exhaust) };
           esphome::sensor::Sensor* circ_s[] = { id(gs0_circ), id(gs1_circ), id(gs2_circ), id(gs3_circ), id(gs4_circ), id(gs5_circ), id(gs6_circ) };
-          esphome::sensor::Sensor* humid_s[] = { id(gs0_humid), id(gs1_humid), id(gs2_humid), id(gs3_humid), id(gs4_humid), id(gs5_humid), id(gs6_humid) };
 
+          esphome::text_sensor::TextSensor* humid_s[] = { id(gs0_humid), id(gs1_humid), id(gs2_humid), id(gs3_humid), id(gs4_humid), id(gs5_humid), id(gs6_humid) };
           esphome::text_sensor::TextSensor* phase_s[] = { id(gs0_phase), id(gs1_phase), id(gs2_phase), id(gs3_phase), id(gs4_phase), id(gs5_phase), id(gs6_phase) };
           esphome::text_sensor::TextSensor* day_s[] = { id(gs0_is_day), id(gs1_is_day), id(gs2_is_day), id(gs3_is_day), id(gs4_is_day), id(gs5_is_day), id(gs6_is_day) };
           esphome::text_sensor::TextSensor* fw_s[] = { id(gs0_flower_week), id(gs1_flower_week), id(gs2_flower_week), id(gs3_flower_week), id(gs4_flower_week), id(gs5_flower_week), id(gs6_flower_week) };
           esphome::text_sensor::TextSensor* vw_s[] = { id(gs0_veg_week), id(gs1_veg_week), id(gs2_veg_week), id(gs3_veg_week), id(gs4_veg_week), id(gs5_veg_week), id(gs6_veg_week) };
 
-          float vpd = vpd_s[idx]->has_state() ? vpd_s[idx]->state : 0.0f;
-          float temp = temp_s[idx]->has_state() ? temp_s[idx]->state : 0.0f;
-          float hum = hum_s[idx]->has_state() ? hum_s[idx]->state : 0.0f;
-          float tgt_min = tgt_min_s[idx]->has_state() ? tgt_min_s[idx]->state : 0.8f;
-          float tgt_max = tgt_max_s[idx]->has_state() ? tgt_max_s[idx]->state : 1.2f;
-          float dng_min = dng_min_s[idx]->has_state() ? dng_min_s[idx]->state : 0.4f;
-          float dng_max = dng_max_s[idx]->has_state() ? dng_max_s[idx]->state : 1.6f;
+          float vpd = (vpd_s[idx] != nullptr && vpd_s[idx]->has_state()) ? vpd_s[idx]->state : 0.0f;
+          float temp = (temp_s[idx] != nullptr && temp_s[idx]->has_state()) ? temp_s[idx]->state : 0.0f;
+          float hum = (hum_s[idx] != nullptr && hum_s[idx]->has_state()) ? hum_s[idx]->state : 0.0f;
+          float tgt_min = (tgt_min_s[idx] != nullptr && tgt_min_s[idx]->has_state()) ? tgt_min_s[idx]->state : 0.8f;
+          float tgt_max = (tgt_max_s[idx] != nullptr && tgt_max_s[idx]->has_state()) ? tgt_max_s[idx]->state : 1.2f;
+          float dng_min = (dng_min_s[idx] != nullptr && dng_min_s[idx]->has_state()) ? dng_min_s[idx]->state : 0.4f;
+          float dng_max = (dng_max_s[idx] != nullptr && dng_max_s[idx]->has_state()) ? dng_max_s[idx]->state : 1.6f;
 
           // Phase badge
-          std::string phase = phase_s[idx]->has_state() ? phase_s[idx]->state : "unknown";
+          std::string phase = (phase_s[idx] != nullptr && phase_s[idx]->has_state()) ? phase_s[idx]->state : "unknown";
           char badge[32] = "";
           uint32_t badge_color = 0x555555;
           if (phase.find("flower") != std::string::npos) {
-            snprintf(badge, sizeof(badge), "Flower W%s", fw_s[idx]->has_state() ? fw_s[idx]->state.c_str() : "");
+            snprintf(badge, sizeof(badge), "Flower W%s", (fw_s[idx] != nullptr && fw_s[idx]->has_state()) ? fw_s[idx]->state.c_str() : "");
             badge_color = 0xFF9800;
           } else if (phase.find("veg") != std::string::npos) {
-            snprintf(badge, sizeof(badge), "Veg W%s", vw_s[idx]->has_state() ? vw_s[idx]->state.c_str() : "");
+            snprintf(badge, sizeof(badge), "Veg W%s", (vw_s[idx] != nullptr && vw_s[idx]->has_state()) ? vw_s[idx]->state.c_str() : "");
             badge_color = 0x4CAF50;
           } else if (phase == "seedling") {
             snprintf(badge, sizeof(badge), "Seedling");
@@ -921,7 +977,7 @@ script:
           lv_obj_set_style_bg_color(id(gs_phase_badge), lv_color_hex(badge_color), 0);
 
           // Day / Night icon
-          std::string day_str = day_s[idx]->has_state() ? day_s[idx]->state : "on";
+          std::string day_str = (day_s[idx] != nullptr && day_s[idx]->has_state()) ? day_s[idx]->state : "on";
           bool is_day = (day_str == "on" || day_str == "True" || day_str == "true");
           lv_label_set_text(id(gs_day_icon), is_day ? "\U000F06B5" : "\U000F06B8");
           lv_obj_set_style_text_color(id(gs_day_icon), lv_color_hex(is_day ? 0xFFC107 : 0x555555), 0);
@@ -966,30 +1022,43 @@ script:
           snprintf(buf, sizeof(buf), "%.0f %%", hum);
           lv_label_set_text(id(gs_hum_val), buf);
 
-          // Equipment readouts
-          float exh_v = exh_s[idx]->has_state() ? exh_s[idx]->state : 0;
-          float circ_v = circ_s[idx]->has_state() ? circ_s[idx]->state : 0;
-          float hmd_v = humid_s[idx]->has_state() ? humid_s[idx]->state : 0;
+          // Equipment readouts (nullptr-safe for omitted growspace equipment)
+          if (exh_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_exh_lbl), "Exh: --");
+            lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            float exh_v = exh_s[idx]->has_state() ? exh_s[idx]->state : 0;
+            snprintf(buf, sizeof(buf), exh_v > 0 ? "Exh: %.0f%%" : "Exh: Off", exh_v);
+            lv_label_set_text(id(gs_exh_lbl), buf);
+            lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(exh_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
+          }
 
-          snprintf(buf, sizeof(buf), exh_v > 0 ? "Exh: %.0f%%" : "Exh: Off", exh_v);
-          lv_label_set_text(id(gs_exh_lbl), buf);
-          lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(exh_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
+          if (circ_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_circ_lbl), "Circ: --");
+            lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            float circ_v = circ_s[idx]->has_state() ? circ_s[idx]->state : 0;
+            snprintf(buf, sizeof(buf), circ_v > 0 ? "Circ: %.0f%%" : "Circ: Off", circ_v);
+            lv_label_set_text(id(gs_circ_lbl), buf);
+            lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(circ_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
+          }
 
-          snprintf(buf, sizeof(buf), circ_v > 0 ? "Circ: %.0f%%" : "Circ: Off", circ_v);
-          lv_label_set_text(id(gs_circ_lbl), buf);
-          lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(circ_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
-
-          snprintf(buf, sizeof(buf), hmd_v > 0 ? "Hum: %.0f%%" : "Hum: Off", hmd_v);
-          lv_label_set_text(id(gs_hum_eq_lbl), buf);
-          lv_obj_set_style_text_color(id(gs_hum_eq_lbl), lv_color_hex(hmd_v > 0 ? 0x64B5F6 : 0x6E7681), 0);
+          if (humid_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_hum_eq_lbl), "Hum: --");
+            lv_obj_set_style_text_color(id(gs_hum_eq_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            bool hum_on = humid_s[idx]->has_state() && humid_s[idx]->state == "on";
+            lv_label_set_text(id(gs_hum_eq_lbl), hum_on ? "Hum: On" : "Hum: Off");
+            lv_obj_set_style_text_color(id(gs_hum_eq_lbl), lv_color_hex(hum_on ? 0x64B5F6 : 0x6E7681), 0);
+          }
 
           // Global Danger Alert across all 7 spaces
           bool global_danger = false;
           for (int i = 0; i < MAX_SPACES; i++) {
-            if (phase_s[i]->has_state() && phase_s[i]->state != "empty") {
-              float v = vpd_s[i]->has_state() ? vpd_s[i]->state : 0.0f;
-              float d_min = dng_min_s[i]->has_state() ? dng_min_s[i]->state : 0.4f;
-              float d_max = dng_max_s[i]->has_state() ? dng_max_s[i]->state : 1.6f;
+            if (phase_s[i] != nullptr && phase_s[i]->has_state() && phase_s[i]->state != "empty") {
+              float v = (vpd_s[i] != nullptr && vpd_s[i]->has_state()) ? vpd_s[i]->state : 0.0f;
+              float d_min = (dng_min_s[i] != nullptr && dng_min_s[i]->has_state()) ? dng_min_s[i]->state : 0.4f;
+              float d_max = (dng_max_s[i] != nullptr && dng_max_s[i]->has_state()) ? dng_max_s[i]->state : 1.6f;
               if (v < d_min || v > d_max) {
                 global_danger = true;
                 break;
