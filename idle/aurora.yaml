@@ -10,19 +10,19 @@ font:
     bpp: 4
     glyphs: "0123456789:-"
 
-  - file: "fonts/DejaVuSansMono-Bold.ttf"
+  - file: "../fonts/DejaVuSansMono-Bold.ttf"
     id: aurora_sec_14
     size: 14
     bpp: 4
     glyphs: "0123456789:-"
 
-  - file: "fonts/DejaVuSansMono-Bold.ttf"
+  - file: "../fonts/DejaVuSansMono-Bold.ttf"
     id: aurora_meta_12
     size: 12
     bpp: 4
     glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-/dm"
 
-  - file: "fonts/materialdesignicons-webfont.ttf"
+  - file: "../fonts/materialdesignicons-webfont.ttf"
     id: aurora_icons_14
     size: 14
     bpp: 4
