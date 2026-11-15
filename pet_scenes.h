@@ -619,4 +619,374 @@ struct CampfireScene {
   }
 };
 
+// ── Terminal Floor Variants (540x46 floor strip, u = 4, feet at y = 137) ───
+
+struct TerminalFishingScene {
+  lv_obj_t *pier[3] = {};
+  lv_obj_t *water = nullptr, *surf = nullptr, *waves[4] = {};
+  lv_obj_t *rod[3] = {}, *line = nullptr, *bob_top = nullptr, *bob_bot = nullptr;
+  lv_obj_t *splash[3] = {}, *fish_body = nullptr, *fish_tail = nullptr;
+  bool is_codex = false;
+
+  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+    is_codex = codex;
+    water = blk(card, 0x0E2A47);
+    place(water, 118, 134, 422, 6);
+    surf = blk(card, 0x1F5685);
+    place(surf, 118, 134, 422, 2);
+    for (int i = 0; i < 4; i++) {
+      waves[i] = blk(card, 0x388BFD, LV_OPA_70, 1);
+      place(waves[i], 140 + i * 95, 136 + (i % 2) * 2, 26, 2);
+    }
+    pier[0] = blk(card, 0x6E4B2E); place(pier[0], 0, 133, 122, 4);
+    pier[1] = blk(card, 0x4A311D); place(pier[1], 18, 137, 5, 3);
+    pier[2] = blk(card, 0x4A311D); place(pier[2], 96, 137, 5, 3);
+
+    lv_obj_move_foreground(pet_box);
+    lv_obj_move_foreground(bubble);
+
+    for (int i = 0; i < 3; i++) rod[i] = blk(card, i == 2 ? 0xC9D1D9 : 0xA67C52);
+    line = blk(card, 0xC9D1D9, LV_OPA_70);
+    bob_top = blk(card, 0xF85149, LV_OPA_COVER, 1);
+    bob_bot = blk(card, 0xF0F6FC, LV_OPA_COVER, 1);
+    for (int i = 0; i < 3; i++) splash[i] = blk(card, 0x79C0FF, LV_OPA_COVER, 1);
+    uint32_t fc = codex ? 0x34D399 : 0xFFB020;
+    fish_body = blk(card, fc, LV_OPA_COVER, 2);
+    fish_tail = blk(card, fc);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t, int &pet_x) {
+    PoseOffset po;
+    const bool obstructed = (m == PM_PENDING || m == PM_RATE_LIMITED);
+    set_vis(water, !obstructed);
+    set_vis(surf, !obstructed);
+    for (auto *w : waves) set_vis(w, !obstructed);
+    for (auto *p : pier) set_vis(p, !obstructed);
+    for (auto *r : rod) set_vis(r, !obstructed);
+    set_vis(line, !obstructed);
+    set_vis(bob_top, !obstructed);
+    set_vis(bob_bot, !obstructed);
+
+    if (obstructed) {
+      pet_x = 242;
+      for (auto *sp : splash) set_vis(sp, false);
+      set_vis(fish_body, false);
+      set_vis(fish_tail, false);
+      return po;
+    }
+
+    pet_x = 58;
+    int spd = (m == PM_WORKING) ? 3 : 1;
+    for (int i = 0; i < 4; i++) {
+      int wx = 122 + (int) ((f * spd * (i % 2 ? 2 : 3) + i * 95) % 390);
+      lv_obj_set_x(waves[i], wx);
+    }
+
+    int tip_dy = 0, bob_y = 132;
+    bool show_sp = false;
+    if (m == PM_WORKING) {
+      uint32_t cyc = f % 32;
+      if (cyc >= 20 && cyc <= 27) {
+        tip_dy = (cyc % 2) ? 4 : 1;
+        bob_y = 134 + (int) (cyc % 2);
+        show_sp = true;
+        po.dx = (cyc % 2) ? -1 : 1;
+        po.arm_r = -3;
+        po.override_arms = true;
+      } else {
+        tip_dy = (cyc < 4) ? -3 : ((f / 8) % 2);
+        bob_y = 131 + ((f / 5) % 2);
+      }
+      po.eye_dx = 2;
+      po.override_eye_dx = true;
+    } else if (m == PM_DONE || m == PM_SENT_OK) {
+      tip_dy = -5;
+      bob_y = 126;
+      show_sp = (t < 14);
+    }
+
+    place(rod[0], 106, 118 + tip_dy / 3, 18, 2);
+    place(rod[1], 121, 110 + tip_dy / 2, 18, 2);
+    place(rod[2], 136, 102 + tip_dy, 22, 2);
+    int ly = 103 + tip_dy;
+    place(line, 157, ly, 1, bob_y - ly > 4 ? bob_y - ly : 4);
+    place(bob_top, 155, bob_y, 5, 2);
+    place(bob_bot, 155, bob_y + 2, 5, 2);
+
+    for (int i = 0; i < 3; i++) {
+      set_vis(splash[i], show_sp);
+      if (show_sp) {
+        int sp = (int) (f % 4) * 2;
+        place(splash[i], 156 + (i - 1) * (5 + sp), 129 - (i == 1 ? 4 : 1) - (f % 2) * 2, 3, 3);
+      }
+    }
+
+    bool show_fish = (m == PM_DONE || m == PM_SENT_OK) && t < 24;
+    set_vis(fish_body, show_fish);
+    set_vis(fish_tail, show_fish);
+    if (show_fish) {
+      int k = (int) (t % 16);
+      int arc = k < 8 ? k : (15 - k);
+      int fy = 130 - arc * 4;
+      place(fish_body, 174, fy, 10, 6);
+      place(fish_tail, 183, fy + 1, 4, 4);
+    }
+    return po;
+  }
+};
+
+struct TerminalMiningScene {
+  lv_obj_t *rail = nullptr, *ties[10] = {};
+  lv_obj_t *lantern_glow = nullptr, *lantern_core = nullptr;
+  lv_obj_t *rock = nullptr, *ore[3] = {}, *sparks[4] = {}, *gem = nullptr;
+  lv_obj_t *helmet = nullptr, *headlamp = nullptr;
+  lv_obj_t *pick_h = nullptr, *pick_head = nullptr;
+  bool is_codex = false;
+
+  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+    is_codex = codex;
+    rail = blk(card, 0x30363D); place(rail, 0, 137, 540, 2);
+    for (int i = 0; i < 10; i++) {
+      ties[i] = blk(card, 0x4A311D);
+      place(ties[i], 16 + i * 48, 138, 10, 2);
+    }
+    lantern_glow = blk(card, 0xFFB020, LV_OPA_20, LV_RADIUS_CIRCLE);
+    place(lantern_glow, 10, 108, 22, 22);
+    lantern_core = blk(card, 0xFFB020, LV_OPA_COVER, 1);
+    place(lantern_core, 19, 116, 4, 6);
+
+    rock = blk(card, 0x21262D); place(rock, 478, 96, 62, 42);
+    ore[0] = blk(card, codex ? 0x10B981 : 0xFFB020, LV_OPA_COVER, 1); place(ore[0], 486, 104, 10, 5);
+    ore[1] = blk(card, codex ? 0xA7F3D0 : 0xD97757, LV_OPA_COVER, 1); place(ore[1], 504, 116, 12, 6);
+    ore[2] = blk(card, 0x58A6FF, LV_OPA_COVER, 1); place(ore[2], 490, 126, 8, 5);
+
+    lv_obj_move_foreground(pet_box);
+    lv_obj_move_foreground(bubble);
+
+    helmet = blk(card, 0xFFB020, LV_OPA_COVER, 2);
+    headlamp = blk(card, 0xFFF3C4, LV_OPA_COVER, 1);
+    pick_h = blk(card, 0x8B6F4E);
+    pick_head = blk(card, 0xC9D1D9);
+    for (int i = 0; i < 4; i++) sparks[i] = blk(card, i % 2 ? 0xFFB020 : 0xF0F6FC);
+    gem = blk(card, 0x58A6FF, LV_OPA_COVER, 2);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t, int &pet_x) {
+    PoseOffset po;
+    const bool obstructed = (m == PM_PENDING || m == PM_RATE_LIMITED);
+    set_vis(lantern_glow, !obstructed);
+    set_vis(lantern_core, !obstructed);
+    set_vis(rock, !obstructed);
+    for (auto *o : ore) set_vis(o, !obstructed);
+    for (auto *ti : ties) set_vis(ti, !obstructed);
+
+    if (obstructed) {
+      pet_x = 242;
+      set_vis(helmet, false); set_vis(headlamp, false);
+      set_vis(pick_h, false); set_vis(pick_head, false);
+      for (auto *sp : sparks) set_vis(sp, false);
+      set_vis(gem, false);
+      return po;
+    }
+
+    set_vis(helmet, true); set_vis(headlamp, true);
+    set_vis(pick_h, true); set_vis(pick_head, true);
+
+    bool impact = false;
+    int swing = 0;
+    if (m == PM_WORKING) {
+      pet_x = 414;
+      int k = (int) (f % 8);
+      if (k < 3) { swing = 1; po.arm_r = -10; po.override_arms = true; }
+      else if (k <= 5) { swing = 2; po.dx = 3; po.arm_r = 2; po.override_arms = true; impact = (k == 3 || k == 4); }
+      po.eye_dx = 2; po.override_eye_dx = true;
+    } else if (m == PM_DONE || m == PM_SENT_OK) {
+      pet_x = 414;
+      swing = 1;
+    } else {
+      pet_x = (m == PM_IDLE) ? 28 : 242;
+    }
+
+    int hy = 104 + po.dy;
+    if (m == PM_DONE && t < 9) {
+      static const int HOP[] = {0, -1, -2, -3, -3, -2, -1, 0, 0};
+      hy += HOP[t] * 4;
+    }
+    place(helmet, pet_x + 16 + po.dx, hy, 22, 5);
+    place(headlamp, pet_x + 34 + po.dx, hy + 1, 4, 3);
+
+    int px = pet_x + 48 + po.dx;
+    if (swing == 1) {
+      place(pick_h, px, 102 + po.dy, 2, 16);
+      place(pick_head, px - 6, 99 + po.dy, 12, 3);
+    } else if (swing == 2) {
+      place(pick_h, px, 118, 16, 2);
+      place(pick_head, px + 14, 112, 3, 14);
+    } else {
+      place(pick_h, px, 118, 12, 2);
+      place(pick_head, px + 10, 115, 3, 10);
+    }
+
+    lv_obj_set_style_bg_color(ore[1], lv_color_hex(impact ? 0xFFF3C4 : (is_codex ? 0xA7F3D0 : 0xD97757)), 0);
+    for (int i = 0; i < 4; i++) {
+      set_vis(sparks[i], impact);
+      if (impact) {
+        int age = (int) (f % 2);
+        place(sparks[i], 474 - (i + 1) * 4 - age * 4, 116 + (i - 1) * 4 + age * 2, 3, 3);
+      }
+    }
+    bool show_gem = (m == PM_DONE || m == PM_SENT_OK) && t < 24;
+    set_vis(gem, show_gem);
+    if (show_gem) place(gem, 492, 92 - (t < 8 ? (int) t * 2 : 16), 10, 10);
+    return po;
+  }
+};
+
+struct TerminalPingPongScene {
+  lv_obj_t *table_top = nullptr, *table_line = nullptr, *net = nullptr, *legs[2] = {};
+  lv_obj_t *pad_h = nullptr, *pad_f = nullptr;
+  lv_obj_t *rival_b = nullptr, *rival_f = nullptr, *ball = nullptr, *bshad = nullptr;
+  bool is_codex = false;
+
+  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+    is_codex = codex;
+    legs[0] = blk(card, 0x30363D); place(legs[0], 204, 125, 4, 12);
+    legs[1] = blk(card, 0x30363D); place(legs[1], 334, 125, 4, 12);
+    table_top = blk(card, 0x1F6FEB); place(table_top, 192, 121, 156, 5);
+    table_line = blk(card, 0xF0F6FC); place(table_line, 192, 121, 156, 2);
+    net = blk(card, 0xC9D1D9); place(net, 269, 112, 2, 9);
+
+    lv_obj_move_foreground(pet_box);
+    lv_obj_move_foreground(bubble);
+
+    pad_h = blk(card, 0x8B6F4E);
+    pad_f = blk(card, codex ? 0x10B981 : 0xF85149, LV_OPA_COVER, 2);
+    rival_b = blk(card, 0x21262D, LV_OPA_COVER, 2);
+    rival_f = blk(card, codex ? 0xD97757 : 0x10B981, LV_OPA_COVER, 1);
+    bshad = blk(card, 0x000000, LV_OPA_40, LV_RADIUS_CIRCLE);
+    ball = blk(card, 0xFFFFFF, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t, int &pet_x) {
+    PoseOffset po;
+    const bool obstructed = (m == PM_PENDING || m == PM_RATE_LIMITED);
+    set_vis(table_top, !obstructed); set_vis(table_line, !obstructed);
+    set_vis(net, !obstructed); set_vis(legs[0], !obstructed); set_vis(legs[1], !obstructed);
+    set_vis(pad_h, !obstructed); set_vis(pad_f, !obstructed);
+    set_vis(rival_b, !obstructed); set_vis(rival_f, !obstructed);
+    set_vis(ball, !obstructed);
+
+    if (obstructed) {
+      pet_x = 242;
+      set_vis(bshad, false);
+      return po;
+    }
+
+    pet_x = 132;
+    int bx = 268, by = 116, ry = 108, rx = 356, py = 114;
+    if (m == PM_WORKING) {
+      static const int BX[16] = {192, 212, 234, 256, 280, 304, 326, 348, 344, 322, 298, 274, 250, 226, 204, 190};
+      static const int BY[16] = {108, 102, 99, 101, 107, 117, 110, 106, 105, 100, 98, 101, 108, 117, 111, 109};
+      int k = (int) (f % 16);
+      bx = BX[k]; by = BY[k];
+      ry = by - 5;
+      if (k >= 6 && k <= 9) rx = 352;
+      if (k == 15 || k <= 1) { po.dx = 3; po.arm_r = -6; po.override_arms = true; py = 107; }
+      po.eye_dx = (bx > 270) ? 2 : 0;
+      po.override_eye_dx = true;
+    } else if (m == PM_NEEDS_INPUT) {
+      static const int JUG[6] = {0, -6, -10, -11, -7, -2};
+      bx = 186; by = 106 + JUG[f % 6];
+    } else if (m == PM_DONE || m == PM_SENT_OK) {
+      bx = (t < 10) ? 196 + (int) t * 17 : 368;
+      by = (t < 10) ? 108 - (int) (t < 5 ? t * 2 : (10 - t)) : 133;
+      py = 98;
+    }
+
+    place(pad_h, pet_x + 52 + po.dx, py + 8, 3, 6);
+    place(pad_f, pet_x + 50 + po.dx, py, 7, 10);
+    place(rival_b, rx, ry, 9, 16);
+    place(rival_f, rx - 2, ry + 2, 3, 12);
+    bool on_tbl = (bx >= 192 && bx <= 346 && by <= 122);
+    set_vis(bshad, on_tbl);
+    if (on_tbl) place(bshad, bx, 120, 5, 2);
+    place(ball, bx, by, 5, 5);
+    return po;
+  }
+};
+
+struct TerminalCampfireScene {
+  lv_obj_t *stars[4] = {};
+  lv_obj_t *glow = nullptr, *logs[2] = {};
+  lv_obj_t *f_out = nullptr, *f_mid = nullptr, *f_core = nullptr;
+  lv_obj_t *embers[3] = {}, *stick = nullptr, *mallow = nullptr;
+
+  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool /*codex*/) {
+    static const int SX[4] = {44, 152, 396, 488}, SY[4] = {98, 104, 96, 102};
+    for (int i = 0; i < 4; i++) {
+      stars[i] = blk(card, 0x8B949E);
+      place(stars[i], SX[i], SY[i], 2, 2);
+    }
+    glow = blk(card, 0x4A2612, LV_OPA_70, LV_RADIUS_CIRCLE); place(glow, 314, 132, 52, 8);
+    logs[0] = blk(card, 0x5A3E28); place(logs[0], 326, 133, 28, 4);
+    logs[1] = blk(card, 0x3D291A); place(logs[1], 330, 131, 20, 4);
+
+    lv_obj_move_foreground(pet_box);
+    lv_obj_move_foreground(bubble);
+
+    stick = blk(card, 0x8B6F4E);
+    mallow = blk(card, 0xF0F6FC, LV_OPA_COVER, 1);
+    f_out = blk(card, 0xF85149, LV_OPA_COVER, 4);
+    f_mid = blk(card, 0xFFB020, LV_OPA_COVER, 3);
+    f_core = blk(card, 0xFFE082, LV_OPA_COVER, 2);
+    for (int i = 0; i < 3; i++) embers[i] = blk(card, i == 1 ? 0xF85149 : 0xFFB020);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t, int &pet_x) {
+    PoseOffset po;
+    const bool obstructed = (m == PM_PENDING || m == PM_RATE_LIMITED);
+    for (auto *s : stars) set_vis(s, !obstructed);
+    set_vis(glow, !obstructed); set_vis(logs[0], !obstructed); set_vis(logs[1], !obstructed);
+    set_vis(f_out, !obstructed); set_vis(f_mid, !obstructed); set_vis(f_core, !obstructed);
+    set_vis(stick, !obstructed); set_vis(mallow, !obstructed);
+
+    if (obstructed) {
+      pet_x = 242;
+      for (auto *e : embers) set_vis(e, false);
+      return po;
+    }
+
+    pet_x = 236;
+    for (int i = 0; i < 4; i++) {
+      bool br = ((f / 6 + i * 2) % 5) == 0;
+      lv_obj_set_style_bg_color(stars[i], lv_color_hex(br ? 0xF0F6FC : 0x6E7681), 0);
+    }
+
+    bool low = (m == PM_IDLE);
+    int fl = (int) (f % 4);
+    int oh = low ? 6 + (fl % 2) : 18 + (fl == 1 ? 4 : fl == 3 ? -2 : 0);
+    int mh = low ? 4 : 12 + ((fl + 1) % 3) * 2;
+    int ch = low ? 2 : 6 + (fl % 2) * 2;
+    place(f_out, 331 + (low ? 0 : fl % 2), 133 - oh, 16, oh);
+    place(f_mid, 334, 133 - mh, 10, mh);
+    place(f_core, 336, 133 - ch, 6, ch);
+
+    for (int i = 0; i < 3; i++) {
+      set_vis(embers[i], !low);
+      if (!low) {
+        int age = (int) ((f + i * 6) % 14);
+        place(embers[i], 335 + i * 3 + ((age / 3) % 2 ? 2 : -2), 116 - age * 2, 2, 2);
+      }
+    }
+
+    int sy = (m == PM_WORKING) ? 119 + ((f / 4) % 2 ? -2 : 1) : (m == PM_DONE && t < 8) ? 110 : 122;
+    if (m == PM_WORKING) { po.arm_r = -4; po.override_arms = true; po.eye_dx = 2; po.override_eye_dx = true; }
+    uint32_t mc = (m == PM_DONE || m == PM_SENT_OK) ? 0xE39B4B : (m == PM_SENT_NO) ? 0x30363D : 0xF0F6FC;
+    lv_obj_set_style_bg_color(mallow, lv_color_hex(mc), 0);
+    place(stick, pet_x + 52 + po.dx, sy + po.dy, 28, 2);
+    place(mallow, pet_x + 78 + po.dx, sy - 2 + po.dy, 5, 5);
+    return po;
+  }
+};
+
 }  // namespace pet_scenes

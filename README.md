@@ -27,6 +27,7 @@ ESPHome LVGL firmware and SDL2 desktop simulator for the **Waveshare ESP32-S3-To
   - **`stage`** *(default on hardware)* — Mascot-forward animated Clawd puppet ([`claude/stage.yaml`](claude/stage.yaml), [`claude/clawd.h`](claude/clawd.h)).
   - **`terminal`** *(default on simulator)* — Compact CLI status line ([`claude/terminal.yaml`](claude/terminal.yaml)).
   - **`fishing`**, **`mining`**, **`pingpong`**, **`campfire`** — Additional animated activity-stage dioramas ([`pet_scenes.h`](pet_scenes.h)).
+  - **`terminal_fishing`**, **`terminal_mining`**, **`terminal_pingpong`**, **`terminal_campfire`** — Terminal-layout variants with the activity strip on the `540 px` floor.
 
 ### 4. Voice Satellite & Local Assist Pipeline
 - **On-device wake word & audio** ([`waveshare_349.yaml`](waveshare_349.yaml)): `micro_wake_word` (`okay_nabu`), ES8311 I2S audio codec, noise suppression, auto-gain, push-to-talk (`on_voice_ptt`), and a `Mute Microphone` switch (`mic_mute_switch`).
