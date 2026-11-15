@@ -175,11 +175,8 @@ touchscreen:
   - platform: axs15231
     id: my_touchscreen
     i2c_id: bus_a
-    # Landscape 90° alignment: flip mirror_x / mirror_y if touch axes are inverted on hardware.
-    transform:
-      swap_xy: true
-      mirror_x: false
-      mirror_y: true
+    display: my_display
+    # lvgl: rotation: 90 handles touch coordinate rotation automatically; do not add transform: swap_xy/mirror here.
     on_touch:
       - lambda: |-
           id(last_touch_ms) = millis();
