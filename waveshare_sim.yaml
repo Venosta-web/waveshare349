@@ -87,6 +87,10 @@ substitutions:
   # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
   claude_decision_timeout: "110"
 
+  # Music Assistant card: "deck" (vinyl turntable) or "studio" (EQ + meter console)
+  music_variant: "studio"
+  music_player_entity: "media_player.music_assistant_player"
+
   # VPD gauge scale
   vpd_gauge_min: "0.4"
   vpd_gauge_max: "1.8"
@@ -104,6 +108,8 @@ esphome:
 
 packages:
   claude: !include claude/${claude_variant}.yaml
+  music_common: !include music/common.yaml
+  music: !include music/${music_variant}.yaml
 
 host:
 
@@ -565,30 +571,9 @@ lvgl:
                       - lambda: "id(nav_direction) = 1;"
                       - script.execute: navigate_space
 
-        # ── CARD 2: SPOTIFY MEDIA BAR (Hidden initially) ────────────────────
-        - obj:
-            id: music_card
-            width: 560
-            height: 160
-            align: RIGHT_MID
-            x: -6
-            y: 0
-            styles: card_style
-            hidden: true
-            widgets:
-              - label:
-                  id: lbl_track_title
-                  text: "Spotify Media Bar"
-                  text_font: font_20
-                  text_color: 0x1DB954
-                  align: TOP_LEFT
-              - label:
-                  id: lbl_track_artist
-                  text: "Ready to wire media_player.spotify"
-                  text_font: font_14
-                  text_color: 0x8B949E
-                  align: TOP_LEFT
-                  y: 28
+        # ── CARD 2: MUSIC ASSISTANT (Hidden initially) ─────────────────────────
+        # Widgets live in music/<variant>_card.yaml, logic in music/<variant>.yaml.
+        - obj: !include music/${music_variant}_card.yaml
 
         # ── CARD 3: CLAUDE CODE (Hidden initially) ─────────────────────────
         # Widgets live in claude/<variant>_card.yaml, logic in claude/<variant>.yaml.
