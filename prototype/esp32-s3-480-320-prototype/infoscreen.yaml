@@ -88,7 +88,7 @@ substitutions:
 
   # Music Assistant card: "deck" (vinyl turntable) or "studio" (EQ + meter console)
   music_variant: "studio"
-  music_player_entity: "media_player.music_assistant_player"
+  music_player_entity: "sensor.music_assistant_bridge"
 
   # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
   claude_variant: "terminal"
