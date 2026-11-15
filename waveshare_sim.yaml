@@ -83,7 +83,7 @@ substitutions:
   pause_timeout: "25"
 
   # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
-  claude_variant: "stage"
+  claude_variant: "terminal"
   # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
   claude_decision_timeout: "110"
 
