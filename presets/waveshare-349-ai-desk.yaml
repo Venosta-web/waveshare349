@@ -5,6 +5,7 @@ substitutions:
   claude_decision_timeout: "110"
   codex_variant: "stage"
   codex_decision_timeout: "110"
+  pause_timeout: "25"
 
 packages:
   board: !include ../packages/waveshare_349/board.yaml

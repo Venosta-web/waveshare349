@@ -1,6 +1,9 @@
 # Core LVGL 640x172 shell, fonts, styles, Display View select, and adaptive nav rail.
 # Feature Modules extend home_page and switch_tab via !extend.
 
+substitutions:
+  pause_timeout: "25"
+
 globals:
   - id: active_tab
     type: int

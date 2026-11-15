@@ -1,5 +1,10 @@
 # Core LVGL 480x320 shell, header bar, fonts, styles, Display View select, and adaptive nav rail.
 
+substitutions:
+  pause_timeout: "25"
+  dim_timeout: "5"
+  sleep_timeout: "15"
+
 globals:
   - id: active_tab
     type: int
