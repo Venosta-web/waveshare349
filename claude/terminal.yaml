@@ -1,0 +1,224 @@
+# Variant B, "Terminal" — logic for claude/terminal_card.yaml.
+# Pulled in by waveshare_sim.yaml as packages: claude: !include claude/${claude_variant}.yaml
+
+font:
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: mono_16b
+    size: 16
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·✢✳✶✻✽✓✕…"
+  - file: "fonts/DejaVuSansMono.ttf"
+    id: mono_14
+    size: 14
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•…›"
+  - file: "fonts/DejaVuSansMono.ttf"
+    id: mono_12
+    size: 12
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·…"
+
+script:
+  # Renders the AI card from the claude_* helpers. A pending request reveals
+  # Approve/Reject, jumps to the AI tab and pauses the growspace cycle.
+  - id: update_ai_ui
+    mode: queued
+    then:
+      - lambda: |-
+          std::string status = id(claude_status).state;
+          std::string detail = id(claude_detail).state;
+          if (status == "unknown" || status == "unavailable") status = "";
+          if (detail == "unknown" || detail == "unavailable") detail = "";
+          clawd::set_mode(clawd::parse_status(status), millis());
+          clawd::split_detail(detail);
+          const bool pending = clawd::g_mode == clawd::PENDING;
+
+          lv_label_set_text(id(lbl_claude_project), clawd::g_project.c_str());
+          const char *text = clawd::g_text.empty()
+              ? (clawd::g_mode == clawd::IDLE ? "Waiting for Claude Code" : "")
+              : clawd::g_text.c_str();
+          lv_label_set_text(id(lbl_agent_detail), text);
+
+          if (pending) {
+            lv_obj_clear_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+            id(cycle_paused) = true;
+            id(pause_timer) = 3600;
+          } else {
+            lv_obj_add_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+            if (id(pause_timer) > ${pause_timeout}) id(pause_timer) = ${pause_timeout};
+          }
+          id(claude_tick).execute();
+      - if:
+          condition:
+            lambda: "return clawd::g_mode == clawd::PENDING;"
+          then:
+            - script.execute:
+                id: switch_tab
+                tab_idx: 2
+
+  # Immediate feedback after a tap, before HA echoes the new state back.
+  - id: claude_sent
+    parameters:
+      verdict: std::string
+    then:
+      - lambda: |-
+          lv_obj_add_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+          clawd::set_mode(verdict == "Approved" ? clawd::SENT_OK : clawd::SENT_NO, millis());
+          id(claude_tick).execute();
+
+  # One animation frame at 10 Hz; only draws while the AI tab is up.
+  - id: claude_tick
+    then:
+      - lambda: |-
+          using namespace clawd;
+          static Puppet p;
+          static int walk_x = 0, walk_dir = 1;
+          static uint32_t verb_for = UINT32_MAX;
+          static const char *verb = "Working";
+          // Claude Code names its work with a fresh gerund each prompt.
+          static const char *const VERBS[] = {"Working", "Pondering", "Noodling", "Brewing", "Cogitating",
+                                              "Tinkering", "Puzzling", "Forging", "Mulling", "Percolating"};
+          if (p.root == nullptr) {
+            build(p, id(clawd_box), 4);
+            lv_label_set_recolor(id(lbl_agent_status), true);
+            lv_obj_remove_flag(id(claude_bubble), LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_bg_color(id(claude_trail), lv_color_hex(BODY), 0);
+            lv_obj_set_style_border_width(id(claude_trail), 0, 0);
+          }
+          if (g_work_start != verb_for) {
+            verb_for = g_work_start;
+            verb = VERBS[(g_work_start / 7 + g_frame) % (sizeof(VERBS) / sizeof(VERBS[0]))];
+          }
+          if (lv_obj_has_flag(id(ai_card), LV_OBJ_FLAG_HIDDEN)) return;
+
+          const uint32_t f = g_frame, t = g_frame - g_mode_frame, now = millis();
+          const uint32_t acc = accent(g_mode);
+          const int max_x = 540 - p.w();
+          const int center = max_x / 2;
+
+          // ── Where Clawd stands ──
+          int target = walk_x;
+          if (g_mode == WORKING) {
+            walk_x += 4 * walk_dir;
+            if (walk_x >= max_x) { walk_x = max_x; walk_dir = -1; }
+            if (walk_x <= 0) { walk_x = 0; walk_dir = 1; }
+          } else {
+            target = (g_mode == IDLE) ? 0 : center;  // sleeps in the corner, otherwise steps to the middle
+            // A permission request can't wait for him to cross the buttons: he pops into the gap.
+            if (g_mode == PENDING) walk_x = target;
+            if (walk_x != target) {
+              int step = walk_x < target ? 12 : -12;
+              walk_dir = step > 0 ? 1 : -1;
+              walk_x = abs(target - walk_x) <= 12 ? target : walk_x + step;
+            }
+          }
+          const bool travelling = g_mode != WORKING && walk_x != target;
+          Pose s = animate(travelling ? WORKING : g_mode, f, travelling ? 0 : t, p.u);
+          if (g_mode == WORKING || travelling) s.eye_dx = walk_dir * (p.u / 2);
+          apply(p, s);
+          lv_obj_set_x(id(clawd_box), walk_x);
+
+          // Motion trail on the floor behind Clawd.
+          lv_obj_t *trail = id(claude_trail);
+          if (g_mode == WORKING || travelling) {
+            const int len = 44, feet = walk_x + p.w() / 2;
+            int x0 = walk_dir > 0 ? feet - p.w() / 2 - len : feet + p.w() / 2;
+            if (x0 < 0) x0 = 0;
+            lv_obj_set_x(trail, x0);
+            lv_obj_set_width(trail, len);
+            lv_obj_set_style_bg_opa(trail, LV_OPA_70, 0);
+          } else {
+            lv_obj_set_width(trail, 0);
+          }
+
+          // Bubble: a drifting z while asleep, ? or ! above the head otherwise.
+          lv_obj_t *b = id(claude_bubble);
+          int bx = walk_x + p.w() - 6, by = 86;
+          if (g_mode == IDLE && !travelling) {
+            uint32_t k = f % 30;
+            lv_label_set_text(b, k < 15 ? "z" : "Z");
+            bx += (int) (k / 6);
+            by = 92 - (int) (k / 2);
+            lv_obj_set_style_text_color(b, lv_color_hex(0x6E7681), 0);
+            lv_obj_set_style_text_opa(b, k < 20 ? LV_OPA_COVER : (lv_opa_t) (255 - (k - 20) * 25), 0);
+            lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN);
+          } else if ((g_mode == NEEDS_INPUT || g_mode == PENDING) && !travelling) {
+            lv_label_set_text(b, g_mode == PENDING ? "!" : "?");
+            by = 82 - (int) ((f / 5) % 2);
+            lv_obj_set_style_text_color(b, lv_color_hex(acc), 0);
+            lv_obj_set_style_text_opa(b, LV_OPA_COVER, 0);
+            lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
+          }
+          lv_obj_set_pos(b, bx, by);
+
+          // ── Status line ──
+          lv_label_set_text(id(claude_spin), g_mode == WORKING ? spinner(f)
+                            : g_mode == READY || g_mode == SENT_OK ? "✓"
+                            : g_mode == SENT_NO ? "✕"
+                            : g_mode == IDLE ? "·" : "✻");
+          lv_obj_set_style_text_color(id(claude_spin), lv_color_hex(acc), 0);
+
+          char line[160];
+          if (g_mode == WORKING) {
+            // A bright 3-letter glint sweeping the verb, like the CLI's shimmer.
+            const int n = strlen(verb), pos = (int) (f % (n + 8)) - 3;
+            int o = 0;
+            for (int i = 0; i < n && o < 140; i++) {
+              bool hi = i >= pos && i < pos + 3;
+              if (hi && (i == 0 || i == pos)) o += snprintf(line + o, sizeof(line) - o, "#FFD2BF ");
+              line[o++] = verb[i];
+              if (hi && (i == n - 1 || i == pos + 2)) line[o++] = '#';
+            }
+            line[o] = 0;
+            strncat(line, "…", sizeof(line) - strlen(line) - 1);
+          } else {
+            static const char *const WORDS[] = {"Idle", "", "Waiting for approval", "Needs your input", "Done", "Approved", "Rejected"};
+            snprintf(line, sizeof(line), "%s", WORDS[g_mode]);
+          }
+          lv_label_set_text(id(lbl_agent_status), line);
+          lv_obj_set_style_text_color(id(lbl_agent_status), lv_color_hex(acc), 0);
+
+          char tbuf[40] = "";
+          if (g_mode == WORKING || g_mode == NEEDS_INPUT) {
+            char d[16];
+            fmt_elapsed(d, sizeof(d), now - g_work_start);
+            snprintf(tbuf, sizeof(tbuf), "(%s)", d);
+          } else if (g_mode == PENDING) {
+            uint32_t gone = now - g_pending_start, total = ${claude_decision_timeout} * 1000;
+            uint32_t left = gone < total ? total - gone : 0;
+            snprintf(tbuf, sizeof(tbuf), "(%us to decide)", (unsigned) ((left + 999) / 1000));
+          } else if (g_mode == READY && g_last_run > 0) {
+            char d[16];
+            fmt_elapsed(d, sizeof(d), g_last_run);
+            snprintf(tbuf, sizeof(tbuf), "(took %s)", d);
+          }
+          lv_label_set_text(id(lbl_claude_time), tbuf);
+          lv_obj_align_to(id(lbl_claude_time), id(lbl_agent_status), LV_ALIGN_OUT_RIGHT_MID, 8, 1);
+
+          // ── Prompt box frame ──
+          uint32_t frame = 0x30363D, caret = 0x6E7681;
+          const char *mark = ">";
+          if (g_mode == PENDING) { frame = acc; caret = acc; mark = "!"; }
+          else if (g_mode == NEEDS_INPUT) { frame = acc; caret = acc; mark = "?"; }
+          else if (g_mode == WORKING) { caret = BODY; }
+          lv_obj_set_style_border_color(id(claude_box), lv_color_hex(frame), 0);
+          lv_label_set_text(id(claude_caret), mark);
+          lv_obj_set_style_text_color(id(claude_caret), lv_color_hex(caret), 0);
+
+          // Card border: pulses amber while a request waits.
+          uint32_t border = 0x30363D;
+          if (g_mode == PENDING) border = (f / 5) % 2 ? 0xFFB020 : 0x8A5D12;
+          else if (g_mode == SENT_OK) border = 0x2EA043;
+          else if (g_mode == SENT_NO) border = 0xF85149;
+          lv_obj_set_style_border_color(id(ai_card), lv_color_hex(border), 0);
+
+interval:
+  - interval: 100ms
+    then:
+      - lambda: "clawd::g_frame++;"
+      - script.execute: claude_tick

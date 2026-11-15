@@ -1,0 +1,71 @@
+# Headless preview: plays every Claude state on the AI tab and records GIFs.
+#   ESPHOME_SNAPSHOT_DIR=out esphome run preview.yaml
+# Variant comes from the claude_variant substitution (override with -s).
+substitutions:
+  device_name: "claude-preview"
+
+packages:
+  base: !include waveshare_sim.yaml
+
+api:
+  port: 6063
+
+display:
+  - id: !extend my_display
+    headless: true
+    snapshot_key: !remove
+    window_options: !remove
+
+touchscreen: !remove
+
+lvgl:
+  touchscreens: !remove
+
+script:
+  - id: demo_state
+    parameters:
+      status: std::string
+      detail: std::string
+    then:
+      - lambda: |-
+          id(claude_detail).publish_state(detail);
+          id(claude_status).publish_state(status);
+
+  - id: claude_demo
+    then:
+      - delay: 1s
+      - script.execute: { id: switch_tab, tab_idx: 2 }
+      - script.execute: { id: demo_state, status: "", detail: "" }
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "${claude_variant}-1-idle", frames: 40, frame_rate: 10Hz }
+      - delay: 4500ms
+      - script.execute: { id: demo_state, status: "Working", detail: "rootforge-game | Give the Clawd puppet a trot cycle and make the AI card show elapsed time while a prompt runs" }
+      - delay: 3s
+      - snapshot.take: { id: my_display, filename: "${claude_variant}-2-working", frames: 60, frame_rate: 10Hz }
+      - delay: 6500ms
+      - script.execute: { id: demo_state, status: "Pending Approval", detail: "rootforge-game | Bash: esphome run waveshare_sim.yaml --no-logs" }
+      - delay: 100ms
+      - snapshot.take: { id: my_display, filename: "${claude_variant}-3-pending", frames: 40, frame_rate: 10Hz }
+      - delay: 4500ms
+      - script.execute: { id: claude_sent, verdict: "Approved" }
+      - snapshot.take: { id: my_display, filename: "${claude_variant}-4-approved", frames: 12, frame_rate: 10Hz }
+      - delay: 1500ms
+      - script.execute: { id: demo_state, status: "Needs Input", detail: "rootforge-game | Which growspace should the new card read from?" }
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "${claude_variant}-5-needs-input", frames: 40, frame_rate: 10Hz }
+      - delay: 4500ms
+      - script.execute: { id: demo_state, status: "Working", detail: "rootforge-game | Give the Clawd puppet a trot cycle" }
+      - delay: 1s
+      - script.execute: { id: demo_state, status: "Ready", detail: "rootforge-game | Finished. Waiting for the next prompt." }
+      - snapshot.take: { id: my_display, filename: "${claude_variant}-6-ready", frames: 30, frame_rate: 10Hz }
+      - delay: 3500ms
+      - lambda: "exit(0);"
+
+interval:
+  - interval: 2s
+    then:
+      - if:
+          condition:
+            lambda: "static bool once = false; if (once) return false; once = true; return true;"
+          then:
+            - script.execute: claude_demo
