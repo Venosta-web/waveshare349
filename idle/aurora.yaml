@@ -1,0 +1,102 @@
+# Variation 2, "Aurora" — fonts & update logic for idle/aurora_card.yaml.
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 800
+    id: aurora_time_64
+    size: 64
+    bpp: 4
+    glyphs: "0123456789:-"
+
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: aurora_sec_14
+    size: 14
+    bpp: 4
+    glyphs: "0123456789:-"
+
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: aurora_meta_12
+    size: 12
+    bpp: 4
+    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-/dBm"
+
+  - file: "fonts/materialdesignicons-webfont.ttf"
+    id: aurora_icons_14
+    size: 14
+    bpp: 4
+    glyphs:
+      - "\U000F033F" # lock-outline
+
+script:
+  - id: update_idle_ui
+    mode: queued
+    then:
+      - lambda: |-
+          char buf[32];
+          // Time & Date
+          if (id(idle_time_valid)) {
+            snprintf(buf, sizeof(buf), "%02d:%02d", id(idle_hour), id(idle_minute));
+            lv_label_set_text(id(aurora_time_lbl), buf);
+            snprintf(buf, sizeof(buf), ":%02d", id(idle_second));
+            lv_label_set_text(id(aurora_sec_lbl), buf);
+            lv_label_set_text(id(aurora_date_lbl), id(idle_date_str).c_str());
+          } else {
+            lv_label_set_text(id(aurora_time_lbl), "--:--");
+            lv_label_set_text(id(aurora_sec_lbl), ":--");
+            lv_label_set_text(id(aurora_date_lbl), "SYNCING TIME");
+          }
+
+          // Battery Arc
+          int bat = id(idle_battery_pct);
+          if (bat < 0) {
+            lv_arc_set_value(id(aurora_bat_arc), 0);
+            lv_label_set_text(id(aurora_bat_pct), "--%");
+            lv_label_set_text(id(aurora_bat_icon), "\U000F0091");
+            lv_obj_set_style_text_color(id(aurora_bat_icon), lv_color_hex(0x64748B), 0);
+            lv_obj_set_style_arc_color(id(aurora_bat_arc), lv_color_hex(0x334155), LV_PART_INDICATOR);
+            lv_label_set_text(id(aurora_bat_lbl), "NO DATA");
+          } else {
+            if (bat > 100) bat = 100;
+            lv_arc_set_value(id(aurora_bat_arc), bat);
+            snprintf(buf, sizeof(buf), "%d%%", bat);
+            lv_label_set_text(id(aurora_bat_pct), buf);
+            uint32_t bc = bat >= 50 ? 0x10B981 : (bat >= 20 ? 0xF59E0B : 0xFF5252);
+            const char* bi = id(idle_battery_charging) ? "\U000F0084"
+                           : bat >= 90 ? "\U000F0079"
+                           : bat >= 65 ? "\U000F0081"
+                           : bat >= 40 ? "\U000F007E"
+                           : bat >= 15 ? "\U000F007B"
+                           : "\U000F0083";
+            lv_label_set_text(id(aurora_bat_icon), bi);
+            lv_obj_set_style_text_color(id(aurora_bat_icon), lv_color_hex(bc), 0);
+            lv_obj_set_style_arc_color(id(aurora_bat_arc), lv_color_hex(bc), LV_PART_INDICATOR);
+            lv_label_set_text(id(aurora_bat_lbl), id(idle_battery_charging) ? "CHRG" : "BATT");
+          }
+
+          // Wi-Fi 4-bar meter
+          lv_obj_t* bars[] = { id(aurora_bar_1), id(aurora_bar_2), id(aurora_bar_3), id(aurora_bar_4) };
+          if (id(idle_wifi_connected)) {
+            int rssi = id(idle_wifi_rssi);
+            int level = rssi >= -55 ? 4 : (rssi >= -67 ? 3 : (rssi >= -78 ? 2 : 1));
+            uint32_t wc = level >= 3 ? 0x38BDF8 : (level == 2 ? 0xF59E0B : 0xFF5252);
+            for (int i = 0; i < 4; i++) {
+              lv_obj_set_style_bg_color(bars[i], lv_color_hex(i < level ? wc : 0x1E293B), 0);
+            }
+            snprintf(buf, sizeof(buf), "%d dBm", rssi);
+            lv_label_set_text(id(aurora_wifi_rssi), buf);
+            lv_label_set_text(id(aurora_wifi_ssid),
+              id(idle_wifi_ssid).empty() ? "Wi-Fi" : id(idle_wifi_ssid).c_str());
+            lv_obj_set_style_bg_color(id(aurora_wifi_dot), lv_color_hex(0x10B981), 0);
+            lv_label_set_text(id(aurora_wifi_state), "Connected");
+          } else {
+            for (int i = 0; i < 4; i++) {
+              lv_obj_set_style_bg_color(bars[i], lv_color_hex(0x334155), 0);
+            }
+            lv_label_set_text(id(aurora_wifi_rssi), "-- dBm");
+            lv_label_set_text(id(aurora_wifi_ssid), "Disconnected");
+            lv_obj_set_style_bg_color(id(aurora_wifi_dot), lv_color_hex(0xFF5252), 0);
+            lv_label_set_text(id(aurora_wifi_state), "Offline");
+          }
+          lv_obj_invalidate(id(idle_lock_overlay));

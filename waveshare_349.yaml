@@ -90,6 +90,12 @@ substitutions:
   # Timing (seconds)
   cycle_interval: "15"
   pause_timeout: "25"
+  idle_timeout: "300"
+
+  # Idle / Lock Clock Screen: "chronograph" | "aurora" | "terminal"
+  idle_variant: "chronograph"
+  # Waveshare 3.49 battery voltage divider ratio on GPIO4 (typically 3.0 or 2.0)
+  battery_divider: "3.0"
 
   # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
   claude_variant: "stage"
@@ -133,6 +139,8 @@ psram:
 
 packages:
   ui: !include packages/display_ui.yaml
+  idle_common: !include idle/common.yaml
+  idle: !include idle/${idle_variant}.yaml
   claude: !include claude/${claude_variant}.yaml
   codex: !include codex/${codex_variant}.yaml
   music_common: !include music/common.yaml
@@ -155,6 +163,71 @@ wifi:
   password: "${wifi_password}"
   ap:
     ssid: "${device_name}-fallback"
+  on_connect:
+    - lambda: "id(idle_wifi_connected) = true;"
+    - if:
+        condition:
+          lambda: "return id(screen_locked);"
+        then:
+          - script.execute: update_idle_ui
+  on_disconnect:
+    - lambda: "id(idle_wifi_connected) = false;"
+    - if:
+        condition:
+          lambda: "return id(screen_locked);"
+        then:
+          - script.execute: update_idle_ui
+
+# ============================================================================
+# BATTERY & WI-FI TELEMETRY SENSORS (For Idle Clock & Home Assistant)
+# ============================================================================
+sensor:
+  - platform: adc
+    pin: GPIO4
+    id: battery_voltage
+    name: "Battery Voltage"
+    attenuation: 12db
+    update_interval: 30s
+    filters:
+      - multiply: ${battery_divider}
+    on_value:
+      - lambda: |-
+          float pct = ((x - 3.20f) / (4.20f - 3.20f)) * 100.0f;
+          if (pct < 0.0f) pct = 0.0f;
+          if (pct > 100.0f) pct = 100.0f;
+          id(idle_battery_pct) = (int)roundf(pct);
+      - if:
+          condition:
+            lambda: "return id(screen_locked);"
+          then:
+            - script.execute: update_idle_ui
+
+  - platform: wifi_signal
+    id: wifi_rssi_sensor
+    name: "WiFi Signal"
+    update_interval: 15s
+    on_value:
+      - lambda: |-
+          id(idle_wifi_rssi) = (int)roundf(x);
+          id(idle_wifi_connected) = true;
+      - if:
+          condition:
+            lambda: "return id(screen_locked);"
+          then:
+            - script.execute: update_idle_ui
+
+text_sensor:
+  - platform: wifi_info
+    ssid:
+      id: wifi_ssid_sensor
+      name: "WiFi SSID"
+      on_value:
+        - lambda: "id(idle_wifi_ssid) = x;"
+        - if:
+            condition:
+              lambda: "return id(screen_locked);"
+            then:
+              - script.execute: update_idle_ui
 
 captive_portal:
 
@@ -247,6 +320,7 @@ micro_wake_word:
         condition:
           lambda: "return !id(voice_muted);"
         then:
+          - script.execute: unlock_idle_screen
           - voice_assistant.start:
 
 voice_assistant:
@@ -257,6 +331,7 @@ voice_assistant:
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   on_listening:
+    - script.execute: unlock_idle_screen
     - lvgl.widget.update:
         id: nav_mic_icon
         text_color: 0x58A6FF
@@ -266,6 +341,7 @@ voice_assistant:
         status_text: "Listening..."
         accent_hex: 0x58A6FF
   on_stt_vad_end:
+    - script.execute: unlock_idle_screen
     - lvgl.widget.update:
         id: nav_mic_icon
         text_color: 0xFFC107
@@ -275,6 +351,7 @@ voice_assistant:
         status_text: "Thinking..."
         accent_hex: 0xFFC107
   on_tts_start:
+    - script.execute: unlock_idle_screen
     - lvgl.widget.update:
         id: nav_mic_icon
         text_color: 0x1DB954
@@ -294,6 +371,7 @@ voice_assistant:
         status_text: ""
         accent_hex: 0x58A6FF
   on_error:
+    - script.execute: unlock_idle_screen
     - script.execute:
         id: set_voice_overlay
         visible: true
@@ -333,6 +411,7 @@ switch:
 script:
   - id: !extend on_voice_ptt
     then:
+      - script.execute: unlock_idle_screen
       - if:
           condition:
             lambda: "return id(va).is_running();"

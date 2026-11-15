@@ -1,0 +1,140 @@
+# Shared state, time sync, and 5-minute inactivity lock/unlock engine
+# for the Waveshare 3.49 Idle / Lock Clock Screen.
+
+globals:
+  - id: screen_locked
+    type: bool
+    initial_value: "false"
+  - id: idle_timer
+    type: int
+    initial_value: "${idle_timeout}"
+  - id: idle_battery_pct
+    type: int
+    initial_value: "-1"
+  - id: idle_battery_charging
+    type: bool
+    initial_value: "false"
+  - id: idle_wifi_connected
+    type: bool
+    initial_value: "false"
+  - id: idle_wifi_rssi
+    type: int
+    initial_value: "0"
+  - id: idle_wifi_ssid
+    type: std::string
+    initial_value: '""'
+  - id: idle_time_valid
+    type: bool
+    initial_value: "false"
+  - id: idle_hour
+    type: int
+    initial_value: "0"
+  - id: idle_minute
+    type: int
+    initial_value: "0"
+  - id: idle_second
+    type: int
+    initial_value: "0"
+  - id: idle_date_str
+    type: std::string
+    initial_value: '"--- --"'
+  - id: idle_iso_date
+    type: std::string
+    initial_value: '"----/--/--"'
+  - id: idle_day_str
+    type: std::string
+    initial_value: '"---"'
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+script:
+  - id: reset_idle_timer
+    mode: restart
+    then:
+      - lambda: |-
+          id(idle_timer) = ${idle_timeout};
+
+  - id: lock_idle_screen
+    mode: single
+    then:
+      - lambda: |-
+          id(screen_locked) = true;
+          id(idle_timer) = 0;
+      - script.execute: update_idle_ui
+      - lambda: |-
+          lv_obj_clear_flag(id(idle_lock_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(id(idle_lock_overlay));
+          lv_obj_invalidate(lv_scr_act());
+
+  - id: unlock_idle_screen
+    mode: single
+    then:
+      - lambda: |-
+          id(idle_timer) = ${idle_timeout};
+          if (id(screen_locked)) {
+            id(screen_locked) = false;
+            lv_obj_add_flag(id(idle_lock_overlay), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_invalidate(lv_scr_act());
+          }
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          // 1. Sync current time from Home Assistant (or host clock in simulator)
+          auto now = id(ha_time).now();
+          if (now.is_valid()) {
+            id(idle_time_valid) = true;
+            id(idle_hour) = now.hour;
+            id(idle_minute) = now.minute;
+            id(idle_second) = now.second;
+            char dbuf[24];
+            now.strftime(dbuf, sizeof(dbuf), "%a · %b %d");
+            for (char* p = dbuf; *p; ++p) *p = toupper((unsigned char)*p);
+            id(idle_date_str) = dbuf;
+            now.strftime(dbuf, sizeof(dbuf), "%Y-%m-%d");
+            id(idle_iso_date) = dbuf;
+            now.strftime(dbuf, sizeof(dbuf), "%a");
+            for (char* p = dbuf; *p; ++p) *p = toupper((unsigned char)*p);
+            id(idle_day_str) = dbuf;
+          } else {
+          #ifdef USE_HOST
+            time_t raw = time(nullptr);
+            if (raw > 1700000000) {
+              struct tm* lt = localtime(&raw);
+              if (lt != nullptr) {
+                id(idle_time_valid) = true;
+                id(idle_hour) = lt->tm_hour;
+                id(idle_minute) = lt->tm_min;
+                id(idle_second) = lt->tm_sec;
+                char dbuf[24];
+                strftime(dbuf, sizeof(dbuf), "%a · %b %d", lt);
+                for (char* p = dbuf; *p; ++p) *p = toupper((unsigned char)*p);
+                id(idle_date_str) = dbuf;
+                strftime(dbuf, sizeof(dbuf), "%Y-%m-%d", lt);
+                id(idle_iso_date) = dbuf;
+                strftime(dbuf, sizeof(dbuf), "%a", lt);
+                for (char* p = dbuf; *p; ++p) *p = toupper((unsigned char)*p);
+                id(idle_day_str) = dbuf;
+              }
+            }
+          #endif
+          }
+
+          // 2. Count down 5-minute inactivity timer when unlocked
+          if (!id(screen_locked)) {
+            if (id(idle_timer) > 0) {
+              id(idle_timer)--;
+            }
+            if (id(idle_timer) <= 0) {
+              id(lock_idle_screen).execute();
+              return;
+            }
+          }
+      - if:
+          condition:
+            lambda: "return id(screen_locked);"
+          then:
+            - script.execute: update_idle_ui

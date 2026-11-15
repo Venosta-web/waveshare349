@@ -1,0 +1,104 @@
+# Variation 3, "Terminal" — fonts & update logic for idle/terminal_card.yaml.
+
+font:
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: term_time_56
+    size: 56
+    bpp: 4
+    glyphs: "0123456789:-"
+
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: term_sec_26
+    size: 26
+    bpp: 4
+    glyphs: "0123456789:-"
+
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: term_mono_16b
+    size: 16
+    bpp: 4
+    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[]:-#.%+-/"
+
+  - file: "fonts/DejaVuSansMono.ttf"
+    id: term_mono_13
+    size: 13
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: term_mono_12b
+    size: 12
+    bpp: 4
+    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789[]/:-"
+
+  - file: "fonts/DejaVuSansMono.ttf"
+    id: term_mono_12
+    size: 12
+    bpp: 4
+    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:-·"
+
+  - file: "fonts/materialdesignicons-webfont.ttf"
+    id: term_icons_14
+    size: 14
+    bpp: 4
+    glyphs:
+      - "\U000F033E" # lock
+
+script:
+  - id: update_idle_ui
+    mode: queued
+    then:
+      - lambda: |-
+          char buf[48];
+          // Time & ISO Date
+          if (id(idle_time_valid)) {
+            snprintf(buf, sizeof(buf), "%02d:%02d", id(idle_hour), id(idle_minute));
+            lv_label_set_text(id(term_time_lbl), buf);
+            snprintf(buf, sizeof(buf), ":%02d", id(idle_second));
+            lv_label_set_text(id(term_sec_lbl), buf);
+            snprintf(buf, sizeof(buf), "%s  %s", id(idle_iso_date).c_str(), id(idle_day_str).c_str());
+            lv_label_set_text(id(term_date_lbl), buf);
+          } else {
+            lv_label_set_text(id(term_time_lbl), "--:--");
+            lv_label_set_text(id(term_sec_lbl), ":--");
+            lv_label_set_text(id(term_date_lbl), "SYNCING TIME...");
+          }
+
+          // Battery ASCII meter: BAT [########..]  84%
+          int bat = id(idle_battery_pct);
+          if (bat < 0) {
+            lv_label_set_text(id(term_bat_lbl), "BAT [..........]  --%");
+            lv_obj_set_style_text_color(id(term_bat_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            if (bat > 100) bat = 100;
+            int filled = (bat + 5) / 10;
+            if (filled > 10) filled = 10;
+            char bar[11];
+            for (int i = 0; i < 10; i++) bar[i] = (i < filled) ? '#' : '.';
+            bar[10] = '\0';
+            snprintf(buf, sizeof(buf), "BAT [%s] %3d%%", bar, bat);
+            lv_label_set_text(id(term_bat_lbl), buf);
+            uint32_t bc = bat >= 50 ? 0x3FB950 : (bat >= 20 ? 0xF59E0B : 0xFF5252);
+            lv_obj_set_style_text_color(id(term_bat_lbl), lv_color_hex(bc), 0);
+          }
+
+          // Wi-Fi ASCII meter: NET [####] -54dBm  OK
+          if (id(idle_wifi_connected)) {
+            int rssi = id(idle_wifi_rssi);
+            int level = rssi >= -55 ? 4 : (rssi >= -67 ? 3 : (rssi >= -78 ? 2 : 1));
+            char wbar[5];
+            for (int i = 0; i < 4; i++) wbar[i] = (i < level) ? '#' : '.';
+            wbar[4] = '\0';
+            snprintf(buf, sizeof(buf), "NET [%s] %4ddBm OK", wbar, rssi);
+            lv_label_set_text(id(term_wifi_lbl), buf);
+            uint32_t wc = level >= 3 ? 0x58A6FF : (level == 2 ? 0xF59E0B : 0xFF5252);
+            lv_obj_set_style_text_color(id(term_wifi_lbl), lv_color_hex(wc), 0);
+            snprintf(buf, sizeof(buf), "SSID: %s",
+              id(idle_wifi_ssid).empty() ? "Connected" : id(idle_wifi_ssid).c_str());
+            lv_label_set_text(id(term_ssid_lbl), buf);
+          } else {
+            lv_label_set_text(id(term_wifi_lbl), "NET [....]   --dBm ERR");
+            lv_obj_set_style_text_color(id(term_wifi_lbl), lv_color_hex(0xFF5252), 0);
+            lv_label_set_text(id(term_ssid_lbl), "SSID: Disconnected");
+          }
+          lv_obj_invalidate(id(idle_lock_overlay));

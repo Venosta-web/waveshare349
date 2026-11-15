@@ -1,0 +1,110 @@
+# Variation 1, "Chronograph" — fonts & update logic for idle/chronograph_card.yaml.
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 800
+    id: chrono_time_72
+    size: 72
+    bpp: 4
+    glyphs: "0123456789:-"
+
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: chrono_sec_28
+    size: 28
+    bpp: 4
+    glyphs: "0123456789:-"
+
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: chrono_meta_12
+    size: 12
+    bpp: 4
+    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-/%"
+
+  - file: "fonts/materialdesignicons-webfont.ttf"
+    id: chrono_icons_14
+    size: 14
+    bpp: 4
+    glyphs:
+      - "\U000F033F" # lock-outline
+
+script:
+  - id: update_idle_ui
+    mode: queued
+    then:
+      - lambda: |-
+          char buf[32];
+          // Time & Date
+          if (id(idle_time_valid)) {
+            snprintf(buf, sizeof(buf), "%02d:%02d", id(idle_hour), id(idle_minute));
+            lv_label_set_text(id(chrono_time_lbl), buf);
+            snprintf(buf, sizeof(buf), ":%02d", id(idle_second));
+            lv_label_set_text(id(chrono_sec_lbl), buf);
+            lv_label_set_text(id(chrono_date_lbl), id(idle_date_str).c_str());
+            int bar_w = (id(idle_second) * 348) / 59;
+            if (bar_w < 6) bar_w = 6;
+            lv_obj_set_width(id(chrono_sec_bar), bar_w);
+          } else {
+            lv_label_set_text(id(chrono_time_lbl), "--:--");
+            lv_label_set_text(id(chrono_sec_lbl), ":--");
+            lv_label_set_text(id(chrono_date_lbl), "WAITING FOR TIME");
+            lv_obj_set_width(id(chrono_sec_bar), 0);
+          }
+
+          // Battery
+          int bat = id(idle_battery_pct);
+          if (bat < 0) {
+            lv_label_set_text(id(chrono_bat_pct), "--%");
+            lv_label_set_text(id(chrono_bat_icon), "\U000F0091");
+            lv_obj_set_style_text_color(id(chrono_bat_icon), lv_color_hex(0x6E7681), 0);
+            lv_obj_set_style_bg_color(id(chrono_bat_fill), lv_color_hex(0x6E7681), 0);
+            lv_obj_set_width(id(chrono_bat_fill), 0);
+            lv_label_set_text(id(chrono_bat_state), "NO BATTERY DATA");
+          } else {
+            if (bat > 100) bat = 100;
+            snprintf(buf, sizeof(buf), "%d%%", bat);
+            lv_label_set_text(id(chrono_bat_pct), buf);
+            int bw = (bat * 204) / 100;
+            if (bw < 6 && bat > 0) bw = 6;
+            lv_obj_set_width(id(chrono_bat_fill), bw);
+
+            uint32_t bc = bat >= 50 ? 0x3FB950 : (bat >= 20 ? 0xF59E0B : 0xFF5252);
+            const char* bi = id(idle_battery_charging) ? "\U000F0084"
+                           : bat >= 90 ? "\U000F0079"
+                           : bat >= 65 ? "\U000F0081"
+                           : bat >= 40 ? "\U000F007E"
+                           : bat >= 15 ? "\U000F007B"
+                           : "\U000F0083";
+            lv_label_set_text(id(chrono_bat_icon), bi);
+            lv_obj_set_style_text_color(id(chrono_bat_icon), lv_color_hex(bc), 0);
+            lv_obj_set_style_bg_color(id(chrono_bat_fill), lv_color_hex(bc), 0);
+            lv_label_set_text(id(chrono_bat_state),
+              id(idle_battery_charging) ? "CHARGING" : (bat < 20 ? "LOW BATTERY" : "NOMINAL"));
+          }
+
+          // Wi-Fi
+          if (id(idle_wifi_connected)) {
+            int rssi = id(idle_wifi_rssi);
+            snprintf(buf, sizeof(buf), "%d dBm", rssi);
+            lv_label_set_text(id(chrono_wifi_rssi), buf);
+            const char* wi = rssi >= -55 ? "\U000F0928"
+                           : rssi >= -67 ? "\U000F0925"
+                           : rssi >= -78 ? "\U000F0922"
+                           : "\U000F091F";
+            uint32_t wc = rssi >= -67 ? 0x58A6FF : (rssi >= -78 ? 0xF59E0B : 0xFF5252);
+            lv_label_set_text(id(chrono_wifi_icon), wi);
+            lv_obj_set_style_text_color(id(chrono_wifi_icon), lv_color_hex(wc), 0);
+            lv_label_set_text(id(chrono_wifi_ssid),
+              id(idle_wifi_ssid).empty() ? "Wi-Fi Connected" : id(idle_wifi_ssid).c_str());
+            lv_label_set_text(id(chrono_wifi_badge), "ONLINE");
+            lv_obj_set_style_text_color(id(chrono_wifi_badge), lv_color_hex(0x3FB950), 0);
+          } else {
+            lv_label_set_text(id(chrono_wifi_rssi), "-- dBm");
+            lv_label_set_text(id(chrono_wifi_icon), "\U000F05AA");
+            lv_obj_set_style_text_color(id(chrono_wifi_icon), lv_color_hex(0xFF5252), 0);
+            lv_label_set_text(id(chrono_wifi_ssid), "Disconnected");
+            lv_label_set_text(id(chrono_wifi_badge), "OFFLINE");
+            lv_obj_set_style_text_color(id(chrono_wifi_badge), lv_color_hex(0xFF5252), 0);
+          }
+          lv_obj_invalidate(id(idle_lock_overlay));

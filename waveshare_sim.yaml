@@ -81,6 +81,10 @@ substitutions:
   # Timing (seconds)
   cycle_interval: "15"
   pause_timeout: "25"
+  idle_timeout: "300"
+
+  # Idle / Lock Clock Screen: "chronograph" | "aurora" | "terminal"
+  idle_variant: "chronograph"
 
   # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
   claude_variant: "terminal"
@@ -110,11 +114,21 @@ esphome:
     priority: -100
     then:
       - delay: 3s
+      - lambda: |-
+          // Realistic defaults for standalone SDL simulator
+          if (id(idle_battery_pct) < 0) id(idle_battery_pct) = 84;
+          if (!id(idle_wifi_connected)) {
+            id(idle_wifi_connected) = true;
+            id(idle_wifi_rssi) = -54;
+            id(idle_wifi_ssid) = "GrowLab-5G";
+          }
       - script.execute: update_grow_ui
       - script.execute: update_music_ui
 
 packages:
   ui: !include packages/display_ui.yaml
+  idle_common: !include idle/common.yaml
+  idle: !include idle/${idle_variant}.yaml
   claude: !include claude/${claude_variant}.yaml
   codex: !include codex/${codex_variant}.yaml
   music_common: !include music/common.yaml
