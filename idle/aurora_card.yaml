@@ -1,0 +1,257 @@
+# Variation 2, "Aurora": Ambient Horizon / Nightstand Display
+# Circular battery arc on left, centered hero clock, and live 4-bar Wi-Fi card on right.
+id: idle_lock_overlay
+width: 640
+height: 172
+align: TOP_LEFT
+x: 0
+y: 0
+bg_color: 0x060A12
+bg_opa: COVER
+border_width: 0
+radius: 0
+pad_all: 0
+scrollbar_mode: "off"
+hidden: true
+clickable: true
+on_click:
+  then:
+    - script.execute: unlock_idle_screen
+widgets:
+  # ── LEFT ANCHOR: CIRCULAR BATTERY ARC ─────────────────────────────────────
+  - arc:
+      id: aurora_bat_arc
+      width: 124
+      height: 124
+      align: LEFT_MID
+      x: 20
+      y: 0
+      start_angle: 135
+      end_angle: 45
+      min_value: 0
+      max_value: 100
+      value: 0
+      adjustable: false
+      clickable: false
+      arc_width: 10
+      arc_rounded: true
+      arc_color: 0x131D2E
+      indicator:
+        arc_width: 10
+        arc_rounded: true
+        arc_color: 0x10B981
+      knob:
+        bg_opa: TRANSP
+
+  - label:
+      id: aurora_bat_icon
+      text: "\U000F0081"
+      text_font: icons_20
+      text_color: 0x10B981
+      align: TOP_LEFT
+      x: 72
+      y: 52
+
+  - label:
+      id: aurora_bat_pct
+      text: "--%"
+      text_font: font_20
+      text_color: 0xF8FAFC
+      width: 80
+      text_align: CENTER
+      align: TOP_LEFT
+      x: 42
+      y: 78
+
+  - label:
+      id: aurora_bat_lbl
+      text: "BATT"
+      text_font: aurora_meta_12
+      text_color: 0x64748B
+      width: 80
+      text_align: CENTER
+      align: TOP_LEFT
+      x: 42
+      y: 122
+
+  # ── CENTER HERO: TIME & DATE PILL ─────────────────────────────────────────
+  - label:
+      id: aurora_time_lbl
+      text: "16:43"
+      text_font: aurora_time_64
+      text_color: 0xF8FAFC
+      width: 260
+      text_align: CENTER
+      align: TOP_LEFT
+      x: 176
+      y: 26
+
+  - obj:
+      id: aurora_date_pill
+      width: 210
+      height: 30
+      align: TOP_LEFT
+      x: 201
+      y: 112
+      bg_color: 0x0F172A
+      bg_opa: COVER
+      border_color: 0x1E293B
+      border_width: 1
+      radius: 15
+      pad_all: 0
+      clickable: false
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: aurora_date_lbl
+            text: "SUN · NOV 15"
+            text_font: aurora_meta_12
+            text_color: 0x38BDF8
+            align: LEFT_MID
+            x: 16
+            y: 0
+        - label:
+            id: aurora_sec_lbl
+            text: ":00"
+            text_font: aurora_sec_14
+            text_color: 0x94A3B8
+            align: RIGHT_MID
+            x: -16
+            y: 0
+
+  # ── RIGHT ANCHOR: WI-FI SIGNAL & UNLOCK CARD ──────────────────────────────
+  - obj:
+      id: aurora_wifi_card
+      width: 168
+      height: 136
+      align: RIGHT_MID
+      x: -18
+      y: 0
+      bg_color: 0x0F172A
+      bg_opa: COVER
+      border_color: 0x1E293B
+      border_width: 1
+      radius: 14
+      pad_all: 12
+      clickable: false
+      scrollbar_mode: "off"
+      widgets:
+        # 4-bar live Wi-Fi signal meter
+        - obj:
+            id: aurora_bar_1
+            width: 6
+            height: 8
+            align: TOP_LEFT
+            x: 0
+            y: 16
+            bg_color: 0x38BDF8
+            bg_opa: COVER
+            border_width: 0
+            radius: 2
+            clickable: false
+        - obj:
+            id: aurora_bar_2
+            width: 6
+            height: 13
+            align: TOP_LEFT
+            x: 9
+            y: 11
+            bg_color: 0x38BDF8
+            bg_opa: COVER
+            border_width: 0
+            radius: 2
+            clickable: false
+        - obj:
+            id: aurora_bar_3
+            width: 6
+            height: 18
+            align: TOP_LEFT
+            x: 18
+            y: 6
+            bg_color: 0x38BDF8
+            bg_opa: COVER
+            border_width: 0
+            radius: 2
+            clickable: false
+        - obj:
+            id: aurora_bar_4
+            width: 6
+            height: 24
+            align: TOP_LEFT
+            x: 27
+            y: 0
+            bg_color: 0x1E293B
+            bg_opa: COVER
+            border_width: 0
+            radius: 2
+            clickable: false
+
+        - label:
+            id: aurora_wifi_rssi
+            text: "-- dBm"
+            text_font: aurora_meta_12
+            text_color: 0x94A3B8
+            align: TOP_RIGHT
+            x: 0
+            y: 6
+
+        - label:
+            id: aurora_wifi_ssid
+            text: "Connecting..."
+            text_font: font_14
+            text_color: 0xF8FAFC
+            width: 142
+            long_mode: DOT
+            align: TOP_LEFT
+            x: 0
+            y: 40
+
+        - obj:
+            id: aurora_wifi_dot
+            width: 8
+            height: 8
+            align: TOP_LEFT
+            x: 0
+            y: 66
+            bg_color: 0xFF5252
+            bg_opa: COVER
+            border_width: 0
+            radius: 4
+            clickable: false
+
+        - label:
+            id: aurora_wifi_state
+            text: "Offline"
+            text_font: font_12
+            text_color: 0x94A3B8
+            align: TOP_LEFT
+            x: 14
+            y: 63
+
+        - obj:
+            width: 142
+            height: 1
+            align: TOP_LEFT
+            x: 0
+            y: 88
+            bg_color: 0x1E293B
+            bg_opa: COVER
+            border_width: 0
+            radius: 0
+            clickable: false
+
+        - label:
+            text: "\U000F033F"
+            text_font: aurora_icons_14
+            text_color: 0x64748B
+            align: BOTTOM_LEFT
+            x: 0
+            y: 2
+
+        - label:
+            text: "Tap to unlock"
+            text_font: font_12
+            text_color: 0x64748B
+            align: BOTTOM_LEFT
+            x: 18
+            y: 2

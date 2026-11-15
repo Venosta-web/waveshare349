@@ -36,14 +36,14 @@ different command.
 1. **Token**: in Home Assistant, Profile → Security → Long-lived access tokens →
    Create token. Paste it after `HA_TOKEN=` in
    `~/.config/claude-ha-bridge/config.env` (mode 600, outside any repo).
-2. **Let the display send events**: Settings → Devices & services → ESPHome →
-   the simulator → Configure → tick *Allow the device to perform Home Assistant
-   actions*.
+2. **Let each display send events**: Settings → Devices & services → ESPHome →
+   each display (simulator, Waveshare 3.49, 480x320, etc.) → Configure → tick
+   *Allow the device to perform Home Assistant actions*.
 3. **Create the helpers**:
    ```bash
    python3 ~/dev/EspHome/Waveshare349/claude_bridge/claude_ha_bridge.py setup
    ```
-4. **Try it** (taps on the display print here):
+4. **Try it** (taps on any display print here):
    ```bash
    python3 ~/dev/EspHome/Waveshare349/claude_bridge/claude_ha_bridge.py test
    ```
@@ -52,3 +52,15 @@ different command.
    machine, including the desktop app.
 
 `check` confirms the token works and lists which helpers exist.
+
+## Multiple displays (Shared Mirror)
+
+All connected ESPHome displays subscribe to the same `input_text.claude_*`
+helpers and mirror the active Claude Code feed simultaneously:
+
+- Tapping **APPROVE** / **REJECT** on any display fires `esphome.claude_command`,
+  and the bridge clears `input_text.claude_request` so buttons dismiss on all
+  other displays as well.
+- Make sure every physical/simulator display is paired in Home Assistant's
+  ESPHome integration and has *Allow the device to perform Home Assistant
+  actions* enabled.

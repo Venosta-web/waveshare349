@@ -66,11 +66,25 @@ text_sensor:
     entity_id: input_text.codex_status
     on_value:
       - script.execute: update_codex_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(codex_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
   - platform: homeassistant
     id: codex_detail
     entity_id: input_text.codex_detail
     on_value:
       - script.execute: update_codex_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(codex_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
   - platform: homeassistant
     id: codex_request
     entity_id: input_text.codex_request
@@ -79,6 +93,13 @@ text_sensor:
     entity_id: input_text.codex_steps
     on_value:
       - script.execute: update_codex_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(codex_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
 
 script:
   - id: !extend switch_tab

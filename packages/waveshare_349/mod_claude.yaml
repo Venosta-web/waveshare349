@@ -19,6 +19,11 @@ esphome:
               id(switch_tab).execute(2);
             }
 
+api:
+  on_client_connected:
+    - delay: 1s
+    - script.execute: update_ai_ui
+
 lvgl:
   pages:
     - id: !extend home_page
@@ -66,11 +71,25 @@ text_sensor:
     entity_id: input_text.claude_status
     on_value:
       - script.execute: update_ai_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(claude_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
   - platform: homeassistant
     id: claude_detail
     entity_id: input_text.claude_detail
     on_value:
       - script.execute: update_ai_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(claude_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
   - platform: homeassistant
     id: claude_request
     entity_id: input_text.claude_request
@@ -79,6 +98,13 @@ text_sensor:
     entity_id: input_text.claude_steps
     on_value:
       - script.execute: update_ai_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(claude_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
 
 script:
   - id: !extend switch_tab
