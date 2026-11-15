@@ -8,6 +8,24 @@ globals:
   - id: idle_timer
     type: int
     initial_value: "${idle_timeout}"
+  - id: settings_idle_timeout
+    type: int
+    initial_value: "${idle_timeout}"
+  - id: idle_battery_pct
+    type: int
+    initial_value: "-1"
+  - id: idle_battery_charging
+    type: bool
+    initial_value: "false"
+  - id: idle_wifi_connected
+    type: bool
+    initial_value: "false"
+  - id: idle_wifi_rssi
+    type: int
+    initial_value: "0"
+  - id: idle_wifi_ssid
+    type: std::string
+    initial_value: '""'
   - id: idle_time_valid
     type: bool
     initial_value: "false"

@@ -25,30 +25,12 @@ globals:
   - id: settings_brightness
     type: int
     initial_value: "100"
-  - id: settings_idle_timeout
-    type: int
-    initial_value: "${idle_timeout}"
   - id: settings_cycle_interval
     type: int
     initial_value: "${cycle_interval}"
   - id: settings_cycle_enabled
     type: bool
     initial_value: "true"
-  - id: idle_battery_pct
-    type: int
-    initial_value: "-1"
-  - id: idle_battery_charging
-    type: bool
-    initial_value: "false"
-  - id: idle_wifi_connected
-    type: bool
-    initial_value: "false"
-  - id: idle_wifi_rssi
-    type: int
-    initial_value: "0"
-  - id: idle_wifi_ssid
-    type: std::string
-    initial_value: '""'
 
 esphome:
   on_boot:
