@@ -1,5 +1,5 @@
 # Feature Module: Claude Code Status & Approval Card (Waveshare 3.49)
-# Requires substitutions: claude_variant ("stage" | "terminal"), claude_decision_timeout
+# Requires substitutions: claude_variant ("stage" | "terminal" | "fishing" | "mining" | "pingpong" | "campfire"), claude_decision_timeout
 
 packages:
   claude_variant: !include ../../claude/${claude_variant}.yaml
@@ -7,6 +7,7 @@ packages:
 esphome:
   includes:
     - ../../claude/clawd.h
+    - ../../pet_scenes.h
   on_boot:
     - priority: -44
       then:

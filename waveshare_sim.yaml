@@ -82,12 +82,12 @@ substitutions:
   cycle_interval: "15"
   pause_timeout: "25"
 
-  # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  # Claude Code card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
   claude_variant: "terminal"
   # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
   claude_decision_timeout: "110"
 
-  # Codex card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  # Codex card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
   codex_variant: "terminal"
   codex_decision_timeout: "110"
 
