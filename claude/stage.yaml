@@ -1,0 +1,187 @@
+# Variant A, "Stage" — logic for claude/stage_card.yaml.
+# Pulled in by waveshare_sim.yaml as packages: claude: !include claude/${claude_variant}.yaml
+
+font:
+  # Claude Code's spinner glyphs plus the bubble marks. DejaVu ships them; Roboto doesn't.
+  - file: "fonts/DejaVuSans-Bold.ttf"
+    id: claude_glyph_20
+    size: 20
+    bpp: 4
+    glyphs: "·✢✳✶✻✽✓✕!?zZ"
+
+script:
+  # Renders the AI card from the claude_* helpers. A pending request reveals
+  # Approve/Reject, jumps to the AI tab and pauses the growspace cycle.
+  - id: update_ai_ui
+    mode: queued
+    then:
+      - lambda: |-
+          std::string status = id(claude_status).state;
+          std::string detail = id(claude_detail).state;
+          if (status == "unknown" || status == "unavailable") status = "";
+          if (detail == "unknown" || detail == "unavailable") detail = "";
+          clawd::set_mode(clawd::parse_status(status), millis());
+          clawd::split_detail(detail);
+          const bool pending = clawd::g_mode == clawd::PENDING;
+
+          static const char *const WORDS[] = {"Idle", "Working", "Needs approval", "Needs input", "Ready", "Approved", "Rejected"};
+          lv_label_set_text(id(lbl_agent_status), WORDS[clawd::g_mode]);
+          lv_obj_set_style_text_color(id(lbl_agent_status), lv_color_hex(clawd::accent(clawd::g_mode)), 0);
+
+          if (clawd::g_project.empty()) {
+            lv_obj_add_flag(id(lbl_claude_project), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_label_set_text(id(lbl_claude_project), clawd::g_project.c_str());
+            lv_obj_clear_flag(id(lbl_claude_project), LV_OBJ_FLAG_HIDDEN);
+          }
+          const char *text = clawd::g_text.empty()
+              ? (clawd::g_mode == clawd::IDLE ? "Waiting for Claude Code" : "")
+              : clawd::g_text.c_str();
+          lv_label_set_text(id(lbl_agent_detail), text);
+          // Pull the text up when there's no project chip; leave room for buttons when pending.
+          lv_obj_set_y(id(lbl_agent_detail), clawd::g_project.empty() ? 34 : 58);
+          lv_obj_set_height(id(lbl_agent_detail), pending ? 32 : (clawd::g_project.empty() ? 82 : 66));
+
+          if (pending) {
+            lv_obj_clear_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+            id(cycle_paused) = true;
+            id(pause_timer) = 3600;
+          } else {
+            lv_obj_add_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+            if (id(pause_timer) > ${pause_timeout}) id(pause_timer) = ${pause_timeout};
+          }
+          id(claude_tick).execute();
+      - if:
+          condition:
+            lambda: "return clawd::g_mode == clawd::PENDING;"
+          then:
+            - script.execute:
+                id: switch_tab
+                tab_idx: 2
+
+  # Immediate feedback after a tap, before HA echoes the new state back.
+  - id: claude_sent
+    parameters:
+      verdict: std::string
+    then:
+      - lambda: |-
+          lv_obj_add_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+          clawd::set_mode(verdict == "Approved" ? clawd::SENT_OK : clawd::SENT_NO, millis());
+          lv_label_set_text(id(lbl_agent_status), verdict.c_str());
+          lv_obj_set_style_text_color(id(lbl_agent_status), lv_color_hex(clawd::accent(clawd::g_mode)), 0);
+          lv_obj_set_height(id(lbl_agent_detail), clawd::g_project.empty() ? 82 : 66);
+          id(claude_tick).execute();
+
+  # One animation frame. Runs at 10 Hz, and only draws while the AI tab is up.
+  - id: claude_tick
+    then:
+      - lambda: |-
+          using namespace clawd;
+          static Puppet p;
+          if (p.root == nullptr) build(p, id(clawd_box), 7);
+          if (lv_obj_has_flag(id(ai_card), LV_OBJ_FLAG_HIDDEN)) return;
+
+          const uint32_t f = g_frame, t = g_frame - g_mode_frame, now = millis();
+          const uint32_t acc = accent(g_mode);
+          apply(p, animate(g_mode, f, t, p.u));
+
+          // Spinner: Claude Code's sparkle while working, a still mark otherwise.
+          const char *spin = g_mode == WORKING ? spinner(f)
+                           : g_mode == PENDING || g_mode == NEEDS_INPUT ? "✻"
+                           : g_mode == READY || g_mode == SENT_OK ? "✓"
+                           : g_mode == SENT_NO ? "✕" : "·";
+          lv_label_set_text(id(claude_spin), spin);
+          lv_obj_set_style_text_color(id(claude_spin), lv_color_hex(acc), 0);
+
+          // Bubble over Clawd's head.
+          lv_obj_t *b = id(claude_bubble);
+          int by = 12;
+          switch (g_mode) {
+            case IDLE: {  // a z drifting up and fading, every 3 s
+              uint32_t k = f % 30;
+              lv_label_set_text(b, k < 15 ? "z" : "Z");
+              by = 30 - (int) k;
+              lv_obj_set_style_bg_opa(b, LV_OPA_TRANSP, 0);
+              lv_obj_set_style_text_color(b, lv_color_hex(0x6E7681), 0);
+              lv_obj_set_style_text_opa(b, k < 22 ? LV_OPA_COVER : (lv_opa_t) (255 - (k - 22) * 30), 0);
+              lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN);
+              break;
+            }
+            case PENDING:
+            case NEEDS_INPUT:
+            case READY:
+            case SENT_OK:
+            case SENT_NO: {
+              lv_label_set_text(b, g_mode == PENDING ? "!" : g_mode == NEEDS_INPUT ? "?" : g_mode == SENT_NO ? "✕" : "✓");
+              lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+              lv_obj_set_style_bg_color(b, lv_color_hex(acc), 0);
+              lv_obj_set_style_text_color(b, lv_color_hex(0x0A0C10), 0);
+              lv_obj_set_style_text_opa(b, LV_OPA_COVER, 0);
+              by = 12 - ((f / 5) % 2);  // 2-frame bob
+              // Ready's check pops in after the hop, then retires after 8 s.
+              bool show = !(g_mode == READY && (t < 6 || t > 80));
+              if (show) lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
+              break;
+            }
+            default:
+              lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
+          }
+          lv_obj_set_y(b, by);
+
+          // Clock: elapsed while working, time left on a pending request, run length when done.
+          char buf[32] = "";
+          if (g_mode == WORKING || g_mode == NEEDS_INPUT || g_mode == SENT_OK || g_mode == SENT_NO) {
+            fmt_elapsed(buf, sizeof(buf), now - g_work_start);
+          } else if (g_mode == PENDING) {
+            uint32_t gone = now - g_pending_start, total = ${claude_decision_timeout} * 1000;
+            uint32_t left = gone < total ? total - gone : 0;
+            snprintf(buf, sizeof(buf), "%us left", (unsigned) ((left + 999) / 1000));
+          } else if (g_mode == READY && g_last_run > 0) {
+            char d[16];
+            fmt_elapsed(d, sizeof(d), g_last_run);
+            snprintf(buf, sizeof(buf), "took %s", d);
+          }
+          lv_label_set_text(id(lbl_claude_time), buf);
+
+          // Activity line.
+          lv_obj_t *track = id(claude_track), *fill = id(claude_track_fill);
+          if (g_mode == WORKING) {
+            lv_obj_clear_flag(track, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_y(track, 134);
+            // 96 px comet crossing 376 px and wrapping, ~2.4 s per pass with ease-in-out.
+            int span = 376 + 96, k = (int) (f % 24);
+            float e = k / 24.0f;
+            e = e < 0.5f ? 2 * e * e : 1 - 2 * (1 - e) * (1 - e);
+            lv_obj_set_width(fill, 96);
+            lv_obj_set_x(fill, (int) (e * span) - 96);
+            lv_obj_set_style_bg_color(fill, lv_color_hex(BODY), 0);
+          } else if (g_mode == PENDING) {
+            lv_obj_clear_flag(track, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_y(track, 90);
+            uint32_t gone = now - g_pending_start, total = ${claude_decision_timeout} * 1000;
+            int w = gone < total ? (int) (376.0f * (total - gone) / total) : 0;
+            lv_obj_set_width(fill, w < 4 ? 4 : w);
+            lv_obj_set_x(fill, 0);
+            lv_obj_set_style_bg_color(fill, lv_color_hex(acc), 0);
+          } else {
+            lv_obj_add_flag(track, LV_OBJ_FLAG_HIDDEN);
+          }
+
+          // Border: breathes amber while a request waits, resting otherwise.
+          uint32_t border = 0x30363D;
+          if (g_mode == PENDING) border = (f / 5) % 2 ? 0xFFB020 : 0x8A5D12;
+          else if (g_mode == NEEDS_INPUT) border = 0x6E5BA8;
+          else if (g_mode == SENT_OK) border = 0x2EA043;
+          else if (g_mode == SENT_NO) border = 0xF85149;
+          lv_obj_set_style_border_color(id(ai_card), lv_color_hex(border), 0);
+          // Stage light: the stage warms up while Claude is awake.
+          lv_obj_set_style_bg_color(id(claude_stage), lv_color_hex(g_mode == IDLE ? 0x0D1117 : 0x1A1512), 0);
+
+interval:
+  - interval: 100ms
+    then:
+      - lambda: "clawd::g_frame++;"
+      - script.execute: claude_tick

@@ -82,6 +82,11 @@ substitutions:
   cycle_interval: "15"
   pause_timeout: "25"
 
+  # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  claude_variant: "stage"
+  # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
+  claude_decision_timeout: "110"
+
   # VPD gauge scale
   vpd_gauge_min: "0.4"
   vpd_gauge_max: "1.8"
@@ -89,11 +94,16 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  includes:
+    - claude/clawd.h
   on_boot:
     priority: -100
     then:
       - delay: 3s
       - script.execute: update_grow_ui
+
+packages:
+  claude: !include claude/${claude_variant}.yaml
 
 host:
 
@@ -580,91 +590,9 @@ lvgl:
                   align: TOP_LEFT
                   y: 28
 
-        # ── CARD 3: CLAUDE / AI AGENTS (Hidden initially) ──────────────────
-        - obj:
-            id: ai_card
-            width: 560
-            height: 160
-            align: RIGHT_MID
-            x: -6
-            y: 0
-            styles: card_style
-            hidden: true
-            scrollbar_mode: "off"
-            widgets:
-              - label:
-                  id: lbl_agent_status
-                  text: "Claude: Idle"
-                  text_font: font_20
-                  text_color: 0xD97757
-                  align: TOP_LEFT
-
-              - label:
-                  id: lbl_agent_detail
-                  text: "Waiting for Claude Code..."
-                  text_font: font_14
-                  text_color: 0xC9D1D9
-                  align: TOP_LEFT
-                  y: 28
-                  width: 536
-                  height: 104
-                  long_mode: DOT
-
-              # Approve / Reject only appear while a permission request is pending.
-              # The request id is echoed back so a stale tap can't approve a newer request.
-              - button:
-                  id: btn_claude_approve
-                  width: 262
-                  height: 44
-                  align: BOTTOM_LEFT
-                  hidden: true
-                  bg_color: 0x238636
-                  border_color: 0x2EA043
-                  border_width: 1
-                  radius: 8
-                  widgets:
-                    - label:
-                        text: "APPROVE"
-                        text_font: font_20
-                        text_color: 0xFFFFFF
-                        align: CENTER
-                  on_click:
-                    then:
-                      - homeassistant.event:
-                          event: esphome.claude_command
-                          data:
-                            action: approve
-                            request_id: !lambda "return id(claude_request).state;"
-                      - script.execute:
-                          id: claude_sent
-                          verdict: "Approved"
-
-              - button:
-                  id: btn_claude_reject
-                  width: 262
-                  height: 44
-                  align: BOTTOM_RIGHT
-                  hidden: true
-                  bg_color: 0xDA3633
-                  border_color: 0xF85149
-                  border_width: 1
-                  radius: 8
-                  widgets:
-                    - label:
-                        text: "REJECT"
-                        text_font: font_20
-                        text_color: 0xFFFFFF
-                        align: CENTER
-                  on_click:
-                    then:
-                      - homeassistant.event:
-                          event: esphome.claude_command
-                          data:
-                            action: reject
-                            request_id: !lambda "return id(claude_request).state;"
-                      - script.execute:
-                          id: claude_sent
-                          verdict: "Rejected"
+        # ── CARD 3: CLAUDE CODE (Hidden initially) ─────────────────────────
+        # Widgets live in claude/<variant>_card.yaml, logic in claude/<variant>.yaml.
+        - obj: !include claude/${claude_variant}_card.yaml
 
 # ============================================================================
 # 5. HOME ASSISTANT SENSORS (All 7 Growspaces)
@@ -809,62 +737,6 @@ text_sensor:
 # 6. SCRIPTS (Tab Switching, Space Navigation & VPD Gauge Rendering)
 # ============================================================================
 script:
-  # Renders the AI card from the claude_* helpers. A pending request turns the
-  # border amber, reveals Approve/Reject, jumps to the AI tab and pauses cycling.
-  - id: update_ai_ui
-    mode: queued
-    then:
-      - lambda: |-
-          std::string status = id(claude_status).state;
-          std::string detail = id(claude_detail).state;
-          if (status.empty() || status == "unknown" || status == "unavailable") status = "Idle";
-          if (detail == "unknown" || detail == "unavailable") detail = "";
-          bool pending = status == "Pending Approval";
-
-          uint32_t accent = 0xD97757;   // Claude orange
-          uint32_t border = 0x30363D;
-          if (pending) { accent = 0xFFB020; border = 0xFFB020; }
-          else if (status == "Working") { border = 0x1F6FEB; }
-          else if (status == "Needs Input") { accent = 0xFFB020; border = 0x8B5CF6; }
-
-          lv_label_set_text(id(lbl_agent_status), ("Claude: " + status).c_str());
-          lv_obj_set_style_text_color(id(lbl_agent_status), lv_color_hex(accent), 0);
-          lv_label_set_text(id(lbl_agent_detail), detail.c_str());
-          lv_obj_set_style_border_color(id(ai_card), lv_color_hex(border), 0);
-          lv_obj_set_height(id(lbl_agent_detail), pending ? 54 : 104);
-
-          if (pending) {
-            lv_obj_clear_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
-            // Hold the AI tab: stop the growspace auto-cycle from stealing focus.
-            id(cycle_paused) = true;
-            id(pause_timer) = 3600;
-          } else {
-            lv_obj_add_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
-            if (id(pause_timer) > ${pause_timeout}) id(pause_timer) = ${pause_timeout};
-          }
-          lv_obj_invalidate(lv_scr_act());
-      - if:
-          condition:
-            lambda: 'return id(claude_status).state == "Pending Approval";'
-          then:
-            - script.execute:
-                id: switch_tab
-                tab_idx: 2
-
-  # Immediate feedback after a tap, before HA echoes the new state back.
-  - id: claude_sent
-    parameters:
-      verdict: std::string
-    then:
-      - lambda: |-
-          lv_obj_add_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_add_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
-          lv_label_set_text(id(lbl_agent_status), ("Claude: " + verdict + "...").c_str());
-          lv_obj_set_style_border_color(id(ai_card), lv_color_hex(verdict == "Approved" ? 0x2EA043 : 0xF85149), 0);
-          lv_obj_invalidate(lv_scr_act());
-
   - id: switch_tab
     parameters:
       tab_idx: int
