@@ -32,8 +32,8 @@ const state = {
   growspaces: DEFAULT_GROWSPACES.map((g) => ({ ...g })),
   musicVariant: 'studio',
   musicPlayerEntity: 'sensor.music_assistant_bridge',
-  claudeVariant: 'stage',
-  codexVariant: 'stage',
+  claudeVariant: 'terminal',
+  codexVariant: 'terminal',
   batteryEntity: 'sensor.m2101k7bny_battery_level',
   dirtyNames: false,
   dirtyGrowspaces: false,
@@ -101,7 +101,7 @@ function selectDevice(deviceId) {
     state.claudeVariant = 'terminal';
     state.musicPlayerEntity = 'media_player.music_assistant_player';
   } else {
-    state.claudeVariant = 'stage';
+    state.claudeVariant = 'terminal';
     state.musicPlayerEntity = 'sensor.music_assistant_bridge';
   }
   renderAll();

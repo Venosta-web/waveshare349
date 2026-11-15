@@ -97,12 +97,12 @@ substitutions:
   # Waveshare 3.49 battery voltage divider ratio on GPIO4 (typically 3.0 or 2.0)
   battery_divider: "3.0"
 
-  # Claude Code card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
-  claude_variant: "stage"
+  # Claude Code card: "terminal" (CLI status line, default), "stage" (mascot-forward), or "fishing" / "mining" / "pingpong" / "campfire"
+  claude_variant: "terminal"
   claude_decision_timeout: "110"
 
-  # Codex card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
-  codex_variant: "stage"
+  # Codex card: "terminal" (CLI status line, default), "stage" (mascot-forward), or "fishing" / "mining" / "pingpong" / "campfire"
+  codex_variant: "terminal"
   codex_decision_timeout: "110"
 
   # VPD gauge scale

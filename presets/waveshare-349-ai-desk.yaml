@@ -1,9 +1,9 @@
 substitutions:
   device_name: "waveshare-349-ai-desk"
   friendly_name: "Waveshare 3.49 AI Desk Companion"
-  claude_variant: "stage"
+  claude_variant: "terminal"
   claude_decision_timeout: "110"
-  codex_variant: "stage"
+  codex_variant: "terminal"
   codex_decision_timeout: "110"
   pause_timeout: "25"
 
