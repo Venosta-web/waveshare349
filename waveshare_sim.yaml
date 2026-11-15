@@ -83,8 +83,8 @@ substitutions:
   pause_timeout: "25"
   idle_timeout: "300"
 
-  # Idle / Lock Clock Screen: "chronograph" | "aurora" | "terminal"
-  idle_variant: "chronograph"
+  # Idle / Lock Clock Screen
+  idle_variant: "aurora"
 
   # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
   claude_variant: "terminal"

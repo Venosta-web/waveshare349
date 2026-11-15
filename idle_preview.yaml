@@ -1,7 +1,5 @@
-# Headless preview: locks the screen and records a snapshot of the selected idle clock variant.
-#   ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml -s idle_variant chronograph
-#   ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml -s idle_variant aurora
-#   ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml -s idle_variant terminal
+# Headless preview: locks the screen and records a snapshot of the idle clock.
+#   ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml
 substitutions:
   device_name: "idle-preview"
 
