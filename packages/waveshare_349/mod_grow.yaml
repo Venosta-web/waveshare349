@@ -13,6 +13,8 @@ globals:
     initial_value: "${gs_count}"
 
 esphome:
+  includes:
+    - ../../grow/grow_icon.h
   on_boot:
     - priority: -40
       then:
@@ -43,12 +45,17 @@ lvgl:
             height: 50
             styles: nav_btn_active
             widgets:
-              - label:
-                  id: nav_grow_icon
-                  text: "\U000F0E66"
-                  text_font: icons_20
-                  text_color: 0xFFFFFF
+              - obj:
+                  id: nav_grow_box
+                  width: 28
+                  height: 22
                   align: CENTER
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  clickable: false
+                  scrollbar_mode: "off"
             on_click:
               then:
                 - script.execute:
@@ -402,11 +409,11 @@ script:
     then:
       - lambda: |-
           const bool active = (tab_idx == 0);
+          grow_icon::g_active = active;
           if (active) {
             lv_obj_clear_flag(id(grow_card), LV_OBJ_FLAG_HIDDEN);
             lv_obj_set_style_bg_color(id(nav_grow), lv_color_hex(0x1F6FEB), 0);
             lv_obj_set_style_border_color(id(nav_grow), lv_color_hex(0x58A6FF), 0);
-            lv_obj_set_style_text_color(id(nav_grow_icon), lv_color_hex(0xFFFFFF), 0);
             lv_obj_scroll_to_view(id(nav_grow), LV_ANIM_ON);
             if (id(pause_timer) > ${pause_timeout}) {
               id(pause_timer) = ${pause_timeout};
@@ -415,7 +422,6 @@ script:
             lv_obj_add_flag(id(grow_card), LV_OBJ_FLAG_HIDDEN);
             lv_obj_set_style_bg_color(id(nav_grow), lv_color_hex(0x161B22), 0);
             lv_obj_set_style_border_color(id(nav_grow), lv_color_hex(0x30363D), 0);
-            lv_obj_set_style_text_color(id(nav_grow_icon), lv_color_hex(0x8B949E), 0);
           }
           lv_obj_invalidate(lv_scr_act());
 
@@ -659,9 +665,31 @@ script:
             }
           }
           lv_obj_set_style_border_color(id(grow_card), lv_color_hex(global_danger ? 0xFF5252 : 0x30363D), 0);
+
+          // Mirror live growspace state in the animated sidebar icon.
+          grow_icon::g_is_day = is_day;
+          grow_icon::g_humid_on = (humid_s[idx] != nullptr && humid_s[idx]->has_state() && humid_s[idx]->state == "on");
+          float exh_cur = (exh_s[idx] != nullptr && is_valid(exh_s[idx])) ? exh_s[idx]->state : 0.0f;
+          float circ_cur = (circ_s[idx] != nullptr && is_valid(circ_s[idx])) ? circ_s[idx]->state : 0.0f;
+          grow_icon::g_fan_on = (exh_cur > 0.0f || circ_cur > 0.0f);
+          if (global_danger) {
+            grow_icon::g_state = grow_icon::DANGER;
+          } else if (has_vpd && (vpd < tgt_min || vpd > tgt_max)) {
+            grow_icon::g_state = (vpd >= dng_min && vpd <= dng_max) ? grow_icon::WARN : grow_icon::DANGER;
+          } else {
+            grow_icon::g_state = grow_icon::OPTIMAL;
+          }
           lv_obj_invalidate(lv_scr_act());
 
+  - id: grow_nav_tick
+    then:
+      - lambda: |-
+          grow_icon::tick_nav(id(nav_grow_box));
+
 interval:
+  - interval: 100ms
+    then:
+      - script.execute: grow_nav_tick
   - interval: 1s
     then:
       - lambda: |-
