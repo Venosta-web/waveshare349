@@ -146,6 +146,8 @@ wifi:
   ap:
     ssid: "${device_name}-fallback"
 
+captive_portal:
+
 # ============================================================================
 # 1. DISPLAY & TOUCH (Waveshare ESP32-S3-Touch-LCD-3.49, 172x640 rotated)
 # ============================================================================
@@ -186,7 +188,6 @@ touchscreen:
     id: my_touchscreen
     i2c_id: touch_i2c
     display: my_display
-    reset_pin: GPIO21
 
 # ============================================================================
 # 2. AUDIO CODEC (ES8311 + I2S Mic & Speaker)
