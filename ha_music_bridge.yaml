@@ -1,0 +1,137 @@
+# Home Assistant Template Sensor — Music Assistant Active Player Bridge
+#
+# Auto-detects whichever Music Assistant (or fallback) media_player is
+# currently playing, remembers the last active player when paused/idle, and
+# flattens its state and playback attributes onto `sensor.music_assistant_bridge`
+# so ESPHome can subscribe to a single entity and route controls dynamically.
+#
+# Include this in your Home Assistant `configuration.yaml` (e.g. via packages)
+# alongside `ha_metrics_bridge.yaml`.
+
+template:
+  - sensor:
+      - name: "Music Assistant Bridge"
+        unique_id: music_assistant_bridge
+        state: >-
+          {% set playing_ma = states.media_player
+            | selectattr('state', 'eq', 'playing')
+            | selectattr('attributes.app_id', 'defined')
+            | selectattr('attributes.app_id', 'eq', 'music_assistant')
+            | list %}
+          {% set playing_any = states.media_player
+            | selectattr('state', 'eq', 'playing')
+            | list %}
+          {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+          {% if playing_ma | length > 0 %}
+            {{ playing_ma[0].entity_id }}
+          {% elif playing_any | length > 0 %}
+            {{ playing_any[0].entity_id }}
+          {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}
+            {{ prev }}
+          {% else %}
+            {% set any_ma = states.media_player
+              | selectattr('attributes.app_id', 'defined')
+              | selectattr('attributes.app_id', 'eq', 'music_assistant')
+              | list %}
+            {{ any_ma[0].entity_id if any_ma | length > 0 else 'none' }}
+          {% endif %}
+        attributes:
+          player_state: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ states(eid) if eid else 'idle' }}
+          media_title: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'media_title') if eid else '' }}
+          media_artist: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'media_artist') if eid else '' }}
+          media_album_name: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'media_album_name') if eid else '' }}
+          player_name: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'friendly_name') if eid else 'Music Assistant' }}
+          shuffle: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'shuffle') if eid else false }}
+          repeat: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'repeat') if eid else 'off' }}
+          is_volume_muted: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'is_volume_muted') if eid else false }}
+          media_duration: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'media_duration') if eid and state_attr(eid, 'media_duration') is not none else 0 }}
+          media_position: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'media_position') if eid and state_attr(eid, 'media_position') is not none else 0 }}
+          volume_level: >-
+            {% set playing_ma = states.media_player | selectattr('state', 'eq', 'playing') | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}
+            {% set playing_any = states.media_player | selectattr('state', 'eq', 'playing') | list %}
+            {% set prev = this.state if this is defined and this.state not in ['unknown', 'unavailable', 'none', ''] else '' %}
+            {% if playing_ma | length > 0 %}{% set eid = playing_ma[0].entity_id %}
+            {% elif playing_any | length > 0 %}{% set eid = playing_any[0].entity_id %}
+            {% elif prev and states(prev) not in ['unknown', 'unavailable'] %}{% set eid = prev %}
+            {% else %}{% set any_ma = states.media_player | selectattr('attributes.app_id', 'defined') | selectattr('attributes.app_id', 'eq', 'music_assistant') | list %}{% set eid = any_ma[0].entity_id if any_ma | length > 0 else '' %}{% endif %}
+            {{ state_attr(eid, 'volume_level') if eid and state_attr(eid, 'volume_level') is not none else 0 }}

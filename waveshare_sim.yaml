@@ -88,8 +88,9 @@ substitutions:
   claude_decision_timeout: "110"
 
   # Music Assistant card: "deck" (vinyl turntable) or "studio" (EQ + meter console)
+  # Uses ha_music_bridge.yaml to auto-detect the active player & remember the last one used
   music_variant: "studio"
-  music_player_entity: "media_player.music_assistant_player"
+  music_player_entity: "sensor.music_assistant_bridge"
 
   # VPD gauge scale
   vpd_gauge_min: "0.4"
