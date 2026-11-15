@@ -137,11 +137,12 @@ script:
           clawd::set_mode(verdict == "Approved" ? clawd::SENT_OK : clawd::SENT_NO, millis());
           id(claude_tick).execute();
 
-  # One animation frame at 10 Hz; only draws while the AI tab is up.
+  # One animation frame at 10 Hz; nav icon always updates, card only while AI tab is up.
   - id: claude_tick
     then:
       - lambda: |-
           using namespace clawd;
+          tick_nav(id(nav_clawd_box));
           static Puppet p;
           static int walk_x = 0, walk_dir = 1;
           static uint32_t verb_for = UINT32_MAX;
