@@ -43,3 +43,11 @@ _Avoid_: voice backend, AI pipeline
 **Display View**:
 A top-level LVGL screen selectable by touch or an exposed Home Assistant entity (such as `Growspace` or `Music`).
 _Avoid_: tab, mode, screen
+
+**Feature Module**:
+An optional, selectable capability in a device build (such as `Growspace`, `Music`, `Claude`, `Codex`, or `Voice Satellite`) that contributes a Display View, a hardware/pipeline capability, or both.
+_Avoid_: plugin, addon
+
+**Target Device**:
+A supported hardware board profile (such as `Waveshare 3.49` or `480x320 Prototype`) that defines display geometry, pinout, and which Feature Modules are compatible.
+_Avoid_: board type, hardware variant

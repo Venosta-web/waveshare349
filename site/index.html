@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Growspace Display — Setup &amp; Build Wizard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <div>
+          <h1>Growspace Display Wizard</h1>
+          <p class="subtitle">Select your Target Device, pick Feature Modules, and flash via USB or export ESPHome YAML.</p>
+        </div>
+      </div>
+      <div class="topbar-badge">ESPHome LVGL</div>
+    </div>
+  </header>
+
+  <main class="container wizard-layout">
+    <div class="wizard-main">
+      <!-- Step 1: Target Device -->
+      <section class="card" aria-labelledby="step1-title">
+        <div class="step-header">
+          <span class="step-num">1</span>
+          <div>
+            <h2 id="step1-title">Target Device</h2>
+            <p class="muted">Choose the hardware board you are flashing.</p>
+          </div>
+        </div>
+        <div id="device-grid" class="option-grid two-col" role="radiogroup" aria-label="Target Device"></div>
+      </section>
+
+      <!-- Step 2: Feature Modules -->
+      <section class="card" aria-labelledby="step2-title">
+        <div class="step-header">
+          <span class="step-num">2</span>
+          <div>
+            <h2 id="step2-title">Feature Modules</h2>
+            <p class="muted">Enable the Display Views and Voice Satellite capabilities you want. Single-view builds automatically hide the nav rail.</p>
+          </div>
+        </div>
+        <div class="preset-bar" id="preset-bar"></div>
+        <div id="module-grid" class="option-grid"></div>
+      </section>
+
+      <!-- Step 3: Customize -->
+      <section class="card" aria-labelledby="step3-title">
+        <div class="step-header">
+          <span class="step-num">3</span>
+          <div>
+            <h2 id="step3-title">Customize Configuration</h2>
+            <p class="muted">Adjust device identity, card variants, and Home Assistant entity mappings.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label class="field">
+            <span>Device Name (hostname, max 23 chars)</span>
+            <input type="text" id="device-name" maxlength="23" />
+          </label>
+          <label class="field">
+            <span>Friendly Name</span>
+            <input type="text" id="friendly-name" />
+          </label>
+          <label class="field">
+            <span>Package Source</span>
+            <select id="package-source">
+              <option value="github">GitHub Remote Packages (ESPHome Builder)</option>
+              <option value="local">Local Repo Paths (packages/...)</option>
+            </select>
+          </label>
+          <label class="field" id="github-repo-field">
+            <span>GitHub Repo (owner/repo)</span>
+            <input type="text" id="github-repo" />
+          </label>
+        </div>
+
+        <div class="checkbox-row">
+          <label class="inline-check">
+            <input type="checkbox" id="use-improv" checked />
+            <span>Use Improv Wi-Fi &amp; Captive Portal (recommended for Web Serial; uncheck to use <code>!secret wifi_ssid</code>)</span>
+          </label>
+        </div>
+
+        <div id="module-options" class="module-options"></div>
+      </section>
+
+      <!-- Step 4: Flash & Home Assistant Setup -->
+      <section class="card" aria-labelledby="step4-title">
+        <div class="step-header">
+          <span class="step-num">4</span>
+          <div>
+            <h2 id="step4-title">Flash Firmware &amp; Home Assistant Setup</h2>
+            <p class="muted">Flash a matching pre-built preset directly in Chrome/Edge, or compile your custom YAML with ESPHome.</p>
+          </div>
+        </div>
+
+        <div id="flash-panel" class="flash-panel"></div>
+
+        <div class="yaml-section">
+          <div class="yaml-toolbar">
+            <h3>Generated ESPHome YAML</h3>
+            <div class="btn-group">
+              <button type="button" class="btn btn-secondary" id="copy-yaml">Copy YAML</button>
+              <button type="button" class="btn btn-primary" id="download-yaml">Download .yaml</button>
+            </div>
+          </div>
+          <pre class="code-block"><code id="yaml-output"></code></pre>
+        </div>
+
+        <div class="ha-section">
+          <h3>Home Assistant Companion Setup</h3>
+          <p class="muted">Filtered to only the Feature Modules you selected:</p>
+          <div id="ha-guides" class="ha-guides"></div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="wizard-sidebar">
+      <div class="card sticky-summary">
+        <h3>Build Summary</h3>
+        <dl class="summary-list" id="summary-list"></dl>
+        <div id="preset-status" class="preset-status"></div>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
