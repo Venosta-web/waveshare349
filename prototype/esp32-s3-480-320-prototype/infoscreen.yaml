@@ -1,0 +1,1355 @@
+substitutions:
+  prefix: "panto"
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # GROWSPACE CONFIGURATION (Direct HA Entities + Metrics Bridge Templates)
+  # See ../Waveshare349/ha_metrics_bridge.yaml and docs/adr/0001-hybrid-ha-metrics-bridge.md
+  # ══════════════════════════════════════════════════════════════════════════
+  gs_count: "7"
+
+  # Growspace 0: 4x4
+  gs_0_name: "4x4"
+  gs_0_metrics: "sensor.4x4_metrics_bridge"
+  gs_0_vpd: "sensor.4x4_calculated_vpd"
+  gs_0_temp: "sensor.4x4_temperature"
+  gs_0_hum: "sensor.4x4_humidity"
+  gs_0_exhaust: "fan.4x4_exhaust"
+  gs_0_circ: "fan.4x4_circulation"
+  gs_0_humid: "humidifier.4x4_humidifier"
+
+  # Growspace 1: SOG 2x5
+  gs_1_name: "SOG 2x5"
+  gs_1_metrics: "sensor.sog_2x5_metrics_bridge"
+  gs_1_vpd: "sensor.sog_2x5_calculated_vpd"
+  gs_1_temp: "sensor.sog_2x5_temperature"
+  gs_1_hum: "sensor.sog_2x5_humidity"
+  gs_1_exhaust: "fan.sog_2x5_exhaust"
+  gs_1_circ: "fan.sog_2x5_circulation"
+  gs_1_humid: "humidifier.sog_2x5_humidifier"
+
+  # Growspace 2: Nursery Dome
+  gs_2_name: "Nursery Dome"
+  gs_2_metrics: "sensor.nursery_dome_metrics_bridge"
+  gs_2_vpd: "sensor.nursery_dome_calculated_vpd"
+  gs_2_temp: "sensor.nursery_dome_temperature"
+  gs_2_hum: "sensor.nursery_dome_humidity"
+  gs_2_exhaust: "fan.nursery_dome_exhaust"
+  gs_2_circ: "fan.nursery_dome_circulation"
+  gs_2_humid: "humidifier.nursery_dome_humidifier"
+
+  # Growspace 3: Clone
+  gs_3_name: "Clone"
+  gs_3_metrics: "sensor.clone_metrics_bridge"
+  gs_3_vpd: "sensor.clone_calculated_vpd"
+  gs_3_temp: "sensor.clone_temperature"
+  gs_3_hum: "sensor.clone_humidity"
+  gs_3_exhaust: "fan.clone_exhaust"
+  gs_3_circ: "fan.clone_circulation"
+  gs_3_humid: "humidifier.clone_humidifier"
+
+  # Growspace 4: Mother
+  gs_4_name: "Mother"
+  gs_4_metrics: "sensor.mother_metrics_bridge"
+  gs_4_vpd: "sensor.mother_calculated_vpd"
+  gs_4_temp: "sensor.mother_temperature"
+  gs_4_hum: "sensor.mother_humidity"
+  gs_4_exhaust: "fan.mother_exhaust"
+  gs_4_circ: "fan.mother_circulation"
+  gs_4_humid: "humidifier.mother_humidifier"
+
+  # Growspace 5: Dry
+  gs_5_name: "Dry"
+  gs_5_metrics: "sensor.dry_metrics_bridge"
+  gs_5_vpd: "sensor.dry_calculated_vpd"
+  gs_5_temp: "sensor.dry_temperature"
+  gs_5_hum: "sensor.dry_humidity"
+  gs_5_exhaust: "fan.dry_exhaust"
+  gs_5_circ: "fan.dry_circulation"
+  gs_5_humid: "humidifier.dry_humidifier"
+
+  # Growspace 6: Cure
+  gs_6_name: "Cure"
+  gs_6_metrics: "sensor.cure_metrics_bridge"
+  gs_6_vpd: "sensor.cure_calculated_vpd"
+  gs_6_temp: "sensor.cure_temperature"
+  gs_6_hum: "sensor.cure_humidity"
+  gs_6_exhaust: "fan.cure_exhaust"
+  gs_6_circ: "fan.cure_circulation"
+  gs_6_humid: "humidifier.cure_humidifier"
+
+  # Timing (cycle/pause in seconds; dim/sleep in minutes)
+  cycle_interval: "15"
+  pause_timeout: "25"
+  dim_timeout: "5"
+  sleep_timeout: "15"
+
+  # Hardware entities
+  battery_entity: "sensor.m2101k7bny_battery_level"
+
+  # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  claude_variant: "stage"
+  # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
+  claude_decision_timeout: "110"
+
+  # VPD gauge scale
+  vpd_gauge_min: "0.4"
+  vpd_gauge_max: "1.8"
+
+esphome:
+  name: "infoscreen"
+  project:
+    name: "Guition.ESP32-Clean-UI"
+    version: "480x320-Prototype"
+  includes:
+    - claude/clawd.h
+  on_boot:
+    priority: -100
+    then:
+      - lambda: "id(last_touch_ms) = millis();"
+      - delay: 5s
+      - script.execute: update_grow_ui
+
+packages:
+  claude: !include claude/${claude_variant}.yaml
+
+esp32:
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP_MAIN_TASK_STACK_SIZE: "20480"
+    advanced:
+      execute_from_psram: true
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: INFO
+
+api:
+  on_client_connected:
+    - delay: 1s
+    - script.execute: update_grow_ui
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${prefix}-fallback"
+    password: "fallback_password"
+
+# ============================================================================
+# 1. HARDWARE (ESP32-S3 + AXS15231 320x480 rotated to 480x320 Landscape)
+# ============================================================================
+output:
+  - platform: ledc
+    pin: 1
+    id: gpio_backlight_pwm
+    frequency: 1000Hz
+
+light:
+  - platform: monochromatic
+    output: gpio_backlight_pwm
+    name: "Display Backlight"
+    id: display_backlight
+    restore_mode: ALWAYS_ON
+
+i2c:
+  - id: bus_a
+    sda: GPIO4
+    scl: GPIO8
+    scan: true
+
+spi:
+  - type: quad
+    clk_pin: GPIO47
+    data_pins: [21, 48, 40, 39]
+
+touchscreen:
+  - platform: axs15231
+    id: my_touchscreen
+    i2c_id: bus_a
+    # Landscape 90° alignment: flip mirror_x / mirror_y if touch axes are inverted on hardware.
+    transform:
+      swap_xy: true
+      mirror_x: false
+      mirror_y: true
+    on_touch:
+      - lambda: |-
+          id(last_touch_ms) = millis();
+
+          // Wake-lock: if screen is dimmed/sleeping, wake it and block accidental tap
+          if (id(dim_state) != 0) {
+            id(dim_state) = 0;
+            id(wake_lock) = true;
+            auto call = id(display_backlight).make_call();
+            call.set_brightness(1.0f);
+            call.perform();
+            return;
+          }
+
+display:
+  - id: my_display
+    platform: qspi_dbi
+    dimensions:
+      width: 320
+      height: 480
+    model: AXS15231
+    data_rate: 40MHz
+    cs_pin: 45
+
+binary_sensor:
+  - platform: status
+    id: ha_connected
+    name: "HA Connected"
+    on_release:
+      then:
+        - lvgl.label.update:
+            id: icon_wifi
+            text: "\U000F092F"
+            text_color: 0xFF5252
+        - lvgl.label.update:
+            id: text_wifi
+            text: "HA Offline"
+            text_color: 0xFF5252
+        - lambda: "lv_obj_invalidate(lv_scr_act());"
+    on_press:
+      then:
+        - lvgl.label.update:
+            id: icon_wifi
+            text_color: 0xFFFFFF
+        - lvgl.label.update:
+            id: text_wifi
+            text_color: 0xFFFFFF
+        - lambda: |-
+            float sig = id(wifi_sig).has_state() ? id(wifi_sig).state : -100;
+            int pct = 0;
+            if (sig >= -50) pct = 100;
+            else if (sig <= -100) pct = 0;
+            else pct = 2 * (sig + 100);
+            lv_label_set_text(id(text_wifi), str_sprintf("%d%%", pct).c_str());
+            const char* icon;
+            if (sig >= -60) icon = "\U000F0928";
+            else if (sig >= -70) icon = "\U000F0925";
+            else if (sig >= -80) icon = "\U000F0922";
+            else icon = "\U000F091F";
+            lv_label_set_text(id(icon_wifi), icon);
+            lv_obj_invalidate(lv_scr_act());
+
+# ============================================================================
+# 2. GLOBALS
+# ============================================================================
+globals:
+  - id: vpd_sensor_index
+    type: int
+    initial_value: "0"
+  - id: cycle_timer
+    type: int
+    initial_value: "${cycle_interval}"
+  - id: cycle_paused
+    type: bool
+    initial_value: "false"
+  - id: pause_timer
+    type: int
+    initial_value: "0"
+  - id: gs_total
+    type: int
+    initial_value: "${gs_count}"
+  - id: nav_direction
+    type: int
+    initial_value: "1"
+  - id: last_touch_ms
+    type: uint32_t
+    initial_value: "0"
+  - id: dim_state
+    type: int
+    initial_value: "0"
+  - id: wake_lock
+    type: bool
+    initial_value: "false"
+
+# ============================================================================
+# 3. FONTS & MDI ICONS
+# ============================================================================
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: font_12
+    size: 12
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: font_14
+    size: 14
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: font_16
+    size: 16
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: font_20
+    size: 20
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 800
+    id: font_32
+    size: 32
+    bpp: 4
+    glyphs: "0123456789:.% -°abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/"
+
+  - file: "fonts/materialdesignicons-webfont.ttf"
+    id: icons_20
+    size: 20
+    glyphs:
+      - "\U000F050F" # thermometer
+      - "\U000F058C" # water
+      - "\U000F012C" # check-circle
+      - "\U000F0029" # alert
+      - "\U000F0159" # close-circle
+      - "\U000F0210" # fan
+      - "\U000F06B5" # lightbulb (day)
+      - "\U000F06B8" # lightbulb-off (night)
+      - "\U000F03E4" # pause
+
+  - file: "fonts/materialdesignicons-webfont.ttf"
+    id: icons_24
+    size: 24
+    glyphs:
+      - "\U000F092F" # wifi-outline
+      - "\U000F091F" # wifi-1
+      - "\U000F0922" # wifi-2
+      - "\U000F0925" # wifi-3
+      - "\U000F0928" # wifi-4
+      - "\U000F093E" # battery-10
+      - "\U000F0940" # battery-30
+      - "\U000F0942" # battery-50
+      - "\U000F0944" # battery-70
+      - "\U000F0946" # battery-90
+      - "\U000F0948" # battery-full
+      - "\U000F10CD" # battery-alert
+      - "\U000F012C" # check-circle
+      - "\U000F0029" # alert
+      - "\U000F0159" # close-circle
+      - "\U000F0141" # chevron-left
+      - "\U000F0142" # chevron-right
+
+# ============================================================================
+# 4. LVGL 480x320 UI (GitHub Dark Theme)
+# ============================================================================
+lvgl:
+  log_level: INFO
+  buffer_size: 100%
+  full_refresh: true
+  disp_bg_color: 0x0A0C10
+  rotation: 90
+  touchscreens:
+    - touchscreen_id: my_touchscreen
+
+  style_definitions:
+    - id: header_style
+      bg_color: 0x161B22
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+    - id: nav_btn
+      bg_color: 0x161B22
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+    - id: nav_btn_active
+      bg_color: 0x1F6FEB
+      bg_opa: COVER
+      border_color: 0x58A6FF
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+    - id: card_style
+      bg_color: 0x161B22
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 2
+      radius: 12
+      pad_all: 10
+
+    - id: phase_badge
+      bg_color: 0x333333
+      bg_opa: COVER
+      radius: 6
+      pad_left: 8
+      pad_right: 8
+      pad_top: 2
+      pad_bottom: 2
+      border_width: 0
+
+  pages:
+    - id: home_page
+      bg_color: 0x0A0C10
+      widgets:
+        # ── TOP HEADER BAR (468 x 36) ──────────────────────────────────────
+        - obj:
+            id: main_header_bar
+            width: 468
+            height: 36
+            align: TOP_MID
+            x: 0
+            y: 6
+            styles: header_style
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: icon_wifi
+                  text: "\U000F092F"
+                  text_font: icons_24
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 10
+                  width: 24
+                  text_align: CENTER
+              - label:
+                  id: text_wifi
+                  text: "--%"
+                  text_font: font_14
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 38
+              - label:
+                  id: icon_paused
+                  text: "\U000F03E4"
+                  text_font: icons_20
+                  text_color: 0xFFC107
+                  align: CENTER
+                  x: -44
+                  hidden: true
+              - label:
+                  id: lbl_clock
+                  text: "00:00"
+                  text_font: font_20
+                  text_color: 0xFFFFFF
+                  align: CENTER
+                  x: 0
+              - label:
+                  id: text_bat
+                  text: "--%"
+                  text_font: font_14
+                  text_color: 0xFFFFFF
+                  align: RIGHT_MID
+                  x: -38
+              - label:
+                  id: icon_bat
+                  text: "\U000F10CD"
+                  text_font: icons_24
+                  text_color: 0xFFFFFF
+                  align: RIGHT_MID
+                  x: -10
+
+        # ── LEFT NAVIGATION RAIL (72 x 266) ────────────────────────────────
+        - button:
+            id: nav_grow
+            width: 72
+            height: 84
+            align: TOP_LEFT
+            x: 6
+            y: 48
+            styles: nav_btn_active
+            widgets:
+              - label:
+                  text: "GROW"
+                  text_font: font_14
+                  text_color: 0xFFFFFF
+                  align: CENTER
+            on_press:
+              then:
+                - if:
+                    condition:
+                      lambda: "return !id(wake_lock);"
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 0
+
+        - button:
+            id: nav_music
+            width: 72
+            height: 84
+            align: TOP_LEFT
+            x: 6
+            y: 139
+            styles: nav_btn
+            widgets:
+              - label:
+                  text: "MUSIC"
+                  text_font: font_14
+                  text_color: 0x8B949E
+                  align: CENTER
+            on_press:
+              then:
+                - if:
+                    condition:
+                      lambda: "return !id(wake_lock);"
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 1
+
+        - button:
+            id: nav_ai
+            width: 72
+            height: 84
+            align: TOP_LEFT
+            x: 6
+            y: 230
+            styles: nav_btn
+            widgets:
+              - label:
+                  text: "AI"
+                  text_font: font_14
+                  text_color: 0x8B949E
+                  align: CENTER
+            on_press:
+              then:
+                - if:
+                    condition:
+                      lambda: "return !id(wake_lock);"
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 2
+
+        # ── CARD 1: GROWSPACE MANAGER (390 x 266, inner 366 x 242) ─────────
+        - obj:
+            id: grow_card
+            width: 390
+            height: 266
+            align: TOP_RIGHT
+            x: -6
+            y: 48
+            styles: card_style
+            scrollbar_mode: "off"
+            widgets:
+              # Top row: Growspace Name, Day/Night, Pause, Grow Stage Badge
+              - label:
+                  id: gs_name_lbl
+                  text: "4x4"
+                  text_font: font_20
+                  text_color: 0x00D1FF
+                  align: TOP_LEFT
+                  x: 0
+                  y: 0
+
+              - label:
+                  id: gs_day_icon
+                  text: "\U000F06B5"
+                  text_font: icons_20
+                  text_color: 0xFFC107
+                  align: TOP_LEFT
+                  x: 150
+                  y: 2
+
+              - label:
+                  id: gs_pause_icon
+                  text: "\U000F03E4"
+                  text_font: icons_20
+                  text_color: 0xFFC107
+                  align: TOP_LEFT
+                  x: 176
+                  y: 2
+                  hidden: true
+
+              - label:
+                  id: gs_phase_badge
+                  text: "Waiting HA"
+                  text_font: font_12
+                  text_color: 0xFFFFFF
+                  styles: phase_badge
+                  align: TOP_RIGHT
+                  x: 0
+                  y: 2
+
+              # VPD Hero Row
+              - label:
+                  id: gs_vpd_status
+                  text: "\U000F012C"
+                  text_font: icons_24
+                  text_color: 0x4CAF50
+                  align: TOP_LEFT
+                  x: 0
+                  y: 48
+
+              - label:
+                  id: gs_vpd_val
+                  text: "-- kPa"
+                  text_font: font_32
+                  text_color: 0xFFFFFF
+                  align: TOP_LEFT
+                  x: 30
+                  y: 42
+
+              - label:
+                  id: gs_vpd_range
+                  text: "Target\n-- - --"
+                  text_font: font_14
+                  text_color: 0x8B949E
+                  text_align: RIGHT
+                  align: TOP_RIGHT
+                  x: 0
+                  y: 44
+
+              # VPD Linear Gauge Track (366 px wide)
+              - obj:
+                  id: gs_gauge_bg
+                  width: 366
+                  height: 12
+                  align: TOP_LEFT
+                  x: 0
+                  y: 92
+                  bg_color: 0x30363D
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 4
+                  widgets:
+                    - obj:
+                        id: gs_gauge_zone
+                        width: 100
+                        height: 12
+                        align: LEFT_MID
+                        x: 90
+                        bg_color: 0x4CAF50
+                        bg_opa: 65%
+                        border_width: 0
+                        radius: 4
+                    - obj:
+                        id: gs_gauge_marker
+                        width: 8
+                        height: 18
+                        align: LEFT_MID
+                        x: 150
+                        bg_color: 0x00D1FF
+                        bg_opa: COVER
+                        border_width: 0
+                        radius: 4
+
+              - label:
+                  text: "${vpd_gauge_min}"
+                  text_font: font_12
+                  text_color: 0x6E7681
+                  align: TOP_LEFT
+                  x: 0
+                  y: 108
+
+              - label:
+                  text: "${vpd_gauge_max}"
+                  text_font: font_12
+                  text_color: 0x6E7681
+                  align: TOP_RIGHT
+                  x: 0
+                  y: 108
+
+              # Horizontal Divider
+              - obj:
+                  width: 366
+                  height: 1
+                  align: TOP_LEFT
+                  x: 0
+                  y: 128
+                  bg_color: 0x30363D
+                  bg_opa: COVER
+                  border_width: 0
+
+              # Bottom Left: Temp & Humidity
+              - label:
+                  text: "\U000F050F"
+                  text_font: icons_20
+                  text_color: 0xFF6B6B
+                  align: TOP_LEFT
+                  x: 0
+                  y: 142
+              - label:
+                  id: gs_temp_val
+                  text: "--.- °C"
+                  text_font: font_20
+                  text_color: 0xFFFFFF
+                  align: TOP_LEFT
+                  x: 24
+                  y: 140
+
+              - label:
+                  text: "\U000F058C"
+                  text_font: icons_20
+                  text_color: 0x64B5F6
+                  align: TOP_LEFT
+                  x: 0
+                  y: 176
+              - label:
+                  id: gs_hum_val
+                  text: "-- %"
+                  text_font: font_20
+                  text_color: 0xFFFFFF
+                  align: TOP_LEFT
+                  x: 24
+                  y: 174
+
+              # Bottom Middle: Equipment Readouts
+              - label:
+                  id: gs_exh_lbl
+                  text: "Exh: --"
+                  text_font: font_14
+                  text_color: 0x8B949E
+                  align: TOP_LEFT
+                  x: 140
+                  y: 140
+              - label:
+                  id: gs_circ_lbl
+                  text: "Circ: --"
+                  text_font: font_14
+                  text_color: 0x8B949E
+                  align: TOP_LEFT
+                  x: 140
+                  y: 164
+              - label:
+                  id: gs_hum_eq_lbl
+                  text: "Hum: --"
+                  text_font: font_14
+                  text_color: 0x8B949E
+                  align: TOP_LEFT
+                  x: 140
+                  y: 188
+
+              # Bottom Left: Cycle / Pause Progress Bar (256 px wide)
+              - obj:
+                  width: 256
+                  height: 4
+                  align: BOTTOM_LEFT
+                  x: 0
+                  y: 0
+                  bg_color: 0x21262D
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 2
+                  widgets:
+                    - obj:
+                        id: grow_countdown_bar
+                        width: 256
+                        height: 4
+                        align: LEFT_MID
+                        x: 0
+                        y: 0
+                        bg_color: 0x00D1FF
+                        bg_opa: COVER
+                        border_width: 0
+                        radius: 2
+
+              # Bottom Right: Prev / Next Growspace Buttons
+              - button:
+                  id: btn_prev_space
+                  width: 44
+                  height: 54
+                  align: BOTTOM_RIGHT
+                  x: -50
+                  y: 0
+                  bg_color: 0x21262D
+                  border_color: 0x30363D
+                  border_width: 1
+                  radius: 8
+                  widgets:
+                    - label:
+                        text: "\U000F0141"
+                        text_font: icons_24
+                        align: CENTER
+                  on_press:
+                    then:
+                      - if:
+                          condition:
+                            lambda: "return !id(wake_lock);"
+                          then:
+                            - lambda: "id(nav_direction) = -1;"
+                            - script.execute: navigate_space
+
+              - button:
+                  id: btn_next_space
+                  width: 44
+                  height: 54
+                  align: BOTTOM_RIGHT
+                  x: 0
+                  y: 0
+                  bg_color: 0x21262D
+                  border_color: 0x30363D
+                  border_width: 1
+                  radius: 8
+                  widgets:
+                    - label:
+                        text: "\U000F0142"
+                        text_font: icons_24
+                        align: CENTER
+                  on_press:
+                    then:
+                      - if:
+                          condition:
+                            lambda: "return !id(wake_lock);"
+                          then:
+                            - lambda: "id(nav_direction) = 1;"
+                            - script.execute: navigate_space
+
+        # ── CARD 2: SPOTIFY MEDIA BAR (Hidden initially) ────────────────────
+        - obj:
+            id: music_card
+            width: 390
+            height: 266
+            align: TOP_RIGHT
+            x: -6
+            y: 48
+            styles: card_style
+            hidden: true
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: lbl_track_title
+                  text: "Spotify Media Bar"
+                  text_font: font_20
+                  text_color: 0x1DB954
+                  align: TOP_LEFT
+                  x: 0
+                  y: 0
+              - label:
+                  id: lbl_track_artist
+                  text: "Ready to wire media_player.spotify"
+                  text_font: font_14
+                  text_color: 0x8B949E
+                  align: TOP_LEFT
+                  x: 0
+                  y: 30
+
+        # ── CARD 3: CLAUDE CODE (Hidden initially) ─────────────────────────
+        # Widgets live in claude/<variant>_card.yaml, logic in claude/<variant>.yaml.
+        - obj: !include claude/${claude_variant}_card.yaml
+
+# ============================================================================
+# 5. HOME ASSISTANT SENSORS (All 7 Growspaces + Clock + Battery + WiFi)
+# ============================================================================
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time_sync:
+      then:
+        - script.execute: update_clock
+    on_time:
+      - seconds: 0
+        then:
+          - script.execute: update_clock
+
+sensor:
+  # Growspace 0: 4x4
+  - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_vpd}" }
+  - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_temp}" }
+  - { platform: homeassistant, id: gs0_hum, entity_id: "${gs_0_hum}" }
+  - { platform: homeassistant, id: gs0_vpd_tgt_min, entity_id: "${gs_0_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs0_vpd_tgt_max, entity_id: "${gs_0_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs0_vpd_dng_min, entity_id: "${gs_0_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs0_vpd_dng_max, entity_id: "${gs_0_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs0_exhaust, entity_id: "${gs_0_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs0_circ, entity_id: "${gs_0_circ}", attribute: percentage }
+
+  # Growspace 1: SOG 2x5
+  - { platform: homeassistant, id: gs1_vpd, entity_id: "${gs_1_vpd}" }
+  - { platform: homeassistant, id: gs1_temp, entity_id: "${gs_1_temp}" }
+  - { platform: homeassistant, id: gs1_hum, entity_id: "${gs_1_hum}" }
+  - { platform: homeassistant, id: gs1_vpd_tgt_min, entity_id: "${gs_1_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs1_vpd_tgt_max, entity_id: "${gs_1_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs1_vpd_dng_min, entity_id: "${gs_1_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs1_vpd_dng_max, entity_id: "${gs_1_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs1_exhaust, entity_id: "${gs_1_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs1_circ, entity_id: "${gs_1_circ}", attribute: percentage }
+
+  # Growspace 2: Nursery Dome
+  - { platform: homeassistant, id: gs2_vpd, entity_id: "${gs_2_vpd}" }
+  - { platform: homeassistant, id: gs2_temp, entity_id: "${gs_2_temp}" }
+  - { platform: homeassistant, id: gs2_hum, entity_id: "${gs_2_hum}" }
+  - { platform: homeassistant, id: gs2_vpd_tgt_min, entity_id: "${gs_2_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs2_vpd_tgt_max, entity_id: "${gs_2_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs2_vpd_dng_min, entity_id: "${gs_2_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs2_vpd_dng_max, entity_id: "${gs_2_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs2_exhaust, entity_id: "${gs_2_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs2_circ, entity_id: "${gs_2_circ}", attribute: percentage }
+
+  # Growspace 3: Clone
+  - { platform: homeassistant, id: gs3_vpd, entity_id: "${gs_3_vpd}" }
+  - { platform: homeassistant, id: gs3_temp, entity_id: "${gs_3_temp}" }
+  - { platform: homeassistant, id: gs3_hum, entity_id: "${gs_3_hum}" }
+  - { platform: homeassistant, id: gs3_vpd_tgt_min, entity_id: "${gs_3_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs3_vpd_tgt_max, entity_id: "${gs_3_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs3_vpd_dng_min, entity_id: "${gs_3_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs3_vpd_dng_max, entity_id: "${gs_3_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs3_exhaust, entity_id: "${gs_3_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs3_circ, entity_id: "${gs_3_circ}", attribute: percentage }
+
+  # Growspace 4: Mother
+  - { platform: homeassistant, id: gs4_vpd, entity_id: "${gs_4_vpd}" }
+  - { platform: homeassistant, id: gs4_temp, entity_id: "${gs_4_temp}" }
+  - { platform: homeassistant, id: gs4_hum, entity_id: "${gs_4_hum}" }
+  - { platform: homeassistant, id: gs4_vpd_tgt_min, entity_id: "${gs_4_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs4_vpd_tgt_max, entity_id: "${gs_4_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs4_vpd_dng_min, entity_id: "${gs_4_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs4_vpd_dng_max, entity_id: "${gs_4_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs4_exhaust, entity_id: "${gs_4_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs4_circ, entity_id: "${gs_4_circ}", attribute: percentage }
+
+  # Growspace 5: Dry
+  - { platform: homeassistant, id: gs5_vpd, entity_id: "${gs_5_vpd}" }
+  - { platform: homeassistant, id: gs5_temp, entity_id: "${gs_5_temp}" }
+  - { platform: homeassistant, id: gs5_hum, entity_id: "${gs_5_hum}" }
+  - { platform: homeassistant, id: gs5_vpd_tgt_min, entity_id: "${gs_5_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs5_vpd_tgt_max, entity_id: "${gs_5_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs5_vpd_dng_min, entity_id: "${gs_5_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs5_vpd_dng_max, entity_id: "${gs_5_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs5_exhaust, entity_id: "${gs_5_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs5_circ, entity_id: "${gs_5_circ}", attribute: percentage }
+
+  # Growspace 6: Cure
+  - { platform: homeassistant, id: gs6_vpd, entity_id: "${gs_6_vpd}" }
+  - { platform: homeassistant, id: gs6_temp, entity_id: "${gs_6_temp}" }
+  - { platform: homeassistant, id: gs6_hum, entity_id: "${gs_6_hum}" }
+  - { platform: homeassistant, id: gs6_vpd_tgt_min, entity_id: "${gs_6_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs6_vpd_tgt_max, entity_id: "${gs_6_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs6_vpd_dng_min, entity_id: "${gs_6_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs6_vpd_dng_max, entity_id: "${gs_6_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs6_exhaust, entity_id: "${gs_6_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs6_circ, entity_id: "${gs_6_circ}", attribute: percentage }
+
+  # Battery
+  - platform: homeassistant
+    id: phone_battery
+    entity_id: ${battery_entity}
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: text_bat
+            text: !lambda 'return str_sprintf("%.0f%%", x);'
+        - lvgl.label.update:
+            id: icon_bat
+            text: !lambda |-
+              if (x >= 90) return "\U000F0948";
+              if (x >= 70) return "\U000F0946";
+              if (x >= 50) return "\U000F0942";
+              if (x >= 30) return "\U000F0940";
+              return "\U000F10CD";
+        - lambda: "lv_obj_invalidate(lv_scr_act());"
+
+  # WiFi
+  - platform: wifi_signal
+    id: wifi_sig
+    update_interval: 60s
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: text_wifi
+            text: !lambda |-
+              int percent = 0;
+              if (x >= -50) percent = 100;
+              else if (x <= -100) percent = 0;
+              else percent = 2 * (x + 100);
+              return str_sprintf("%d%%", percent);
+        - lvgl.label.update:
+            id: icon_wifi
+            text: !lambda |-
+              if (x >= -60) return "\U000F0928";
+              if (x >= -70) return "\U000F0925";
+              if (x >= -80) return "\U000F0922";
+              return "\U000F091F";
+        - lambda: "lv_obj_invalidate(lv_scr_act());"
+
+text_sensor:
+  # Claude Code bridge
+  - platform: homeassistant
+    id: claude_status
+    entity_id: input_text.claude_status
+    on_value:
+      - script.execute: update_ai_ui
+  - platform: homeassistant
+    id: claude_detail
+    entity_id: input_text.claude_detail
+    on_value:
+      - script.execute: update_ai_ui
+  - platform: homeassistant
+    id: claude_request
+    entity_id: input_text.claude_request
+
+  # Growspace Metrics Bridge + Humidifiers
+  - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs0_is_day, entity_id: "${gs_0_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs0_flower_week, entity_id: "${gs_0_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs0_veg_week, entity_id: "${gs_0_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs0_humid, entity_id: "${gs_0_humid}" }
+
+  - { platform: homeassistant, id: gs1_phase, entity_id: "${gs_1_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs1_is_day, entity_id: "${gs_1_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs1_flower_week, entity_id: "${gs_1_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs1_veg_week, entity_id: "${gs_1_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs1_humid, entity_id: "${gs_1_humid}" }
+
+  - { platform: homeassistant, id: gs2_phase, entity_id: "${gs_2_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs2_is_day, entity_id: "${gs_2_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs2_flower_week, entity_id: "${gs_2_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs2_veg_week, entity_id: "${gs_2_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs2_humid, entity_id: "${gs_2_humid}" }
+
+  - { platform: homeassistant, id: gs3_phase, entity_id: "${gs_3_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs3_is_day, entity_id: "${gs_3_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs3_flower_week, entity_id: "${gs_3_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs3_veg_week, entity_id: "${gs_3_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs3_humid, entity_id: "${gs_3_humid}" }
+
+  - { platform: homeassistant, id: gs4_phase, entity_id: "${gs_4_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs4_is_day, entity_id: "${gs_4_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs4_flower_week, entity_id: "${gs_4_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs4_veg_week, entity_id: "${gs_4_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs4_humid, entity_id: "${gs_4_humid}" }
+
+  - { platform: homeassistant, id: gs5_phase, entity_id: "${gs_5_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs5_is_day, entity_id: "${gs_5_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs5_flower_week, entity_id: "${gs_5_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs5_veg_week, entity_id: "${gs_5_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs5_humid, entity_id: "${gs_5_humid}" }
+
+  - { platform: homeassistant, id: gs6_phase, entity_id: "${gs_6_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs6_is_day, entity_id: "${gs_6_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs6_flower_week, entity_id: "${gs_6_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs6_veg_week, entity_id: "${gs_6_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs6_humid, entity_id: "${gs_6_humid}" }
+
+# ============================================================================
+# 6. SCRIPTS (Tab Switching, Growspace Navigation, Clock & VPD Rendering)
+# ============================================================================
+script:
+  - id: switch_tab
+    parameters:
+      tab_idx: int
+    then:
+      - lambda: |-
+          lv_obj_t* cards[] = { id(grow_card), id(music_card), id(ai_card) };
+          lv_obj_t* btns[]  = { id(nav_grow), id(nav_music), id(nav_ai) };
+          for (int i = 0; i < 3; i++) {
+            if (i == tab_idx) {
+              lv_obj_clear_flag(cards[i], LV_OBJ_FLAG_HIDDEN);
+              lv_obj_set_style_bg_color(btns[i], lv_color_hex(0x1F6FEB), 0);
+              lv_obj_set_style_border_color(btns[i], lv_color_hex(0x58A6FF), 0);
+            } else {
+              lv_obj_add_flag(cards[i], LV_OBJ_FLAG_HIDDEN);
+              lv_obj_set_style_bg_color(btns[i], lv_color_hex(0x161B22), 0);
+              lv_obj_set_style_border_color(btns[i], lv_color_hex(0x30363D), 0);
+            }
+          }
+          lv_obj_invalidate(lv_scr_act());
+
+  - id: navigate_space
+    then:
+      - lambda: |-
+          int total = id(gs_total);
+          int dir = id(nav_direction);
+          int idx = id(vpd_sensor_index);
+          esphome::text_sensor::TextSensor* phase_s[] = {
+            id(gs0_phase), id(gs1_phase), id(gs2_phase), id(gs3_phase),
+            id(gs4_phase), id(gs5_phase), id(gs6_phase)
+          };
+          for (int i = 0; i < total; i++) {
+            idx = (idx + dir + total) % total;
+            if (phase_s[idx]->has_state() && phase_s[idx]->state != "empty") break;
+          }
+          id(vpd_sensor_index) = idx;
+          id(cycle_timer) = ${cycle_interval};
+          id(cycle_paused) = true;
+          id(pause_timer) = ${pause_timeout};
+      - script.execute: update_pause_indicator
+      - script.execute: update_grow_ui
+
+  - id: update_pause_indicator
+    then:
+      - if:
+          condition:
+            lambda: "return id(cycle_paused);"
+          then:
+            - lvgl.widget.update:
+                id: gs_pause_icon
+                hidden: false
+            - lvgl.widget.update:
+                id: icon_paused
+                hidden: false
+          else:
+            - lvgl.widget.update:
+                id: gs_pause_icon
+                hidden: true
+            - lvgl.widget.update:
+                id: icon_paused
+                hidden: true
+
+  - id: update_clock
+    then:
+      - lvgl.label.update:
+          id: lbl_clock
+          text:
+            format: "%02d:%02d"
+            args:
+              - "id(ha_time).now().hour"
+              - "id(ha_time).now().minute"
+      - lambda: "lv_obj_invalidate(lv_scr_act());"
+
+  - id: update_grow_ui
+    then:
+      - lambda: |-
+          const int MAX_SPACES = 7;
+          int idx = id(vpd_sensor_index) % MAX_SPACES;
+
+          const char* names[] = {
+            "${gs_0_name}", "${gs_1_name}", "${gs_2_name}", "${gs_3_name}",
+            "${gs_4_name}", "${gs_5_name}", "${gs_6_name}"
+          };
+
+          esphome::sensor::Sensor* vpd_s[] = { id(gs0_vpd), id(gs1_vpd), id(gs2_vpd), id(gs3_vpd), id(gs4_vpd), id(gs5_vpd), id(gs6_vpd) };
+          esphome::sensor::Sensor* temp_s[] = { id(gs0_temp), id(gs1_temp), id(gs2_temp), id(gs3_temp), id(gs4_temp), id(gs5_temp), id(gs6_temp) };
+          esphome::sensor::Sensor* hum_s[] = { id(gs0_hum), id(gs1_hum), id(gs2_hum), id(gs3_hum), id(gs4_hum), id(gs5_hum), id(gs6_hum) };
+          esphome::sensor::Sensor* tgt_min_s[] = { id(gs0_vpd_tgt_min), id(gs1_vpd_tgt_min), id(gs2_vpd_tgt_min), id(gs3_vpd_tgt_min), id(gs4_vpd_tgt_min), id(gs5_vpd_tgt_min), id(gs6_vpd_tgt_min) };
+          esphome::sensor::Sensor* tgt_max_s[] = { id(gs0_vpd_tgt_max), id(gs1_vpd_tgt_max), id(gs2_vpd_tgt_max), id(gs3_vpd_tgt_max), id(gs4_vpd_tgt_max), id(gs5_vpd_tgt_max), id(gs6_vpd_tgt_max) };
+          esphome::sensor::Sensor* dng_min_s[] = { id(gs0_vpd_dng_min), id(gs1_vpd_dng_min), id(gs2_vpd_dng_min), id(gs3_vpd_dng_min), id(gs4_vpd_dng_min), id(gs5_vpd_dng_min), id(gs6_vpd_dng_min) };
+          esphome::sensor::Sensor* dng_max_s[] = { id(gs0_vpd_dng_max), id(gs1_vpd_dng_max), id(gs2_vpd_dng_max), id(gs3_vpd_dng_max), id(gs4_vpd_dng_max), id(gs5_vpd_dng_max), id(gs6_vpd_dng_max) };
+          esphome::sensor::Sensor* exh_s[] = { id(gs0_exhaust), id(gs1_exhaust), id(gs2_exhaust), id(gs3_exhaust), id(gs4_exhaust), id(gs5_exhaust), id(gs6_exhaust) };
+          esphome::sensor::Sensor* circ_s[] = { id(gs0_circ), id(gs1_circ), id(gs2_circ), id(gs3_circ), id(gs4_circ), id(gs5_circ), id(gs6_circ) };
+
+          esphome::text_sensor::TextSensor* humid_s[] = { id(gs0_humid), id(gs1_humid), id(gs2_humid), id(gs3_humid), id(gs4_humid), id(gs5_humid), id(gs6_humid) };
+          esphome::text_sensor::TextSensor* phase_s[] = { id(gs0_phase), id(gs1_phase), id(gs2_phase), id(gs3_phase), id(gs4_phase), id(gs5_phase), id(gs6_phase) };
+          esphome::text_sensor::TextSensor* day_s[] = { id(gs0_is_day), id(gs1_is_day), id(gs2_is_day), id(gs3_is_day), id(gs4_is_day), id(gs5_is_day), id(gs6_is_day) };
+          esphome::text_sensor::TextSensor* fw_s[] = { id(gs0_flower_week), id(gs1_flower_week), id(gs2_flower_week), id(gs3_flower_week), id(gs4_flower_week), id(gs5_flower_week), id(gs6_flower_week) };
+          esphome::text_sensor::TextSensor* vw_s[] = { id(gs0_veg_week), id(gs1_veg_week), id(gs2_veg_week), id(gs3_veg_week), id(gs4_veg_week), id(gs5_veg_week), id(gs6_veg_week) };
+
+          float vpd = (vpd_s[idx] != nullptr && vpd_s[idx]->has_state()) ? vpd_s[idx]->state : 0.0f;
+          float temp = (temp_s[idx] != nullptr && temp_s[idx]->has_state()) ? temp_s[idx]->state : 0.0f;
+          float hum = (hum_s[idx] != nullptr && hum_s[idx]->has_state()) ? hum_s[idx]->state : 0.0f;
+          float tgt_min = (tgt_min_s[idx] != nullptr && tgt_min_s[idx]->has_state()) ? tgt_min_s[idx]->state : 0.8f;
+          float tgt_max = (tgt_max_s[idx] != nullptr && tgt_max_s[idx]->has_state()) ? tgt_max_s[idx]->state : 1.2f;
+          float dng_min = (dng_min_s[idx] != nullptr && dng_min_s[idx]->has_state()) ? dng_min_s[idx]->state : 0.4f;
+          float dng_max = (dng_max_s[idx] != nullptr && dng_max_s[idx]->has_state()) ? dng_max_s[idx]->state : 1.6f;
+
+          // Grow Stage badge
+          std::string phase = (phase_s[idx] != nullptr && phase_s[idx]->has_state()) ? phase_s[idx]->state : "unknown";
+          char badge[32] = "";
+          uint32_t badge_color = 0x555555;
+          if (phase.find("flower") != std::string::npos) {
+            snprintf(badge, sizeof(badge), "Flower W%s", (fw_s[idx] != nullptr && fw_s[idx]->has_state()) ? fw_s[idx]->state.c_str() : "");
+            badge_color = 0xFF9800;
+          } else if (phase.find("veg") != std::string::npos) {
+            snprintf(badge, sizeof(badge), "Veg W%s", (vw_s[idx] != nullptr && vw_s[idx]->has_state()) ? vw_s[idx]->state.c_str() : "");
+            badge_color = 0x4CAF50;
+          } else if (phase == "seedling") {
+            snprintf(badge, sizeof(badge), "Seedling");
+            badge_color = 0x8BC34A;
+          } else if (phase == "clone") {
+            snprintf(badge, sizeof(badge), "Clone");
+            badge_color = 0xFF5722;
+          } else if (phase == "mother") {
+            snprintf(badge, sizeof(badge), "Mother");
+            badge_color = 0xE91E63;
+          } else if (phase == "dry") {
+            snprintf(badge, sizeof(badge), "Drying");
+            badge_color = 0x9C27B0;
+          } else if (phase == "cure") {
+            snprintf(badge, sizeof(badge), "Curing");
+            badge_color = 0x2196F3;
+          } else {
+            snprintf(badge, sizeof(badge), "%s", phase.c_str());
+          }
+
+          lv_label_set_text(id(gs_name_lbl), names[idx]);
+          lv_label_set_text(id(gs_phase_badge), badge);
+          lv_obj_set_style_bg_color(id(gs_phase_badge), lv_color_hex(badge_color), 0);
+
+          // Day / Night icon
+          std::string day_str = (day_s[idx] != nullptr && day_s[idx]->has_state()) ? day_s[idx]->state : "on";
+          bool is_day = (day_str == "on" || day_str == "True" || day_str == "true");
+          lv_label_set_text(id(gs_day_icon), is_day ? "\U000F06B5" : "\U000F06B8");
+          lv_obj_set_style_text_color(id(gs_day_icon), lv_color_hex(is_day ? 0xFFC107 : 0x555555), 0);
+
+          // VPD Value & Status Color
+          char buf[48];
+          snprintf(buf, sizeof(buf), "%.2f kPa", vpd);
+          lv_label_set_text(id(gs_vpd_val), buf);
+
+          snprintf(buf, sizeof(buf), "Target\n%.1f - %.1f", tgt_min, tgt_max);
+          lv_label_set_text(id(gs_vpd_range), buf);
+
+          uint32_t sc;
+          const char* si;
+          if (vpd >= tgt_min && vpd <= tgt_max) {
+            sc = 0x4CAF50; si = "\U000F012C";
+          } else if (vpd >= dng_min && vpd <= dng_max) {
+            sc = 0xFFC107; si = "\U000F0029";
+          } else {
+            sc = 0xFF5252; si = "\U000F0159";
+          }
+          lv_label_set_text(id(gs_vpd_status), si);
+          lv_obj_set_style_text_color(id(gs_vpd_status), lv_color_hex(sc), 0);
+
+          // VPD Gauge Bar (366 px width)
+          float gw = 366.0f, gmin = ${vpd_gauge_min}f, gmax = ${vpd_gauge_max}f, gr = gmax - gmin;
+          float mp = (vpd - gmin) / gr;
+          if (mp < 0) mp = 0; if (mp > 1) mp = 1;
+          lv_obj_set_x(id(gs_gauge_marker), (int)(mp * gw) - 4);
+          lv_obj_set_style_bg_color(id(gs_gauge_marker), lv_color_hex(sc), 0);
+
+          float zsp = (tgt_min - gmin) / gr, zep = (tgt_max - gmin) / gr;
+          if (zsp < 0) zsp = 0; if (zep > 1) zep = 1;
+          int zw = (int)((zep - zsp) * gw);
+          if (zw < 4) zw = 4;
+          lv_obj_set_x(id(gs_gauge_zone), (int)(zsp * gw));
+          lv_obj_set_width(id(gs_gauge_zone), zw);
+
+          // Temp & Humidity
+          snprintf(buf, sizeof(buf), "%.1f °C", temp);
+          lv_label_set_text(id(gs_temp_val), buf);
+          snprintf(buf, sizeof(buf), "%.0f %%", hum);
+          lv_label_set_text(id(gs_hum_val), buf);
+
+          // Equipment readouts (nullptr-safe)
+          if (exh_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_exh_lbl), "Exh: --");
+            lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            float exh_v = exh_s[idx]->has_state() ? exh_s[idx]->state : 0;
+            snprintf(buf, sizeof(buf), exh_v > 0 ? "Exh: %.0f%%" : "Exh: Off", exh_v);
+            lv_label_set_text(id(gs_exh_lbl), buf);
+            lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(exh_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
+          }
+
+          if (circ_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_circ_lbl), "Circ: --");
+            lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            float circ_v = circ_s[idx]->has_state() ? circ_s[idx]->state : 0;
+            snprintf(buf, sizeof(buf), circ_v > 0 ? "Circ: %.0f%%" : "Circ: Off", circ_v);
+            lv_label_set_text(id(gs_circ_lbl), buf);
+            lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(circ_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
+          }
+
+          if (humid_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_hum_eq_lbl), "Hum: --");
+            lv_obj_set_style_text_color(id(gs_hum_eq_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            bool hum_on = humid_s[idx]->has_state() && humid_s[idx]->state == "on";
+            lv_label_set_text(id(gs_hum_eq_lbl), hum_on ? "Hum: On" : "Hum: Off");
+            lv_obj_set_style_text_color(id(gs_hum_eq_lbl), lv_color_hex(hum_on ? 0x64B5F6 : 0x6E7681), 0);
+          }
+
+          // Global Danger Alert across all 7 growspaces
+          bool global_danger = false;
+          for (int i = 0; i < MAX_SPACES; i++) {
+            if (phase_s[i]->has_state() && phase_s[i]->state != "empty") {
+              float v = vpd_s[i]->has_state() ? vpd_s[i]->state : 0.0f;
+              float d_min = dng_min_s[i]->has_state() ? dng_min_s[i]->state : 0.4f;
+              float d_max = dng_max_s[i]->has_state() ? dng_max_s[i]->state : 1.6f;
+              if (v < d_min || v > d_max) {
+                global_danger = true;
+                break;
+              }
+            }
+          }
+          lv_obj_set_style_border_color(id(grow_card), lv_color_hex(global_danger ? 0xFF5252 : 0x30363D), 0);
+          lv_obj_set_style_border_color(id(main_header_bar), lv_color_hex(global_danger ? 0xFF5252 : 0x30363D), 0);
+          lv_obj_invalidate(lv_scr_act());
+
+# ============================================================================
+# 7. INTERVALS (Auto-Cycle, Wake-Lock Clear, Auto-Dim/Sleep)
+# ============================================================================
+interval:
+  # 1s tick: Growspace cycle & pause countdown
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (!id(cycle_paused)) {
+            if (id(cycle_timer) > 0) {
+              id(cycle_timer)--;
+              int bw = (id(cycle_timer) * 256) / ${cycle_interval};
+              lv_obj_set_width(id(grow_countdown_bar), bw > 0 ? bw : 1);
+              lv_obj_set_style_bg_color(id(grow_countdown_bar), lv_color_hex(0x00D1FF), 0);
+            }
+          } else {
+            if (id(pause_timer) > 0) {
+              id(pause_timer)--;
+              int pbw = (id(pause_timer) * 256) / ${pause_timeout};
+              if (pbw > 256) pbw = 256;
+              lv_obj_set_width(id(grow_countdown_bar), pbw > 0 ? pbw : 1);
+              lv_obj_set_style_bg_color(id(grow_countdown_bar), lv_color_hex(0xFFC107), 0);
+            } else {
+              id(cycle_paused) = false;
+              id(cycle_timer) = ${cycle_interval};
+              lv_obj_set_style_bg_color(id(grow_countdown_bar), lv_color_hex(0x00D1FF), 0);
+            }
+          }
+      - if:
+          condition:
+            lambda: "return !id(cycle_paused) && id(cycle_timer) == ${cycle_interval};"
+          then:
+            - script.execute: update_pause_indicator
+      - if:
+          condition:
+            lambda: "return id(cycle_timer) == 0 && !id(cycle_paused);"
+          then:
+            - lambda: "id(nav_direction) = 1;"
+            - script.execute: navigate_space
+            - lambda: "id(cycle_paused) = false;"
+            - script.execute: update_pause_indicator
+
+  # Wake-lock clearing (300ms guard after waking from dim/sleep)
+  - interval: 100ms
+    then:
+      - lambda: |-
+          if (id(wake_lock)) {
+            if (millis() - id(last_touch_ms) > 300) {
+              id(wake_lock) = false;
+            }
+          }
+
+  # Auto-dim & sleep backlight on inactivity
+  - interval: 5s
+    then:
+      - lambda: |-
+          uint32_t elapsed_s = (millis() - id(last_touch_ms)) / 1000;
+          int new_state = 0;
+          if (elapsed_s > ${sleep_timeout} * 60) new_state = 2;
+          else if (elapsed_s > ${dim_timeout} * 60) new_state = 1;
+          if (new_state != id(dim_state)) {
+            id(dim_state) = new_state;
+            auto call = id(display_backlight).make_call();
+            if (new_state == 2) call.set_brightness(0.05f);
+            else if (new_state == 1) call.set_brightness(0.3f);
+            else call.set_brightness(1.0f);
+            call.perform();
+          }

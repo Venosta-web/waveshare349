@@ -505,175 +505,9 @@ lvgl:
                       - lambda: "id(nav_direction) = 1;"
                       - script.execute: navigate_space
 
-        # ── CARD 2: MUSIC VIEW (Hidden initially) ──────────────────────────
-        - obj:
-            id: music_card
-            width: 560
-            height: 160
-            align: RIGHT_MID
-            x: -6
-            y: 0
-            styles: card_style
-            scrollbar_mode: "off"
-            hidden: true
-            widgets:
-              - label:
-                  text: "\U000F075A"
-                  text_font: icons_20
-                  text_color: 0x1DB954
-                  align: TOP_LEFT
-                  x: 4
-                  y: 4
-
-              - label:
-                  id: lbl_track_title
-                  text: "No Track Playing"
-                  text_font: font_20
-                  text_color: 0xFFFFFF
-                  width: 410
-                  long_mode: DOT
-                  align: TOP_LEFT
-                  x: 30
-                  y: 2
-
-              - label:
-                  id: lbl_music_state
-                  text: "IDLE"
-                  text_font: font_12
-                  text_color: 0x8B949E
-                  styles: phase_badge
-                  align: TOP_RIGHT
-                  x: -4
-                  y: 4
-
-              - label:
-                  id: lbl_track_artist
-                  text: "Waiting for Home Assistant media_player"
-                  text_font: font_14
-                  text_color: 0x8B949E
-                  width: 450
-                  long_mode: DOT
-                  align: TOP_LEFT
-                  x: 30
-                  y: 32
-
-              # Transport & Volume Controls
-              - button:
-                  id: btn_music_prev
-                  width: 58
-                  height: 52
-                  align: BOTTOM_LEFT
-                  x: 4
-                  y: -4
-                  styles: media_btn
-                  widgets:
-                    - label:
-                        text: "\U000F04AD"
-                        text_font: icons_20
-                        text_color: 0xFFFFFF
-                        align: CENTER
-                  on_press:
-                    then:
-                      - homeassistant.service:
-                          service: media_player.media_previous_track
-                          data:
-                            entity_id: "${media_player_entity}"
-
-              - button:
-                  id: btn_music_play
-                  width: 74
-                  height: 52
-                  align: BOTTOM_LEFT
-                  x: 70
-                  y: -4
-                  bg_color: 0x1DB954
-                  border_width: 0
-                  radius: 10
-                  widgets:
-                    - label:
-                        id: lbl_music_play_icon
-                        text: "\U000F040A"
-                        text_font: icons_24
-                        text_color: 0x0A0C10
-                        align: CENTER
-                  on_press:
-                    then:
-                      - homeassistant.service:
-                          service: media_player.media_play_pause
-                          data:
-                            entity_id: "${media_player_entity}"
-
-              - button:
-                  id: btn_music_next
-                  width: 58
-                  height: 52
-                  align: BOTTOM_LEFT
-                  x: 152
-                  y: -4
-                  styles: media_btn
-                  widgets:
-                    - label:
-                        text: "\U000F04AE"
-                        text_font: icons_20
-                        text_color: 0xFFFFFF
-                        align: CENTER
-                  on_press:
-                    then:
-                      - homeassistant.service:
-                          service: media_player.media_next_track
-                          data:
-                            entity_id: "${media_player_entity}"
-
-              - button:
-                  id: btn_vol_down
-                  width: 50
-                  height: 52
-                  align: BOTTOM_RIGHT
-                  x: -130
-                  y: -4
-                  styles: media_btn
-                  widgets:
-                    - label:
-                        text: "-"
-                        text_font: font_20
-                        text_color: 0xFFFFFF
-                        align: CENTER
-                  on_press:
-                    then:
-                      - homeassistant.service:
-                          service: media_player.volume_down
-                          data:
-                            entity_id: "${media_player_entity}"
-
-              - label:
-                  id: lbl_music_vol
-                  text: "Vol --%"
-                  text_font: font_14
-                  text_color: 0x8B949E
-                  align: BOTTOM_RIGHT
-                  x: -60
-                  y: -22
-
-              - button:
-                  id: btn_vol_up
-                  width: 50
-                  height: 52
-                  align: BOTTOM_RIGHT
-                  x: -4
-                  y: -4
-                  styles: media_btn
-                  widgets:
-                    - label:
-                        text: "+"
-                        text_font: font_20
-                        text_color: 0xFFFFFF
-                        align: CENTER
-                  on_press:
-                    then:
-                      - homeassistant.service:
-                          service: media_player.volume_up
-                          data:
-                            entity_id: "${media_player_entity}"
+        # ── CARD 2: MUSIC ASSISTANT (Hidden initially) ───────────────────────
+        # Widgets live in music/<variant>_card.yaml, logic in music/<variant>.yaml.
+        - obj: !include ../music/${music_variant}_card.yaml
 
         # ── CARD 3: CLAUDE CODE (Hidden initially) ─────────────────────────
         # Widgets live in claude/<variant>_card.yaml, logic in claude/<variant>.yaml.
@@ -717,17 +551,9 @@ lvgl:
                   y: 0
 
 # ============================================================================
-# 5. HOME ASSISTANT SENSORS (All 7 Growspaces + Media Player)
+# 5. HOME ASSISTANT SENSORS (All 7 Growspaces)
 # ============================================================================
 sensor:
-  # Media Player volume
-  - platform: homeassistant
-    id: media_volume
-    entity_id: "${media_player_entity}"
-    attribute: volume_level
-    on_value:
-      - script.execute: update_music_ui
-
   # Space 0: 4x4
   - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_vpd}" }
   - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_temp}" }
@@ -806,25 +632,6 @@ sensor:
   - { platform: homeassistant, id: gs6_circ, entity_id: "${gs_6_circ}", attribute: percentage }
 
 text_sensor:
-  # Media Player state & metadata
-  - platform: homeassistant
-    id: media_state
-    entity_id: "${media_player_entity}"
-    on_value:
-      - script.execute: update_music_ui
-  - platform: homeassistant
-    id: media_title
-    entity_id: "${media_player_entity}"
-    attribute: media_title
-    on_value:
-      - script.execute: update_music_ui
-  - platform: homeassistant
-    id: media_artist
-    entity_id: "${media_player_entity}"
-    attribute: media_artist
-    on_value:
-      - script.execute: update_music_ui
-
   # Claude Code bridge (written by claude_bridge/claude_ha_bridge.py)
   - platform: homeassistant
     id: claude_status
@@ -944,33 +751,6 @@ script:
       - lambda: |-
           bool hidden = lv_obj_has_flag(id(voice_overlay), LV_OBJ_FLAG_HIDDEN);
           id(set_voice_overlay).execute(hidden, hidden ? "Sim Voice: Listening..." : "", 0x58A6FF);
-
-  - id: update_music_ui
-    then:
-      - lambda: |-
-          std::string state = id(media_state).has_state() ? id(media_state).state : "idle";
-          std::string title = id(media_title).has_state() ? id(media_title).state : "";
-          std::string artist = id(media_artist).has_state() ? id(media_artist).state : "";
-          if (title.empty() || title == "unknown" || title == "unavailable") title = "No Track Playing";
-          if (artist.empty() || artist == "unknown" || artist == "unavailable") artist = "Ready";
-
-          lv_label_set_text(id(lbl_track_title), title.c_str());
-          lv_label_set_text(id(lbl_track_artist), artist.c_str());
-
-          bool playing = (state == "playing");
-          lv_label_set_text(id(lbl_music_play_icon), playing ? "\U000F03E4" : "\U000F040A");
-          lv_label_set_text(id(lbl_music_state), playing ? "PLAYING" : (state == "paused" ? "PAUSED" : "IDLE"));
-          lv_obj_set_style_bg_color(id(lbl_music_state), lv_color_hex(playing ? 0x1DB954 : 0x333333), 0);
-          lv_obj_set_style_text_color(id(lbl_music_state), lv_color_hex(playing ? 0x0A0C10 : 0xFFFFFF), 0);
-
-          if (id(media_volume).has_state() && !std::isnan(id(media_volume).state)) {
-            char vbuf[16];
-            snprintf(vbuf, sizeof(vbuf), "Vol %d%%", (int)(id(media_volume).state * 100.0f + 0.5f));
-            lv_label_set_text(id(lbl_music_vol), vbuf);
-          } else {
-            lv_label_set_text(id(lbl_music_vol), "Vol --%");
-          }
-          lv_obj_invalidate(lv_scr_act());
 
   - id: navigate_space
     then:

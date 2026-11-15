@@ -2,10 +2,11 @@
 """Claude Code <-> Home Assistant <-> Waveshare display bridge.
 
 Subcommands:
-  hook    Claude Code hook entry point (reads hook JSON on stdin).
-  setup   Create the input_text helpers in Home Assistant if missing.
-  check   Verify the token and that the helpers exist.
-  test    Send a fake permission request to the display and print the tap.
+  hook        Claude Code hook entry point (reads hook JSON on stdin).
+  statusline  Optional: read Claude Code statusLine JSON on stdin to cache rate_limits.
+  setup       Create the input_text helpers in Home Assistant if missing.
+  check       Verify the token and that the helpers exist.
+  test        Send a fake permission request to the display and print the tap.
 
 Config: ~/.config/claude-ha-bridge/config.env (HA_URL=..., HA_TOKEN=...).
 
@@ -14,6 +15,7 @@ in time, Home Assistant is unreachable, or anything fails, it prints nothing
 and Claude Code falls back to its normal permission prompt.
 """
 import asyncio
+from datetime import datetime, timedelta
 import json
 import os
 import re
@@ -27,16 +29,19 @@ from pathlib import Path
 CONFIG_FILE = Path.home() / ".config" / "claude-ha-bridge" / "config.env"
 # Which session's Needs Input is on the display (other sessions must not hide it).
 OWNER_FILE = Path.home() / ".cache" / "claude-ha-bridge" / "needs_input_owner.json"
+RATE_LIMIT_CACHE = Path.home() / ".cache" / "claude-ha-bridge" / "rate_limits.json"
 OWNER_MAX_AGE = 12 * 3600  # forget a Needs Input whose session never came back
 WRAP_UP_TOOL = "mcp__ccd_turn__wrap_up"  # desktop app's end-of-turn box
 EVENT_TYPE = "esphome.claude_command"
 ENT_STATUS = "input_text.claude_status"
 ENT_DETAIL = "input_text.claude_detail"
 ENT_REQUEST = "input_text.claude_request"
+ENT_STEPS = "input_text.claude_steps"
 HELPERS = {  # name -> max length; entity id becomes input_text.<name>
     "claude_status": 100,
     "claude_detail": 255,
     "claude_request": 64,
+    "claude_steps": 255,
 }
 DECISION_TIMEOUT = float(os.environ.get("CLAUDE_HA_DECISION_TIMEOUT", "110"))
 CONNECT_TIMEOUT = 3
@@ -86,11 +91,16 @@ def rest_set(entity_id, value, limit):
         return False
 
 
-def set_display(status=None, detail=None, request=None):
+def set_display(status=None, detail=None, request=None, steps=None):
     """Best effort; stops at the first failure so a down HA costs one timeout."""
     if not HA_TOKEN:
         return
-    for ent, value, limit in ((ENT_REQUEST, request, 64), (ENT_DETAIL, detail, 255), (ENT_STATUS, status, 100)):
+    for ent, value, limit in (
+        (ENT_REQUEST, request, 64),
+        (ENT_STEPS, steps, 255),
+        (ENT_DETAIL, detail, 255),
+        (ENT_STATUS, status, 100),
+    ):
         if value is not None and not rest_set(ent, value, limit):
             return
 
@@ -135,7 +145,7 @@ def clear_owner():
         pass
 
 
-def show(session, status, detail, needs_input=False, after_request=False):
+def show(session, status, detail, needs_input=False, after_request=False, steps=None):
     """Status update from a hook.
 
     Needs Input belongs to the session that raised it: other sessions' Working
@@ -155,9 +165,9 @@ def show(session, status, detail, needs_input=False, after_request=False):
     elif owner:
         clear_owner()
     if after_request:
-        set_display(status, detail, "")
+        set_display(status, detail, "", steps=steps)
     elif not request_pending():
-        set_display(status, detail)
+        set_display(status, detail, steps=steps)
 
 
 def display_ready():
@@ -364,6 +374,281 @@ def guess_waiting_on(text):
     return None
 
 
+# ---------------------------------------------------------------- rate limits
+
+_RL_KEYWORDS = (
+    "rate_limit",
+    "rate limit",
+    "limit reached",
+    "usage limit",
+    "too many requests",
+    "hit your limit",
+    "auto-resuming",
+)
+_MONTHS = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6,
+    "jul": 7, "july": 7, "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
+}
+_RE_REL = re.compile(
+    r"resets?\s+in\s+(?:(\d+)\s*d(?:ays?)?\s*)?(?:(\d+)\s*h(?:ours?|rs?)?\s*)?(?:(\d+)\s*m(?:ins?|inutes?)?)?",
+    re.I,
+)
+_RE_MONTH_TIME = re.compile(
+    r"(?:resets?|resuming)(?:\s+at)?\s+([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?",
+    re.I,
+)
+_RE_TIME = re.compile(
+    r"(?:resets?|resuming|at)\s+(?:at\s+)?(\d{1,2})(?::(\d{2})\s*(am|pm)?|\s*(am|pm))",
+    re.I,
+)
+
+
+def is_rate_limit_text(text):
+    low = (text or "").lower()
+    return any(k in low for k in _RL_KEYWORDS) or bool(re.search(r"\b429\b", low))
+
+
+def _to_24h(hour, ampm):
+    if ampm:
+        ap = ampm.lower()
+        if ap == "pm" and hour != 12:
+            return hour + 12
+        if ap == "am" and hour == 12:
+            return 0
+    return hour
+
+
+def parse_reset_timestamp(text, now_dt=None):
+    """Best-effort parse of a Claude rate-limit reset time into a Unix timestamp."""
+    now_dt = now_dt or datetime.now()
+    s = text or ""
+
+    m = _RE_REL.search(s)
+    if m and any(m.groups()):
+        days = int(m.group(1) or 0)
+        hours = int(m.group(2) or 0)
+        mins = int(m.group(3) or 0)
+        return (now_dt + timedelta(days=days, hours=hours, minutes=mins)).timestamp()
+
+    m = _RE_MONTH_TIME.search(s)
+    if m:
+        month = _MONTHS.get(m.group(1).lower())
+        if month:
+            day = int(m.group(2))
+            hour = _to_24h(int(m.group(3)), m.group(5))
+            minute = int(m.group(4) or 0)
+            year = now_dt.year
+            try:
+                target = now_dt.replace(year=year, month=month, day=day, hour=hour, minute=minute, second=0, microsecond=0)
+                if target <= now_dt - timedelta(days=1):
+                    target = target.replace(year=year + 1)
+                return target.timestamp()
+            except ValueError:
+                pass
+
+    m = _RE_TIME.search(s)
+    if m:
+        hour = _to_24h(int(m.group(1)), m.group(3) or m.group(4))
+        minute = int(m.group(2) or 0)
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            target = now_dt.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if target <= now_dt:
+                target += timedelta(days=1)
+            return target.timestamp()
+
+    return None
+
+
+def _load_cached_rate_limits():
+    try:
+        data = json.loads(RATE_LIMIT_CACHE.read_text())
+        if time.time() - data.get("at", 0) <= 600:
+            return data.get("rate_limits") or {}
+    except (OSError, ValueError):
+        pass
+    return {}
+
+
+def save_rate_limits_cache(rate_limits):
+    if not isinstance(rate_limits, dict):
+        return
+    try:
+        RATE_LIMIT_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = RATE_LIMIT_CACHE.with_suffix(f".{os.getpid()}.tmp")
+        tmp.write_text(json.dumps({"rate_limits": rate_limits, "at": time.time()}))
+        tmp.replace(RATE_LIMIT_CACHE)
+    except OSError:
+        pass
+
+
+def parse_rate_limit_info(text, payload=None, now_dt=None):
+    """Return (window, remaining_secs, reset_clock_str, summary_text)."""
+    now_dt = now_dt or datetime.now()
+    now_ts = now_dt.timestamp()
+    payload = payload or {}
+    rl = payload.get("rate_limits") or _load_cached_rate_limits()
+
+    window = None
+    resets_at = None
+    for key, wname in (("seven_day", "7d"), ("five_hour", "5h")):
+        entry = rl.get(key) if isinstance(rl, dict) else None
+        if isinstance(entry, dict) and float(entry.get("used_percentage") or 0) >= 99.9:
+            ra = entry.get("resets_at")
+            if ra and float(ra) > now_ts:
+                window = wname
+                resets_at = float(ra)
+                break
+
+    if resets_at is None:
+        resets_at = parse_reset_timestamp(text, now_dt)
+
+    low = (text or "").lower()
+    delta = (resets_at - now_ts) if resets_at is not None else None
+    if window is None:
+        if any(k in low for k in ("7-day", "7 day", "7d", "weekly")):
+            window = "7d"
+        elif any(k in low for k in ("5-hour", "5 hour", "5h")):
+            window = "5h"
+        elif delta is not None and delta > 5.5 * 3600:
+            window = "7d"
+        else:
+            window = "5h"
+
+    if resets_at is None:
+        resets_at = now_ts + (7 * 86400 if window == "7d" else 5 * 3600)
+
+    remaining_secs = max(0, int(round(resets_at - now_ts)))
+    reset_dt = datetime.fromtimestamp(resets_at)
+    if reset_dt.date() == now_dt.date():
+        reset_clock_str = reset_dt.strftime("%-I:%M %p")
+    else:
+        reset_clock_str = reset_dt.strftime("%b %-d, %-I:%M %p")
+
+    summary = "7-day usage limit reached" if window == "7d" else "5-hour usage limit reached"
+    return window, remaining_secs, reset_clock_str, summary
+
+
+def show_rate_limit(project, window, remaining_secs, reset_clock_str, summary):
+    if not HA_TOKEN:
+        return
+    clear_owner()
+    body = f"{project} | {summary}" if project else summary
+    detail = f"{window}|{int(remaining_secs)}|{reset_clock_str}|{body}"
+    if not request_pending():
+        set_display("Rate Limited", detail, steps="")
+
+
+STEP_TOOLS = {"TodoWrite", "TaskCreate", "TaskUpdate"}
+TASK_ID_RE = re.compile(r"(?:Task\s*#?|id[\"']?\s*[:=]\s*[\"']?)(\d+)", re.I)
+
+
+def _clean_step(text):
+    return " ".join(str(text or "").replace("|", "/").split())
+
+
+def format_steps(tasks, only_if_active=False):
+    """Format task list as '<cur>/<total>|<current>|<next>' (<= 255 ASCII chars)."""
+    live = [t for t in tasks if t.get("status") != "deleted" and _clean_step(t.get("content") or t.get("subject"))]
+    if not live:
+        return ""
+    if only_if_active and all(t.get("status") == "completed" for t in live):
+        return ""
+
+    cur_idx = next((i for i, t in enumerate(live) if t.get("status") == "in_progress"), None)
+    if cur_idx is None:
+        cur_idx = next((i for i, t in enumerate(live) if t.get("status") == "pending"), None)
+    if cur_idx is None:
+        cur_idx = len(live) - 1
+
+    cur_text = _clean_step(live[cur_idx].get("content") or live[cur_idx].get("subject"))
+    next_idx = next(
+        (i for i in range(cur_idx + 1, len(live)) if live[i].get("status") in ("pending", "in_progress")),
+        None,
+    )
+    next_text = _clean_step(live[next_idx].get("content") or live[next_idx].get("subject")) if next_idx is not None else ""
+    payload = f"{cur_idx + 1}/{len(live)}|{ascii_clip(cur_text, 115)}|{ascii_clip(next_text, 115)}"
+    return ascii_clip(payload, 255)
+
+
+def extract_steps(transcript_path, tool_name=None, tool_input=None, only_if_active=False):
+    """Reconstruct current task steps from TodoWrite / TaskCreate / TaskUpdate."""
+    if tool_name == "TodoWrite" and isinstance(tool_input, dict) and isinstance(tool_input.get("todos"), list):
+        return format_steps(tool_input["todos"], only_if_active=only_if_active)
+
+    tasks = []
+    by_id = {}
+    pending_creates = {}
+    next_seq = 1
+    try:
+        lines = Path(transcript_path).read_text(errors="replace").splitlines()
+    except (OSError, TypeError):
+        lines = []
+
+    for line in lines[-2000:]:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        content = (row.get("message") or {}).get("content")
+        if not isinstance(content, list):
+            continue
+        for c in content:
+            if not isinstance(c, dict):
+                continue
+            ctype = c.get("type")
+            if row.get("type") == "assistant" and ctype == "tool_use":
+                name = c.get("name")
+                inp = c.get("input") or {}
+                if name == "TodoWrite" and isinstance(inp.get("todos"), list):
+                    tasks = [dict(t) for t in inp["todos"] if isinstance(t, dict)]
+                    by_id.clear()
+                    pending_creates.clear()
+                elif name == "TaskCreate":
+                    task = {"subject": inp.get("subject", ""), "status": inp.get("status", "pending")}
+                    tasks.append(task)
+                    if c.get("id"):
+                        pending_creates[c["id"]] = task
+                    else:
+                        by_id[str(next_seq)] = task
+                        next_seq += 1
+                elif name == "TaskUpdate":
+                    tid = str(inp.get("taskId") or "")
+                    target = by_id.get(tid)
+                    if target is not None:
+                        for k in ("status", "subject", "content"):
+                            if k in inp and inp[k] is not None:
+                                target[k] = inp[k]
+            elif row.get("type") == "user" and ctype == "tool_result":
+                tuid = c.get("tool_use_id")
+                if tuid in pending_creates:
+                    task = pending_creates.pop(tuid)
+                    rc = c.get("content")
+                    raw = rc if isinstance(rc, str) else json.dumps(rc or "")
+                    m = TASK_ID_RE.search(raw)
+                    tid = m.group(1) if m else str(next_seq)
+                    next_seq = max(next_seq + 1, int(tid) + 1 if tid.isdigit() else next_seq + 1)
+                    by_id[tid] = task
+
+    for tid, task in pending_creates.items():
+        by_id[str(next_seq)] = task
+        next_seq += 1
+
+    if tool_name == "TaskCreate" and isinstance(tool_input, dict):
+        subj = tool_input.get("subject", "")
+        if subj and not any((t.get("subject") == subj) for t in tasks[-1:]):
+            tasks.append({"subject": subj, "status": tool_input.get("status", "pending")})
+    elif tool_name == "TaskUpdate" and isinstance(tool_input, dict):
+        tid = str(tool_input.get("taskId") or "")
+        if tid in by_id:
+            for k in ("status", "subject", "content"):
+                if k in tool_input and tool_input[k] is not None:
+                    by_id[tid][k] = tool_input[k]
+
+    return format_steps(tasks, only_if_active=only_if_active)
+
+
 def run_hook():
     if not HA_TOKEN:
         return
@@ -375,31 +660,62 @@ def run_hook():
     session = payload.get("session_id", "")
     project = Path(payload.get("cwd") or os.getcwd()).name
     tool = payload.get("tool_name", "")
+    transcript = payload.get("transcript_path")
 
     if event == "PermissionRequest":
         handle_permission_request(payload)
     elif event == "UserPromptSubmit":
-        show(session, "Working", f"{project} | {payload.get('prompt', '')}")
+        steps = extract_steps(transcript, only_if_active=True)
+        show(session, "Working", f"{project} | {payload.get('prompt', '')}", steps=steps)
     elif event == "PreToolUse" and tool == "AskUserQuestion":
-        show(session, "Needs Input", f"{project} | {describe_questions(payload.get('tool_input'))}", needs_input=True)
+        steps = extract_steps(transcript)
+        show(session, "Needs Input", f"{project} | {describe_questions(payload.get('tool_input'))}",
+             needs_input=True, steps=steps)
     elif event == "PostToolUse" and tool == "AskUserQuestion":
-        show(session, "Working", f"{project} | Answered. Back to work.")
+        steps = extract_steps(transcript)
+        show(session, "Working", f"{project} | Answered. Back to work.", steps=steps)
+    elif event == "PostToolUse" and tool in STEP_TOOLS:
+        steps = extract_steps(transcript, tool_name=tool, tool_input=payload.get("tool_input"))
+        owner = load_owner()
+        if not request_pending() and not (owner and owner.get("session") != session):
+            set_display(steps=steps)
     elif event == "Stop":
-        ask, text = last_turn(payload.get("transcript_path"))
-        waiting_on = ask or guess_waiting_on(text or payload.get("last_assistant_message", ""))
+        ask, text = last_turn(transcript)
+        combined = text or payload.get("last_assistant_message", "")
+        if payload.get("error") == "rate_limit" or is_rate_limit_text(combined):
+            w, rem, rstr, summary = parse_rate_limit_info(combined, payload)
+            show_rate_limit(project, w, rem, rstr, summary)
+            return
+        steps = extract_steps(transcript)
+        waiting_on = ask or guess_waiting_on(combined)
         if waiting_on:
-            show(session, "Needs Input", f"{project} | {waiting_on}", needs_input=True)
+            show(session, "Needs Input", f"{project} | {waiting_on}", needs_input=True, steps=steps)
         else:
-            show(session, "Done", f"{project} | Finished. Waiting for the next prompt.")
+            show(session, "Done", f"{project} | Finished. Waiting for the next prompt.", steps=steps)
+    elif event == "StopFailure":
+        err_type = (payload.get("error_type") or payload.get("error") or "").lower()
+        err_msg = payload.get("error_message") or payload.get("message") or ""
+        if not err_msg:
+            _, err_msg = last_turn(transcript)
+        if err_type == "rate_limit" or is_rate_limit_text(err_msg):
+            w, rem, rstr, summary = parse_rate_limit_info(err_msg, payload)
+            show_rate_limit(project, w, rem, rstr, summary)
+        else:
+            label = err_msg or err_type or "API error"
+            show(session, "Needs Input", f"{project} | {label}", needs_input=True)
     elif event == "Notification":
         kind = payload.get("notification_type")
+        msg = payload.get("message", "")
         owner = load_owner()
-        if kind == "elicitation_dialog":
-            show(session, "Needs Input", f"{project} | {payload.get('message', 'An MCP server needs your input')}",
+        if kind == "rate_limit" or is_rate_limit_text(msg):
+            w, rem, rstr, summary = parse_rate_limit_info(msg, payload)
+            show_rate_limit(project, w, rem, rstr, summary)
+        elif kind == "elicitation_dialog":
+            show(session, "Needs Input", f"{project} | {msg or 'An MCP server needs your input'}",
                  needs_input=True)
         elif kind == "idle_prompt" and not (owner and owner.get("session") == session):
             # Don't replace this session's own, more specific question.
-            show(session, "Needs Input", f"{project} | {payload.get('message', 'Claude is waiting for you')}",
+            show(session, "Needs Input", f"{project} | {msg or 'Claude is waiting for you'}",
                  needs_input=True)
 
 
@@ -448,6 +764,15 @@ def cmd_test():
     print(f"Display answered: {result or 'nothing (timed out)'}")
 
 
+def run_statusline():
+    try:
+        payload = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        return
+    if "rate_limits" in payload:
+        save_rate_limits_cache(payload["rate_limits"])
+
+
 def main():
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))  # run cleanup if Claude cancels the hook
     cmd = sys.argv[1] if len(sys.argv) > 1 else "hook"
@@ -456,6 +781,11 @@ def main():
             run_hook()
         except BaseException:
             pass  # a hook must never break Claude Code
+    elif cmd == "statusline":
+        try:
+            run_statusline()
+        except BaseException:
+            pass
     elif cmd == "setup":
         cmd_setup(create=True)
     elif cmd == "check":

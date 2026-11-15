@@ -82,8 +82,9 @@ substitutions:
   gs_6_circ: "fan.cure_circulation"
   gs_6_humid: "humidifier.cure_humidifier"
 
-  # Media Player target for the Music Display View
-  media_player_entity: "media_player.spotify"
+  # Music Assistant card: "deck" (vinyl turntable) or "studio" (EQ + meter console)
+  music_variant: "studio"
+  music_player_entity: "media_player.music_assistant_player"
 
   # Timing (seconds)
   cycle_interval: "15"
@@ -127,6 +128,8 @@ psram:
 packages:
   ui: !include packages/display_ui.yaml
   claude: !include claude/${claude_variant}.yaml
+  music_common: !include music/common.yaml
+  music: !include music/${music_variant}.yaml
 
 logger:
   level: INFO

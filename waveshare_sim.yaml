@@ -78,17 +78,18 @@ substitutions:
   gs_6_circ: "fan.cure_circulation"
   gs_6_humid: "humidifier.cure_humidifier"
 
-  # Media Player target for the Music Display View
-  media_player_entity: "media_player.spotify"
-
   # Timing (seconds)
   cycle_interval: "15"
   pause_timeout: "25"
 
   # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
-  claude_variant: "stage"
+  claude_variant: "terminal"
   # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
   claude_decision_timeout: "110"
+
+  # Music Assistant card: "deck" (vinyl turntable) or "studio" (EQ + meter console)
+  music_variant: "studio"
+  music_player_entity: "media_player.music_assistant_player"
 
   # VPD gauge scale
   vpd_gauge_min: "0.4"
@@ -109,6 +110,8 @@ esphome:
 packages:
   ui: !include packages/display_ui.yaml
   claude: !include claude/${claude_variant}.yaml
+  music_common: !include music/common.yaml
+  music: !include music/${music_variant}.yaml
 
 host:
 

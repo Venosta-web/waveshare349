@@ -16,11 +16,12 @@
 // the root, and a soft shadow sits under the feet.
 #include <lvgl.h>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 namespace clawd {
 
-enum Mode : uint8_t { IDLE, WORKING, PENDING, NEEDS_INPUT, DONE, SENT_OK, SENT_NO };
+enum Mode : uint8_t { IDLE, WORKING, PENDING, NEEDS_INPUT, DONE, SENT_OK, SENT_NO, RATE_LIMITED };
 
 constexpr uint32_t BODY = 0xD97757;  // Claude orange
 constexpr uint32_t EYE = 0x0A0C10;
@@ -35,6 +36,7 @@ inline uint32_t accent(Mode m) {
     case DONE: return 0x3FB950;
     case SENT_OK: return 0x3FB950;
     case SENT_NO: return 0xF85149;
+    case RATE_LIMITED: return 0xF85149;
     default: return 0x8B949E;
   }
 }
@@ -46,13 +48,22 @@ inline uint32_t g_mode_frame = 0;   // tick when g_mode last changed
 inline uint32_t g_work_start = 0;   // millis() when the current prompt started
 inline uint32_t g_pending_start = 0;
 inline uint32_t g_last_run = 0;      // ms the last finished prompt took (0 = unknown)
+inline uint64_t g_rl_total_ms = 5ULL * 3600ULL * 1000ULL;
+inline uint64_t g_rl_remaining_ms = 0;
+inline uint32_t g_rl_set_ms = 0;
+inline bool g_rl_is_7d = false;
+inline std::string g_rl_reset_at;
 inline std::string g_project, g_text;
+inline int g_step_cur = 0;
+inline int g_step_total = 0;
+inline std::string g_step_now, g_step_next;
 
 inline Mode parse_status(const std::string &s) {
   if (s == "Working") return WORKING;
   if (s == "Pending Approval") return PENDING;
   if (s == "Needs Input") return NEEDS_INPUT;
   if (s == "Done" || s == "Ready") return DONE;  // "Ready" from older bridges
+  if (s == "Rate Limited") return RATE_LIMITED;
   return IDLE;
 }
 
@@ -66,6 +77,29 @@ inline void split_detail(const std::string &d) {
     g_project = d.substr(0, bar);
     g_text = d.substr(bar + 3);
   }
+}
+
+// Parse "<cur>/<total>|<current>|<next>" into g_step_*; clears on empty/invalid.
+inline void parse_steps(const std::string &s) {
+  g_step_cur = 0;
+  g_step_total = 0;
+  g_step_now.clear();
+  g_step_next.clear();
+  if (s.empty() || s == "unknown" || s == "unavailable") return;
+  auto p1 = s.find('|');
+  auto p2 = p1 == std::string::npos ? std::string::npos : s.find('|', p1 + 1);
+  if (p1 == std::string::npos || p2 == std::string::npos) return;
+  std::string counts = s.substr(0, p1);
+  auto slash = counts.find('/');
+  if (slash == std::string::npos) return;
+  int cur = atoi(counts.substr(0, slash).c_str());
+  int total = atoi(counts.substr(slash + 1).c_str());
+  std::string now = s.substr(p1 + 1, p2 - p1 - 1);
+  if (cur <= 0 || total <= 0 || now.empty()) return;
+  g_step_cur = cur > total ? total : cur;
+  g_step_total = total;
+  g_step_now = now;
+  g_step_next = s.substr(p2 + 1);
 }
 
 // Switch mode, keeping the work timer running across approve/needs-input
@@ -85,6 +119,58 @@ inline void fmt_elapsed(char *buf, size_t n, uint32_t ms) {
   if (s < 60) snprintf(buf, n, "%us", (unsigned) s);
   else if (s < 3600) snprintf(buf, n, "%um %02us", (unsigned) (s / 60), (unsigned) (s % 60));
   else snprintf(buf, n, "%uh %02um", (unsigned) (s / 3600), (unsigned) ((s / 60) % 60));
+}
+
+// Parse "<window>|<remaining_sec>|<reset_str>|<rest>" or fall back to plain text.
+inline void parse_rate_limit_detail(const std::string &d, uint32_t now_ms) {
+  g_rl_set_ms = now_ms;
+  if (d.rfind("5h|", 0) == 0 || d.rfind("7d|", 0) == 0) {
+    g_rl_is_7d = (d[0] == '7');
+    g_rl_total_ms = (g_rl_is_7d ? 7ULL * 86400ULL : 5ULL * 3600ULL) * 1000ULL;
+    size_t p1 = 3;
+    size_t p2 = d.find('|', p1);
+    if (p2 != std::string::npos) {
+      uint64_t rem_s = std::strtoull(d.substr(p1, p2 - p1).c_str(), nullptr, 10);
+      g_rl_remaining_ms = rem_s * 1000ULL;
+      if (g_rl_remaining_ms > g_rl_total_ms) g_rl_total_ms = g_rl_remaining_ms;
+      size_t p3 = d.find('|', p2 + 1);
+      if (p3 != std::string::npos) {
+        g_rl_reset_at = d.substr(p2 + 1, p3 - p2 - 1);
+        split_detail(d.substr(p3 + 1));
+        return;
+      }
+    }
+  }
+  g_rl_is_7d = d.find("7d") != std::string::npos || d.find("7-day") != std::string::npos ||
+               d.find("weekly") != std::string::npos || d.find("Weekly") != std::string::npos;
+  g_rl_total_ms = (g_rl_is_7d ? 7ULL * 86400ULL : 5ULL * 3600ULL) * 1000ULL;
+  g_rl_remaining_ms = g_rl_total_ms;
+  g_rl_reset_at.clear();
+  split_detail(d);
+}
+
+inline uint64_t rl_left_ms(uint32_t now_ms) {
+  uint32_t elapsed = now_ms - g_rl_set_ms;
+  return elapsed < g_rl_remaining_ms ? g_rl_remaining_ms - elapsed : 0;
+}
+
+inline void fmt_countdown(char *buf, size_t n, uint64_t ms) {
+  if (ms == 0) {
+    snprintf(buf, n, "0s");
+    return;
+  }
+  uint64_t s = (ms + 999) / 1000;
+  if (s >= 86400) {
+    snprintf(buf, n, "%ud %02uh %02um", (unsigned) (s / 86400), (unsigned) ((s % 86400) / 3600),
+             (unsigned) ((s % 3600) / 60));
+  } else if (s >= 3600) {
+    snprintf(buf, n, "%uh %02um %02us", (unsigned) (s / 3600), (unsigned) ((s % 3600) / 60),
+             (unsigned) (s % 60));
+  } else if (s >= 60) {
+    snprintf(buf, n, "%um %02us", (unsigned) (s / 60), (unsigned) (s % 60));
+  } else {
+    snprintf(buf, n, "%us", (unsigned) s);
+  }
 }
 
 // Claude Code's own spinner, ping-ponged.
@@ -231,6 +317,14 @@ inline Pose animate(Mode m, uint32_t f, uint32_t t, int u) {
       static const int SHAKE[] = {0, 2, -2, 2, -2, 1, -1, 0};
       if (t < 8) s.dx = SHAKE[t] * px;
       s.eye_h = u;
+      break;
+    }
+    case RATE_LIMITED: {  // tired cooldown: half-lidded eyes, drooped arms, slow sigh
+      s.eye_h = half > 0 ? half : 1;
+      s.arm_l = half;
+      s.arm_r = half;
+      s.squash = (f / 16) % 2 ? px : 0;
+      if ((f % 60) < 3) s.eye_h = px;
       break;
     }
   }

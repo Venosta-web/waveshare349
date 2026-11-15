@@ -12,7 +12,7 @@
 #
 # Expose these ESPHome entities to Assist:
 #   - select.waveshare_349_voice_display_view   (Options: Growspace, Music, AI)
-#   - media_player.spotify                      (or your configured media_player)
+#   - media_player.music_assistant_player       (or your configured media_player)
 #   - script.open_music_view_and_play
 #   - script.switch_display_view
 
@@ -48,4 +48,4 @@ script:
           option: "Music"
       - service: media_player.media_play
         target:
-          entity_id: media_player.spotify
+          entity_id: media_player.music_assistant_player
