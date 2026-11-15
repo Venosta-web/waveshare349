@@ -1,5 +1,5 @@
 substitutions:
-  device_name: "prototype-480x320-grow-music"
+  device_name: "proto-480-grow-music"
   friendly_name: "480x320 Prototype Grow + Music"
   gs_count: "7"
   gs_0_name: "4x4"

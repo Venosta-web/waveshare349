@@ -1,5 +1,5 @@
 substitutions:
-  device_name: "waveshare-349-grow-voice"
+  device_name: "ws349-grow-voice"
   friendly_name: "Waveshare 3.49 Grow + Voice"
   gs_count: "7"
   gs_0_name: "4x4"
