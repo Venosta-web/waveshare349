@@ -33,10 +33,12 @@ EVENT_TYPE = "esphome.claude_command"
 ENT_STATUS = "input_text.claude_status"
 ENT_DETAIL = "input_text.claude_detail"
 ENT_REQUEST = "input_text.claude_request"
+ENT_STEPS = "input_text.claude_steps"
 HELPERS = {  # name -> max length; entity id becomes input_text.<name>
     "claude_status": 100,
     "claude_detail": 255,
     "claude_request": 64,
+    "claude_steps": 255,
 }
 DECISION_TIMEOUT = float(os.environ.get("CLAUDE_HA_DECISION_TIMEOUT", "110"))
 CONNECT_TIMEOUT = 3
@@ -86,11 +88,16 @@ def rest_set(entity_id, value, limit):
         return False
 
 
-def set_display(status=None, detail=None, request=None):
+def set_display(status=None, detail=None, request=None, steps=None):
     """Best effort; stops at the first failure so a down HA costs one timeout."""
     if not HA_TOKEN:
         return
-    for ent, value, limit in ((ENT_REQUEST, request, 64), (ENT_DETAIL, detail, 255), (ENT_STATUS, status, 100)):
+    for ent, value, limit in (
+        (ENT_REQUEST, request, 64),
+        (ENT_STEPS, steps, 255),
+        (ENT_DETAIL, detail, 255),
+        (ENT_STATUS, status, 100),
+    ):
         if value is not None and not rest_set(ent, value, limit):
             return
 
@@ -135,7 +142,7 @@ def clear_owner():
         pass
 
 
-def show(session, status, detail, needs_input=False, after_request=False):
+def show(session, status, detail, needs_input=False, after_request=False, steps=None):
     """Status update from a hook.
 
     Needs Input belongs to the session that raised it: other sessions' Working
@@ -155,9 +162,9 @@ def show(session, status, detail, needs_input=False, after_request=False):
     elif owner:
         clear_owner()
     if after_request:
-        set_display(status, detail, "")
+        set_display(status, detail, "", steps=steps)
     elif not request_pending():
-        set_display(status, detail)
+        set_display(status, detail, steps=steps)
 
 
 def display_ready():
@@ -364,6 +371,115 @@ def guess_waiting_on(text):
     return None
 
 
+STEP_TOOLS = {"TodoWrite", "TaskCreate", "TaskUpdate"}
+TASK_ID_RE = re.compile(r"(?:Task\s*#?|id[\"']?\s*[:=]\s*[\"']?)(\d+)", re.I)
+
+
+def _clean_step(text):
+    return " ".join(str(text or "").replace("|", "/").split())
+
+
+def format_steps(tasks, only_if_active=False):
+    """Format task list as '<cur>/<total>|<current>|<next>' (<= 255 ASCII chars)."""
+    live = [t for t in tasks if t.get("status") != "deleted" and _clean_step(t.get("content") or t.get("subject"))]
+    if not live:
+        return ""
+    if only_if_active and all(t.get("status") == "completed" for t in live):
+        return ""
+
+    cur_idx = next((i for i, t in enumerate(live) if t.get("status") == "in_progress"), None)
+    if cur_idx is None:
+        cur_idx = next((i for i, t in enumerate(live) if t.get("status") == "pending"), None)
+    if cur_idx is None:
+        cur_idx = len(live) - 1
+
+    cur_text = _clean_step(live[cur_idx].get("content") or live[cur_idx].get("subject"))
+    next_idx = next(
+        (i for i in range(cur_idx + 1, len(live)) if live[i].get("status") in ("pending", "in_progress")),
+        None,
+    )
+    next_text = _clean_step(live[next_idx].get("content") or live[next_idx].get("subject")) if next_idx is not None else ""
+    payload = f"{cur_idx + 1}/{len(live)}|{ascii_clip(cur_text, 115)}|{ascii_clip(next_text, 115)}"
+    return ascii_clip(payload, 255)
+
+
+def extract_steps(transcript_path, tool_name=None, tool_input=None, only_if_active=False):
+    """Reconstruct current task steps from TodoWrite / TaskCreate / TaskUpdate."""
+    if tool_name == "TodoWrite" and isinstance(tool_input, dict) and isinstance(tool_input.get("todos"), list):
+        return format_steps(tool_input["todos"], only_if_active=only_if_active)
+
+    tasks = []
+    by_id = {}
+    pending_creates = {}
+    next_seq = 1
+    try:
+        lines = Path(transcript_path).read_text(errors="replace").splitlines()
+    except (OSError, TypeError):
+        lines = []
+
+    for line in lines[-2000:]:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        content = (row.get("message") or {}).get("content")
+        if not isinstance(content, list):
+            continue
+        for c in content:
+            if not isinstance(c, dict):
+                continue
+            ctype = c.get("type")
+            if row.get("type") == "assistant" and ctype == "tool_use":
+                name = c.get("name")
+                inp = c.get("input") or {}
+                if name == "TodoWrite" and isinstance(inp.get("todos"), list):
+                    tasks = [dict(t) for t in inp["todos"] if isinstance(t, dict)]
+                    by_id.clear()
+                    pending_creates.clear()
+                elif name == "TaskCreate":
+                    task = {"subject": inp.get("subject", ""), "status": inp.get("status", "pending")}
+                    tasks.append(task)
+                    if c.get("id"):
+                        pending_creates[c["id"]] = task
+                    else:
+                        by_id[str(next_seq)] = task
+                        next_seq += 1
+                elif name == "TaskUpdate":
+                    tid = str(inp.get("taskId") or "")
+                    target = by_id.get(tid)
+                    if target is not None:
+                        for k in ("status", "subject", "content"):
+                            if k in inp and inp[k] is not None:
+                                target[k] = inp[k]
+            elif row.get("type") == "user" and ctype == "tool_result":
+                tuid = c.get("tool_use_id")
+                if tuid in pending_creates:
+                    task = pending_creates.pop(tuid)
+                    rc = c.get("content")
+                    raw = rc if isinstance(rc, str) else json.dumps(rc or "")
+                    m = TASK_ID_RE.search(raw)
+                    tid = m.group(1) if m else str(next_seq)
+                    next_seq = max(next_seq + 1, int(tid) + 1 if tid.isdigit() else next_seq + 1)
+                    by_id[tid] = task
+
+    for tid, task in pending_creates.items():
+        by_id[str(next_seq)] = task
+        next_seq += 1
+
+    if tool_name == "TaskCreate" and isinstance(tool_input, dict):
+        subj = tool_input.get("subject", "")
+        if subj and not any((t.get("subject") == subj) for t in tasks[-1:]):
+            tasks.append({"subject": subj, "status": tool_input.get("status", "pending")})
+    elif tool_name == "TaskUpdate" and isinstance(tool_input, dict):
+        tid = str(tool_input.get("taskId") or "")
+        if tid in by_id:
+            for k in ("status", "subject", "content"):
+                if k in tool_input and tool_input[k] is not None:
+                    by_id[tid][k] = tool_input[k]
+
+    return format_steps(tasks, only_if_active=only_if_active)
+
+
 def run_hook():
     if not HA_TOKEN:
         return
@@ -375,22 +491,33 @@ def run_hook():
     session = payload.get("session_id", "")
     project = Path(payload.get("cwd") or os.getcwd()).name
     tool = payload.get("tool_name", "")
+    transcript = payload.get("transcript_path")
 
     if event == "PermissionRequest":
         handle_permission_request(payload)
     elif event == "UserPromptSubmit":
-        show(session, "Working", f"{project} | {payload.get('prompt', '')}")
+        steps = extract_steps(transcript, only_if_active=True)
+        show(session, "Working", f"{project} | {payload.get('prompt', '')}", steps=steps)
     elif event == "PreToolUse" and tool == "AskUserQuestion":
-        show(session, "Needs Input", f"{project} | {describe_questions(payload.get('tool_input'))}", needs_input=True)
+        steps = extract_steps(transcript)
+        show(session, "Needs Input", f"{project} | {describe_questions(payload.get('tool_input'))}",
+             needs_input=True, steps=steps)
     elif event == "PostToolUse" and tool == "AskUserQuestion":
-        show(session, "Working", f"{project} | Answered. Back to work.")
+        steps = extract_steps(transcript)
+        show(session, "Working", f"{project} | Answered. Back to work.", steps=steps)
+    elif event == "PostToolUse" and tool in STEP_TOOLS:
+        steps = extract_steps(transcript, tool_name=tool, tool_input=payload.get("tool_input"))
+        owner = load_owner()
+        if not request_pending() and not (owner and owner.get("session") != session):
+            set_display(steps=steps)
     elif event == "Stop":
-        ask, text = last_turn(payload.get("transcript_path"))
+        ask, text = last_turn(transcript)
+        steps = extract_steps(transcript)
         waiting_on = ask or guess_waiting_on(text or payload.get("last_assistant_message", ""))
         if waiting_on:
-            show(session, "Needs Input", f"{project} | {waiting_on}", needs_input=True)
+            show(session, "Needs Input", f"{project} | {waiting_on}", needs_input=True, steps=steps)
         else:
-            show(session, "Done", f"{project} | Finished. Waiting for the next prompt.")
+            show(session, "Done", f"{project} | Finished. Waiting for the next prompt.", steps=steps)
     elif event == "Notification":
         kind = payload.get("notification_type")
         owner = load_owner()

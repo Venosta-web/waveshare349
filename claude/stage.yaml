@@ -8,6 +8,11 @@ font:
     size: 20
     bpp: 4
     glyphs: "·✢✳✶✻✽✓✕!?zZ"
+  - file: "fonts/DejaVuSans-Bold.ttf"
+    id: claude_glyph_14
+    size: 14
+    bpp: 4
+    glyphs: "·›○✓"
 
 script:
   # Renders the AI card from the claude_* helpers. A pending request reveals
@@ -22,7 +27,9 @@ script:
           if (detail == "unknown" || detail == "unavailable") detail = "";
           clawd::set_mode(clawd::parse_status(status), millis());
           clawd::split_detail(detail);
+          clawd::parse_steps(id(claude_steps).state);
           const bool pending = clawd::g_mode == clawd::PENDING;
+          const bool show_steps = clawd::g_step_total > 0 && !pending && clawd::g_mode != clawd::NEEDS_INPUT;
 
           static const char *const WORDS[] = {"Idle", "Working", "Needs approval", "Needs input", "Done", "Approved", "Rejected"};
           lv_label_set_text(id(lbl_agent_status), WORDS[clawd::g_mode]);
@@ -41,6 +48,48 @@ script:
           // Pull the text up when there's no project chip; leave room for buttons when pending.
           lv_obj_set_y(id(lbl_agent_detail), clawd::g_project.empty() ? 34 : 58);
           lv_obj_set_height(id(lbl_agent_detail), pending ? 32 : (clawd::g_project.empty() ? 82 : 66));
+
+          lv_obj_t *step_objs[] = {
+              id(lbl_step_count), id(lbl_step_now_icon), id(lbl_step_now),
+              id(lbl_step_next_icon), id(lbl_step_next)
+          };
+          if (show_steps) {
+            const uint32_t acc = clawd::accent(clawd::g_mode);
+            const bool all_done = clawd::g_mode == clawd::DONE && clawd::g_step_cur == clawd::g_step_total;
+            lv_obj_add_flag(id(lbl_agent_detail), LV_OBJ_FLAG_HIDDEN);
+            for (auto *o : step_objs) lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+
+            char cbuf[24];
+            snprintf(cbuf, sizeof(cbuf), "%d/%d", clawd::g_step_cur, clawd::g_step_total);
+            lv_label_set_text(id(lbl_step_count), cbuf);
+            lv_obj_set_style_text_color(id(lbl_step_count), lv_color_hex(acc), 0);
+
+            lv_label_set_text(id(lbl_step_now_icon), all_done ? "✓" : "›");
+            lv_obj_set_style_text_color(id(lbl_step_now_icon), lv_color_hex(acc), 0);
+            lv_label_set_text(id(lbl_step_now), clawd::g_step_now.c_str());
+
+            if (!clawd::g_step_next.empty()) {
+              lv_label_set_text(id(lbl_step_next_icon), "○");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x6E7681), 0);
+              lv_label_set_text(id(lbl_step_next), clawd::g_step_next.c_str());
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x8B949E), 0);
+            } else if (all_done) {
+              char dbuf[48];
+              snprintf(dbuf, sizeof(dbuf), "All %d steps complete", clawd::g_step_total);
+              lv_label_set_text(id(lbl_step_next_icon), "✓");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x3FB950), 0);
+              lv_label_set_text(id(lbl_step_next), dbuf);
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x8B949E), 0);
+            } else {
+              lv_label_set_text(id(lbl_step_next_icon), "·");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x6E7681), 0);
+              lv_label_set_text(id(lbl_step_next), "Final step");
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x6E7681), 0);
+            }
+          } else {
+            lv_obj_clear_flag(id(lbl_agent_detail), LV_OBJ_FLAG_HIDDEN);
+            for (auto *o : step_objs) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+          }
 
           if (pending) {
             lv_obj_clear_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
