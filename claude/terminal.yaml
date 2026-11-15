@@ -158,7 +158,7 @@ script:
 
           // ── Status line ──
           lv_label_set_text(id(claude_spin), g_mode == WORKING ? spinner(f)
-                            : g_mode == READY || g_mode == SENT_OK ? "✓"
+                            : g_mode == DONE || g_mode == SENT_OK ? "✓"
                             : g_mode == SENT_NO ? "✕"
                             : g_mode == IDLE ? "·" : "✻");
           lv_obj_set_style_text_color(id(claude_spin), lv_color_hex(acc), 0);
@@ -192,7 +192,7 @@ script:
             uint32_t gone = now - g_pending_start, total = ${claude_decision_timeout} * 1000;
             uint32_t left = gone < total ? total - gone : 0;
             snprintf(tbuf, sizeof(tbuf), "(%us to decide)", (unsigned) ((left + 999) / 1000));
-          } else if (g_mode == READY && g_last_run > 0) {
+          } else if (g_mode == DONE && g_last_run > 0) {
             char d[16];
             fmt_elapsed(d, sizeof(d), g_last_run);
             snprintf(tbuf, sizeof(tbuf), "(took %s)", d);

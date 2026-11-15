@@ -20,7 +20,7 @@
 
 namespace clawd {
 
-enum Mode : uint8_t { IDLE, WORKING, PENDING, NEEDS_INPUT, READY, SENT_OK, SENT_NO };
+enum Mode : uint8_t { IDLE, WORKING, PENDING, NEEDS_INPUT, DONE, SENT_OK, SENT_NO };
 
 constexpr uint32_t BODY = 0xD97757;  // Claude orange
 constexpr uint32_t EYE = 0x0A0C10;
@@ -32,7 +32,7 @@ inline uint32_t accent(Mode m) {
     case WORKING: return 0xD97757;
     case PENDING: return 0xFFB020;
     case NEEDS_INPUT: return 0xB197FC;
-    case READY: return 0x3FB950;
+    case DONE: return 0x3FB950;
     case SENT_OK: return 0x3FB950;
     case SENT_NO: return 0xF85149;
     default: return 0x8B949E;
@@ -52,7 +52,7 @@ inline Mode parse_status(const std::string &s) {
   if (s == "Working") return WORKING;
   if (s == "Pending Approval") return PENDING;
   if (s == "Needs Input") return NEEDS_INPUT;
-  if (s == "Ready") return READY;
+  if (s == "Done" || s == "Ready") return DONE;  // "Ready" from older bridges
   return IDLE;
 }
 
@@ -75,7 +75,7 @@ inline void set_mode(Mode m, uint32_t now_ms) {
   if (m == WORKING && g_mode != PENDING && g_mode != NEEDS_INPUT && g_mode != SENT_OK && g_mode != SENT_NO)
     g_work_start = now_ms;
   if (m == PENDING) g_pending_start = now_ms;
-  if (m == READY) g_last_run = g_mode == IDLE ? 0 : now_ms - g_work_start;
+  if (m == DONE) g_last_run = g_mode == IDLE ? 0 : now_ms - g_work_start;
   g_mode = m;
   g_mode_frame = g_frame;
 }
@@ -214,7 +214,7 @@ inline Pose animate(Mode m, uint32_t f, uint32_t t, int u) {
       if (blink) s.eye_h = px;
       break;
     }
-    case READY:
+    case DONE:
     case SENT_OK: {  // hop with arms up on entry, then awake and blinking
       static const int HOP[] = {0, -1, -2, -3, -3, -2, -1, 0, 0};
       if (t < 9) {
