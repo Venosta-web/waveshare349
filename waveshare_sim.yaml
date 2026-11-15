@@ -81,6 +81,10 @@ substitutions:
   # Timing (seconds)
   cycle_interval: "15"
   pause_timeout: "25"
+  idle_timeout: "300"
+
+  # Idle / Lock Clock Screen
+  idle_variant: "aurora"
 
   # Claude Code card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
   claude_variant: "terminal"
@@ -103,6 +107,18 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  on_boot:
+    priority: -100
+    then:
+      - delay: 3s
+      - lambda: |-
+          // Realistic defaults for standalone SDL simulator
+          if (id(idle_battery_pct) < 0) id(idle_battery_pct) = 84;
+          if (!id(idle_wifi_connected)) {
+            id(idle_wifi_connected) = true;
+            id(idle_wifi_rssi) = -54;
+            id(idle_wifi_ssid) = "GrowLab-5G";
+          }
 
 packages:
   core_ui: !include packages/waveshare_349/core_ui.yaml
@@ -110,6 +126,7 @@ packages:
   mod_music: !include packages/waveshare_349/mod_music.yaml
   mod_claude: !include packages/waveshare_349/mod_claude.yaml
   mod_codex: !include packages/waveshare_349/mod_codex.yaml
+  mod_idle: !include packages/waveshare_349/mod_idle.yaml
 
 host:
 

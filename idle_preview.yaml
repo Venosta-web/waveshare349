@@ -1,0 +1,40 @@
+# Headless preview: locks the screen and records a snapshot of the idle clock.
+#   ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml
+substitutions:
+  device_name: "idle-preview"
+
+packages:
+  base: !include waveshare_sim.yaml
+
+api:
+  port: 6064
+
+display:
+  - id: !extend my_display
+    headless: true
+    snapshot_key: !remove
+    window_options: !remove
+
+touchscreen: !remove
+
+lvgl:
+  touchscreens: !remove
+
+script:
+  - id: idle_demo
+    then:
+      - delay: 3500ms
+      - script.execute: lock_idle_screen
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "idle-${idle_variant}", frames: 30, frame_rate: 10Hz }
+      - delay: 3200ms
+      - lambda: "exit(0);"
+
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: "static bool once = false; if (once) return false; once = true; return true;"
+          then:
+            - script.execute: idle_demo

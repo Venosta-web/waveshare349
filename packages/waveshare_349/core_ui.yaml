@@ -91,6 +91,14 @@ font:
       - "\U000F075A" # music
       - "\U000F0387" # music-note
       - "\U000F0E66" # sprout
+      - "\U000F033E" # lock
+      - "\U000F0079" # battery
+      - "\U000F0081" # battery-80
+      - "\U000F007E" # battery-50
+      - "\U000F007B" # battery-20
+      - "\U000F0083" # battery-alert
+      - "\U000F0084" # battery-charging
+      - "\U000F0091" # battery-unknown
 
   - file: "../../fonts/materialdesignicons-webfont.ttf"
     id: icons_24
@@ -214,5 +222,14 @@ script:
 
   # Extended by mod_voice.yaml on hardware (or simulator)
   - id: on_voice_ptt
+    then:
+      - lambda: "return;"
+
+  # Extended by mod_idle.yaml when the idle clock module is enabled
+  - id: unlock_idle_screen
+    then:
+      - lambda: "return;"
+
+  - id: reset_idle_timer
     then:
       - lambda: "return;"
