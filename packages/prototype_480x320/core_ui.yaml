@@ -361,22 +361,38 @@ sensor:
     update_interval: 60s
     on_value:
       then:
-        - lvgl.label.update:
-            id: text_wifi
-            text: !lambda |-
-              int percent = 0;
-              if (x >= -50) percent = 100;
-              else if (x <= -100) percent = 0;
-              else percent = 2 * (x + 100);
-              return str_sprintf("%d%%", percent);
-        - lvgl.label.update:
-            id: icon_wifi
-            text: !lambda |-
-              if (x >= -60) return "\U000F0928";
-              if (x >= -70) return "\U000F0925";
-              if (x >= -80) return "\U000F0922";
-              return "\U000F091F";
-        - lambda: "lv_obj_invalidate(lv_scr_act());"
+        - if:
+            condition:
+              binary_sensor.is_on: ha_connected
+            then:
+              - lvgl.label.update:
+                  id: text_wifi
+                  text_color: 0xFFFFFF
+                  text: !lambda |-
+                    int percent = 0;
+                    if (x >= -50) percent = 100;
+                    else if (x <= -100) percent = 0;
+                    else percent = 2 * (x + 100);
+                    return str_sprintf("%d%%", percent);
+              - lvgl.label.update:
+                  id: icon_wifi
+                  text_color: 0xFFFFFF
+                  text: !lambda |-
+                    if (x >= -60) return "\U000F0928";
+                    if (x >= -70) return "\U000F0925";
+                    if (x >= -80) return "\U000F0922";
+                    return "\U000F091F";
+              - lambda: "lv_obj_invalidate(lv_scr_act());"
+            else:
+              - lvgl.label.update:
+                  id: icon_wifi
+                  text: "\U000F092F"
+                  text_color: 0xFF5252
+              - lvgl.label.update:
+                  id: text_wifi
+                  text: "HA Offline"
+                  text_color: 0xFF5252
+              - lambda: "lv_obj_invalidate(lv_scr_act());"
 
 script:
   - id: switch_tab
