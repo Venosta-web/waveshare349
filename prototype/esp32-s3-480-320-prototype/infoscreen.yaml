@@ -141,6 +141,7 @@ api:
     - delay: 1s
     - script.execute: update_grow_ui
     - script.execute: update_music_ui
+    - script.execute: update_ai_ui
 
 ota:
   - platform: esphome

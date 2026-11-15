@@ -18,6 +18,11 @@ esphome:
               id(switch_tab).execute(2);
             }
 
+api:
+  on_client_connected:
+    - delay: 1s
+    - script.execute: update_ai_ui
+
 lvgl:
   pages:
     - id: !extend home_page
