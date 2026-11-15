@@ -170,6 +170,35 @@ widgets:
             radius: 1
             pad_all: 0
 
+  # ── Rate-limit countdown bar (shown only when rate-limited) ─────────────
+  - obj:
+      id: claude_rl_track
+      width: 540
+      height: 8
+      align: TOP_LEFT
+      x: 0
+      y: 84
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 4
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: claude_rl_fill
+            width: 538
+            height: 6
+            align: LEFT_MID
+            x: 0
+            bg_color: 0xF85149
+            bg_opa: COVER
+            border_width: 0
+            radius: 3
+            pad_all: 0
+
   # ── Floor at y = 137; Clawd's feet land on it ──────────────────────────────────────────
   - obj:
       id: claude_floor
