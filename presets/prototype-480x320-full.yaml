@@ -64,7 +64,7 @@ substitutions:
   sleep_timeout: "15"
   battery_entity: "sensor.m2101k7bny_battery_level"
   music_variant: "studio"
-  music_player_entity: "media_player.music_assistant_player"
+  music_player_entity: "sensor.music_assistant_bridge"
   claude_variant: "terminal"
   claude_decision_timeout: "110"
   codex_variant: "terminal"

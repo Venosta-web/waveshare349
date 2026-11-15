@@ -99,7 +99,7 @@ function selectDevice(deviceId) {
   }
   if (dev.id === 'prototype-480x320') {
     state.claudeVariant = 'terminal';
-    state.musicPlayerEntity = 'media_player.music_assistant_player';
+    state.musicPlayerEntity = 'sensor.music_assistant_bridge';
   } else {
     state.claudeVariant = 'terminal';
     state.musicPlayerEntity = 'sensor.music_assistant_bridge';
