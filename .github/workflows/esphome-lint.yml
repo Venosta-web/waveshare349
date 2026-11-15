@@ -29,7 +29,7 @@ jobs:
       - name: Validate ESPHome configs
         run: |
           for file in *.yaml; do
-            [ "$file" = "secrets.yaml" ] && continue
+            grep -Eq '^(esphome|packages):' "$file" || continue
             echo "Validating $file..."
             esphome config "$file"
           done
