@@ -1,0 +1,431 @@
+# Core LVGL 480x320 shell, header bar, fonts, styles, Display View select, and adaptive nav rail.
+
+substitutions:
+  pause_timeout: "25"
+  dim_timeout: "5"
+  sleep_timeout: "15"
+
+globals:
+  - id: active_tab
+    type: int
+    initial_value: "-1"
+  - id: cycle_paused
+    type: bool
+    initial_value: "false"
+  - id: pause_timer
+    type: int
+    initial_value: "0"
+  - id: nav_direction
+    type: int
+    initial_value: "1"
+  - id: last_touch_ms
+    type: uint32_t
+    initial_value: "0"
+  - id: dim_state
+    type: int
+    initial_value: "0"
+  - id: wake_lock
+    type: bool
+    initial_value: "false"
+
+esphome:
+  on_boot:
+    - priority: -10
+      then:
+        - lambda: "id(last_touch_ms) = millis();"
+    - priority: -90
+      then:
+        - lambda: |-
+            if (lv_obj_get_child_cnt(id(nav_rail)) <= 1) {
+              lv_obj_add_flag(id(nav_rail), LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_obj_clear_flag(id(nav_rail), LV_OBJ_FLAG_HIDDEN);
+            }
+            lv_obj_invalidate(lv_scr_act());
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: font_12
+    size: 12
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: font_14
+    size: 14
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: font_16
+    size: 16
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: font_20
+    size: 20
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 800
+    id: font_32
+    size: 32
+    bpp: 4
+    glyphs: "0123456789:.% -°abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/"
+
+  - file: "../../fonts/materialdesignicons-webfont.ttf"
+    id: icons_20
+    size: 20
+    glyphs:
+      - "\U000F050F" # thermometer
+      - "\U000F058C" # water
+      - "\U000F012C" # check-circle
+      - "\U000F0029" # alert
+      - "\U000F0159" # close-circle
+      - "\U000F0210" # fan
+      - "\U000F06B5" # lightbulb (day)
+      - "\U000F06B8" # lightbulb-off (night)
+      - "\U000F03E4" # pause
+      - "\U000F0387" # music-note
+      - "\U000F0E66" # sprout
+
+  - file: "../../fonts/materialdesignicons-webfont.ttf"
+    id: icons_24
+    size: 24
+    glyphs:
+      - "\U000F092F" # wifi-outline
+      - "\U000F091F" # wifi-1
+      - "\U000F0922" # wifi-2
+      - "\U000F0925" # wifi-3
+      - "\U000F0928" # wifi-4
+      - "\U000F093E" # battery-10
+      - "\U000F0940" # battery-30
+      - "\U000F0942" # battery-50
+      - "\U000F0944" # battery-70
+      - "\U000F0946" # battery-90
+      - "\U000F0948" # battery-full
+      - "\U000F10CD" # battery-alert
+      - "\U000F012C" # check-circle
+      - "\U000F0029" # alert
+      - "\U000F0159" # close-circle
+      - "\U000F0141" # chevron-left
+      - "\U000F0142" # chevron-right
+
+select:
+  - platform: template
+    id: display_view
+    name: "Display View"
+    icon: "mdi:monitor-dashboard"
+    options:
+      - "Growspace"
+      - "Music"
+      - "AI"
+    initial_option: "Growspace"
+    optimistic: true
+    set_action:
+      - lambda: |-
+          int target = 0;
+          if (x == "Music") target = 1;
+          else if (x == "AI") target = 2;
+          id(switch_tab).execute(target);
+
+lvgl:
+  log_level: INFO
+  buffer_size: 100%
+  full_refresh: true
+  disp_bg_color: 0x0A0C10
+  rotation: 90
+  touchscreens:
+    - touchscreen_id: my_touchscreen
+
+  style_definitions:
+    - id: header_style
+      bg_color: 0x161B22
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+    - id: nav_btn
+      bg_color: 0x161B22
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+    - id: nav_btn_active
+      bg_color: 0x1F6FEB
+      bg_opa: COVER
+      border_color: 0x58A6FF
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+    - id: card_style
+      bg_color: 0x161B22
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 2
+      radius: 12
+      pad_all: 10
+
+    - id: phase_badge
+      bg_color: 0x333333
+      bg_opa: COVER
+      radius: 6
+      pad_left: 8
+      pad_right: 8
+      pad_top: 2
+      pad_bottom: 2
+      border_width: 0
+
+  pages:
+    - id: home_page
+      bg_color: 0x0A0C10
+      widgets:
+        - obj:
+            id: main_header_bar
+            width: 468
+            height: 36
+            align: TOP_MID
+            x: 0
+            y: 6
+            styles: header_style
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: icon_wifi
+                  text: "\U000F092F"
+                  text_font: icons_24
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 10
+                  width: 24
+                  text_align: CENTER
+              - label:
+                  id: text_wifi
+                  text: "--%"
+                  text_font: font_14
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 38
+              - label:
+                  id: icon_paused
+                  text: "\U000F03E4"
+                  text_font: icons_20
+                  text_color: 0xFFC107
+                  align: CENTER
+                  x: -44
+                  hidden: true
+              - label:
+                  id: lbl_clock
+                  text: "00:00"
+                  text_font: font_20
+                  text_color: 0xFFFFFF
+                  align: CENTER
+                  x: 0
+              - label:
+                  id: text_bat
+                  text: "--%"
+                  text_font: font_14
+                  text_color: 0xFFFFFF
+                  align: RIGHT_MID
+                  x: -38
+              - label:
+                  id: icon_bat
+                  text: "\U000F10CD"
+                  text_font: icons_24
+                  text_color: 0xFFFFFF
+                  align: RIGHT_MID
+                  x: -10
+
+        - obj:
+            id: nav_rail
+            width: 72
+            height: 266
+            align: TOP_LEFT
+            x: 6
+            y: 48
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            radius: 0
+            scrollbar_mode: "off"
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              pad_row: 7
+            widgets: []
+
+binary_sensor:
+  - platform: status
+    id: ha_connected
+    name: "HA Connected"
+    on_release:
+      then:
+        - lvgl.label.update:
+            id: icon_wifi
+            text: "\U000F092F"
+            text_color: 0xFF5252
+        - lvgl.label.update:
+            id: text_wifi
+            text: "HA Offline"
+            text_color: 0xFF5252
+        - lambda: "lv_obj_invalidate(lv_scr_act());"
+    on_press:
+      then:
+        - lvgl.label.update:
+            id: icon_wifi
+            text_color: 0xFFFFFF
+        - lvgl.label.update:
+            id: text_wifi
+            text_color: 0xFFFFFF
+        - lambda: |-
+            float sig = id(wifi_sig).has_state() ? id(wifi_sig).state : -100;
+            int pct = 0;
+            if (sig >= -50) pct = 100;
+            else if (sig <= -100) pct = 0;
+            else pct = 2 * (sig + 100);
+            lv_label_set_text(id(text_wifi), str_sprintf("%d%%", pct).c_str());
+            const char* icon;
+            if (sig >= -60) icon = "\U000F0928";
+            else if (sig >= -70) icon = "\U000F0925";
+            else if (sig >= -80) icon = "\U000F0922";
+            else icon = "\U000F091F";
+            lv_label_set_text(id(icon_wifi), icon);
+            lv_obj_invalidate(lv_scr_act());
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time_sync:
+      then:
+        - script.execute: update_clock
+    on_time:
+      - seconds: 0
+        then:
+          - script.execute: update_clock
+
+sensor:
+  - platform: homeassistant
+    id: phone_battery
+    entity_id: ${battery_entity}
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: text_bat
+            text: !lambda 'return str_sprintf("%.0f%%", x);'
+        - lvgl.label.update:
+            id: icon_bat
+            text: !lambda |-
+              if (x >= 90) return "\U000F0948";
+              if (x >= 70) return "\U000F0946";
+              if (x >= 50) return "\U000F0942";
+              if (x >= 30) return "\U000F0940";
+              return "\U000F10CD";
+        - lambda: "lv_obj_invalidate(lv_scr_act());"
+
+  - platform: wifi_signal
+    id: wifi_sig
+    update_interval: 60s
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: text_wifi
+            text: !lambda |-
+              int percent = 0;
+              if (x >= -50) percent = 100;
+              else if (x <= -100) percent = 0;
+              else percent = 2 * (x + 100);
+              return str_sprintf("%d%%", percent);
+        - lvgl.label.update:
+            id: icon_wifi
+            text: !lambda |-
+              if (x >= -60) return "\U000F0928";
+              if (x >= -70) return "\U000F0925";
+              if (x >= -80) return "\U000F0922";
+              return "\U000F091F";
+        - lambda: "lv_obj_invalidate(lv_scr_act());"
+
+script:
+  - id: switch_tab
+    parameters:
+      tab_idx: int
+    then:
+      - lambda: |-
+          id(active_tab) = tab_idx;
+          const char* opts[] = { "Growspace", "Music", "AI" };
+          if (tab_idx >= 0 && tab_idx < 3 && id(display_view).current_option() != opts[tab_idx]) {
+            id(display_view).publish_state(opts[tab_idx]);
+          }
+          lv_obj_invalidate(lv_scr_act());
+      - script.execute: update_pause_indicator
+
+  - id: update_pause_indicator
+    then:
+      - if:
+          condition:
+            lambda: "return id(cycle_paused);"
+          then:
+            - lvgl.widget.update:
+                id: icon_paused
+                hidden: false
+          else:
+            - lvgl.widget.update:
+                id: icon_paused
+                hidden: true
+
+  - id: update_clock
+    then:
+      - lvgl.label.update:
+          id: lbl_clock
+          text:
+            format: "%02d:%02d"
+            args:
+              - "id(ha_time).now().hour"
+              - "id(ha_time).now().minute"
+      - lambda: "lv_obj_invalidate(lv_scr_act());"
+
+interval:
+  - interval: 100ms
+    then:
+      - lambda: |-
+          if (id(wake_lock)) {
+            if (millis() - id(last_touch_ms) > 300) {
+              id(wake_lock) = false;
+            }
+          }
+
+  - interval: 5s
+    then:
+      - lambda: |-
+          uint32_t elapsed_s = (millis() - id(last_touch_ms)) / 1000;
+          int new_state = 0;
+          if (elapsed_s > ${sleep_timeout} * 60) new_state = 2;
+          else if (elapsed_s > ${dim_timeout} * 60) new_state = 1;
+          if (new_state != id(dim_state)) {
+            id(dim_state) = new_state;
+            auto call = id(display_backlight).make_call();
+            if (new_state == 2) call.set_brightness(0.05f);
+            else if (new_state == 1) call.set_brightness(0.3f);
+            else call.set_brightness(1.0f);
+            call.perform();
+          }

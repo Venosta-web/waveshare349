@@ -1,0 +1,304 @@
+# Variant B, "Terminal": the Codex CLI status line and prompt box, with Byte
+# pacing the floor underneath while a prompt runs.
+# Content box is 540 x 140 (560 x 160 card, 2 px border, 8 px padding).
+id: codex_card
+width: 560
+height: 160
+align: RIGHT_MID
+x: -6
+y: 0
+styles: card_style
+bg_color: 0x0D1117
+hidden: true
+scrollbar_mode: "off"
+widgets:
+  # ── Status line:  ✻ Working… (1m 05s)                 ~/project ──────────
+  - label:
+      id: codex_spin
+      text: "·"
+      text_font: codex_mono_16b
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 2
+      y: 0
+  - label:
+      id: lbl_codex_status
+      text: "Idle"
+      text_font: codex_mono_16b
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 22
+      y: 0
+  - label:
+      id: lbl_codex_time
+      text: ""
+      text_font: codex_mono_12
+      text_color: 0x6E7681
+      align: TOP_LEFT
+      x: 120
+      y: 3
+  - label:
+      id: lbl_codex_project
+      text: ""
+      text_font: codex_mono_12
+      text_color: 0x8B949E
+      align: TOP_RIGHT
+      x: 0
+      y: 3
+
+  # ── Prompt box, as in the Codex CLI input/permission frame ───────────────
+  - obj:
+      id: codex_box
+      width: 540
+      height: 56
+      align: TOP_LEFT
+      x: 0
+      y: 24
+      bg_opa: TRANSP
+      border_color: 0x30363D
+      border_width: 1
+      radius: 6
+      pad_left: 10
+      pad_right: 10
+      pad_top: 6
+      pad_bottom: 6
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: codex_caret
+            text: ">"
+            text_font: codex_mono_14
+            text_color: 0x6E7681
+            align: TOP_LEFT
+            x: 0
+            y: 0
+        - label:
+            id: lbl_codex_detail
+            text: "Waiting for Codex"
+            text_font: codex_mono_14
+            text_color: 0xC9D1D9
+            align: TOP_LEFT
+            x: 16
+            y: 0
+            width: 502
+            height: 40
+            long_mode: DOT
+        - label:
+            id: lbl_codex_step_now_icon
+            text: "›"
+            text_font: codex_mono_14
+            text_color: 0x10B981
+            align: TOP_LEFT
+            x: 0
+            y: 0
+            hidden: true
+        - label:
+            id: lbl_codex_step_now
+            text: ""
+            text_font: codex_mono_14
+            text_color: 0xF0F6FC
+            align: TOP_LEFT
+            x: 16
+            y: 0
+            width: 446
+            height: 18
+            long_mode: DOT
+            hidden: true
+        - label:
+            id: lbl_codex_step_count
+            text: ""
+            text_font: codex_mono_12
+            text_color: 0x10B981
+            align: TOP_RIGHT
+            x: 0
+            y: 0
+            bg_color: 0x21262D
+            bg_opa: COVER
+            radius: 4
+            pad_left: 5
+            pad_right: 5
+            pad_top: 1
+            pad_bottom: 1
+            hidden: true
+        - label:
+            id: lbl_codex_step_next_icon
+            text: "○"
+            text_font: codex_mono_12
+            text_color: 0x6E7681
+            align: TOP_LEFT
+            x: 1
+            y: 23
+            hidden: true
+        - label:
+            id: lbl_codex_step_next
+            text: ""
+            text_font: codex_mono_12
+            text_color: 0x8B949E
+            align: TOP_LEFT
+            x: 16
+            y: 22
+            width: 502
+            height: 16
+            long_mode: DOT
+            hidden: true
+
+  # Subtle progress bar under the prompt box when a multi-step task is active.
+  - obj:
+      id: codex_step_progress_bg
+      width: 536
+      height: 2
+      align: TOP_LEFT
+      x: 2
+      y: 81
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_width: 0
+      radius: 1
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: codex_step_progress_fill
+            width: 0
+            height: 2
+            align: LEFT_MID
+            x: 0
+            bg_color: 0x10B981
+            bg_opa: COVER
+            border_width: 0
+            radius: 1
+            pad_all: 0
+
+  # ── Rate-limit countdown bar (shown only when rate-limited) ─────────────
+  - obj:
+      id: codex_rl_track
+      width: 540
+      height: 8
+      align: TOP_LEFT
+      x: 0
+      y: 84
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 4
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: codex_rl_fill
+            width: 538
+            height: 6
+            align: LEFT_MID
+            x: 0
+            bg_color: 0xF85149
+            bg_opa: COVER
+            border_width: 0
+            radius: 3
+            pad_all: 0
+
+  # ── Floor at y = 137; Byte's boots land on it ───────────────────────────
+  - obj:
+      id: codex_floor
+      width: 540
+      height: 1
+      align: TOP_LEFT
+      x: 0
+      y: 137
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_width: 0
+      radius: 0
+      pad_all: 0
+  # Trail behind Byte on a long run.
+  - obj:
+      id: codex_trail
+      width: 0
+      height: 2
+      align: TOP_LEFT
+      x: 0
+      y: 136
+      bg_color: 0x10B981
+      bg_opa: 60%
+      border_width: 0
+      radius: 0
+      pad_all: 0
+  - obj:
+      id: codex_pet_box
+      align: TOP_LEFT
+      x: 0
+      y: 101
+      width: 56
+      height: 41
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      scrollbar_mode: "off"
+  - label:
+      id: codex_bubble
+      text: "z"
+      text_font: codex_mono_14
+      text_color: 0x6E7681
+      align: TOP_LEFT
+      x: 50
+      y: 84
+
+  # Approve / Reject only appear while a permission request is pending, with
+  # Byte standing between them. The request id is echoed back so a stale tap
+  # can't approve a newer request.
+  - button:
+      id: btn_codex_approve
+      width: 222
+      height: 46
+      align: BOTTOM_LEFT
+      hidden: true
+      bg_color: 0x238636
+      border_color: 0x2EA043
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "APPROVE"
+            text_font: codex_mono_16b
+            text_color: 0xFFFFFF
+            align: CENTER
+      on_click:
+        then:
+          - homeassistant.event:
+              event: esphome.codex_command
+              data:
+                action: approve
+                request_id: !lambda "return id(codex_request).state;"
+          - script.execute:
+              id: codex_sent
+              verdict: "Approved"
+
+  - button:
+      id: btn_codex_reject
+      width: 222
+      height: 46
+      align: BOTTOM_RIGHT
+      hidden: true
+      bg_color: 0x161B22
+      border_color: 0xF85149
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "REJECT"
+            text_font: codex_mono_16b
+            text_color: 0xFF7B72
+            align: CENTER
+      on_click:
+        then:
+          - homeassistant.event:
+              event: esphome.codex_command
+              data:
+                action: reject
+                request_id: !lambda "return id(codex_request).state;"
+          - script.execute:
+              id: codex_sent
+              verdict: "Rejected"

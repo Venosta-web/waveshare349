@@ -1,0 +1,301 @@
+# Variant "mining" (Cavern Ore & Pickaxe) — logic for claude/mining_card.yaml.
+# Pulled in by waveshare_sim.yaml as packages: claude: !include claude/${claude_variant}.yaml
+
+font:
+  # Claude Code's spinner glyphs plus the bubble marks. DejaVu ships them; Roboto doesn't.
+  - file: "../fonts/DejaVuSans-Bold.ttf"
+    id: claude_glyph_20
+    size: 20
+    bpp: 4
+    glyphs: "·✢✳✶✻✽✓✕!?zZ"
+  - file: "../fonts/DejaVuSans-Bold.ttf"
+    id: claude_glyph_14
+    size: 14
+    bpp: 4
+    glyphs: "·›○✓"
+
+script:
+  # Renders the AI card from the claude_* helpers. A pending request reveals
+  # Approve/Reject, jumps to the AI tab and pauses the growspace cycle.
+  - id: update_ai_ui
+    mode: queued
+    then:
+      - lambda: |-
+          std::string status = id(claude_status).state;
+          std::string detail = id(claude_detail).state;
+          if (status == "unknown" || status == "unavailable") status = "";
+          if (detail == "unknown" || detail == "unavailable") detail = "";
+          clawd::set_mode(clawd::parse_status(status), millis());
+          if (clawd::g_mode == clawd::RATE_LIMITED) {
+            clawd::parse_rate_limit_detail(detail, millis());
+          } else {
+            clawd::split_detail(detail);
+          }
+          clawd::parse_steps(id(claude_steps).state);
+          const bool pending = clawd::g_mode == clawd::PENDING;
+          const bool rate_limited = clawd::g_mode == clawd::RATE_LIMITED;
+          const bool show_steps = clawd::g_step_total > 0 && !pending && !rate_limited && clawd::g_mode != clawd::NEEDS_INPUT;
+
+          static const char *const WORDS[] = {"Idle", "Working", "Needs approval", "Needs input", "Done", "Approved", "Rejected", "Rate limited"};
+          lv_label_set_text(id(lbl_agent_status), WORDS[clawd::g_mode]);
+          lv_obj_set_style_text_color(id(lbl_agent_status), lv_color_hex(clawd::accent(clawd::g_mode)), 0);
+
+          if (clawd::g_project.empty()) {
+            lv_obj_add_flag(id(lbl_claude_project), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_label_set_text(id(lbl_claude_project), clawd::g_project.c_str());
+            lv_obj_clear_flag(id(lbl_claude_project), LV_OBJ_FLAG_HIDDEN);
+          }
+          const char *text = clawd::g_text.empty()
+              ? (clawd::g_mode == clawd::IDLE ? "Waiting for Claude Code"
+                 : rate_limited ? (clawd::g_rl_is_7d ? "7-day usage limit reached" : "5-hour usage limit reached")
+                 : "")
+              : clawd::g_text.c_str();
+          lv_label_set_text(id(lbl_agent_detail), text);
+
+          if (rate_limited) {
+            lv_obj_clear_flag(id(claude_rl_box), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_y(id(claude_rl_box), clawd::g_project.empty() ? 38 : 56);
+            lv_obj_set_y(id(lbl_agent_detail), clawd::g_project.empty() ? 92 : 108);
+            lv_obj_set_height(id(lbl_agent_detail), clawd::g_project.empty() ? 48 : 32);
+            lv_obj_set_style_text_color(id(lbl_agent_detail), lv_color_hex(0x8B949E), 0);
+          } else {
+            lv_obj_add_flag(id(claude_rl_box), LV_OBJ_FLAG_HIDDEN);
+            // Pull the text up when there's no project chip; leave room for buttons when pending.
+            lv_obj_set_y(id(lbl_agent_detail), clawd::g_project.empty() ? 34 : 58);
+            lv_obj_set_height(id(lbl_agent_detail), pending ? 32 : (clawd::g_project.empty() ? 82 : 66));
+            lv_obj_set_style_text_color(id(lbl_agent_detail), lv_color_hex(0xC9D1D9), 0);
+          }
+
+          lv_obj_t *step_objs[] = {
+              id(lbl_step_count), id(lbl_step_now_icon), id(lbl_step_now),
+              id(lbl_step_next_icon), id(lbl_step_next)
+          };
+          if (show_steps) {
+            const uint32_t acc = clawd::accent(clawd::g_mode);
+            const bool all_done = clawd::g_mode == clawd::DONE && clawd::g_step_cur == clawd::g_step_total;
+            lv_obj_add_flag(id(lbl_agent_detail), LV_OBJ_FLAG_HIDDEN);
+            for (auto *o : step_objs) lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+
+            char cbuf[24];
+            snprintf(cbuf, sizeof(cbuf), "%d/%d", clawd::g_step_cur, clawd::g_step_total);
+            lv_label_set_text(id(lbl_step_count), cbuf);
+            lv_obj_set_style_text_color(id(lbl_step_count), lv_color_hex(acc), 0);
+
+            lv_label_set_text(id(lbl_step_now_icon), all_done ? "✓" : "›");
+            lv_obj_set_style_text_color(id(lbl_step_now_icon), lv_color_hex(acc), 0);
+            lv_label_set_text(id(lbl_step_now), clawd::g_step_now.c_str());
+
+            if (!clawd::g_step_next.empty()) {
+              lv_label_set_text(id(lbl_step_next_icon), "○");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x6E7681), 0);
+              lv_label_set_text(id(lbl_step_next), clawd::g_step_next.c_str());
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x8B949E), 0);
+            } else if (all_done) {
+              char dbuf[48];
+              snprintf(dbuf, sizeof(dbuf), "All %d steps complete", clawd::g_step_total);
+              lv_label_set_text(id(lbl_step_next_icon), "✓");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x3FB950), 0);
+              lv_label_set_text(id(lbl_step_next), dbuf);
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x8B949E), 0);
+            } else {
+              lv_label_set_text(id(lbl_step_next_icon), "·");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x6E7681), 0);
+              lv_label_set_text(id(lbl_step_next), "Final step");
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x6E7681), 0);
+            }
+          } else {
+            lv_obj_clear_flag(id(lbl_agent_detail), LV_OBJ_FLAG_HIDDEN);
+            for (auto *o : step_objs) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+          }
+
+          if (pending) {
+            lv_obj_clear_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+            id(cycle_paused) = true;
+            id(pause_timer) = 3600;
+          } else {
+            lv_obj_add_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+            if (id(pause_timer) > ${pause_timeout}) id(pause_timer) = ${pause_timeout};
+          }
+          id(claude_tick).execute();
+      - if:
+          condition:
+            lambda: "return clawd::g_mode == clawd::PENDING;"
+          then:
+            - lvgl.widget.update:
+                id: ai_alert_badge
+                hidden: false
+            - if:
+                condition:
+                  lambda: "return id(active_tab) != 1;"
+                then:
+                  - script.execute:
+                      id: switch_tab
+                      tab_idx: 2
+
+  # Immediate feedback after a tap, before HA echoes the new state back.
+  - id: claude_sent
+    parameters:
+      verdict: std::string
+    then:
+      - lambda: |-
+          lv_obj_add_flag(id(btn_claude_approve), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(btn_claude_reject), LV_OBJ_FLAG_HIDDEN);
+          clawd::set_mode(verdict == "Approved" ? clawd::SENT_OK : clawd::SENT_NO, millis());
+          lv_label_set_text(id(lbl_agent_status), verdict.c_str());
+          lv_obj_set_style_text_color(id(lbl_agent_status), lv_color_hex(clawd::accent(clawd::g_mode)), 0);
+          lv_obj_set_height(id(lbl_agent_detail), clawd::g_project.empty() ? 82 : 66);
+          id(claude_tick).execute();
+
+  # One animation frame. Runs at 10 Hz; nav icon always updates, card only while AI tab is up.
+  - id: claude_tick
+    then:
+      - lambda: |-
+          using namespace clawd;
+          tick_nav(id(nav_clawd_box));
+          static Puppet p;
+          static pet_scenes::MiningScene scene;
+          if (p.root == nullptr) {
+            build(p, id(clawd_box), 5);
+            scene.build(id(claude_stage), id(clawd_box), id(claude_bubble), false);
+          }
+          if (lv_obj_has_flag(id(ai_card), LV_OBJ_FLAG_HIDDEN)) return;
+
+          const uint32_t f = g_frame, t = g_frame - g_mode_frame, now = millis();
+          const uint32_t acc = accent(g_mode);
+          Pose s = animate(g_mode, f, t, p.u);
+          pet_scenes::merge_pose(s, scene.tick(static_cast<pet_scenes::PetMode>(g_mode), f, t));
+          apply(p, s);
+
+          // Spinner: Claude Code's sparkle while working, a still mark otherwise.
+          const char *spin = g_mode == WORKING ? spinner(f)
+                           : g_mode == clawd::PENDING || g_mode == NEEDS_INPUT ? "✻"
+                           : g_mode == RATE_LIMITED ? "!"
+                           : g_mode == DONE || g_mode == SENT_OK ? "✓"
+                           : g_mode == SENT_NO ? "✕" : "·";
+          lv_label_set_text(id(claude_spin), spin);
+          lv_obj_set_style_text_color(id(claude_spin), lv_color_hex(acc), 0);
+
+          // Bubble over Clawd's head.
+          lv_obj_t *b = id(claude_bubble);
+          int by = 12;
+          switch (g_mode) {
+            case IDLE: {  // a z drifting up and fading, every 3 s
+              uint32_t k = f % 30;
+              lv_label_set_text(b, k < 15 ? "z" : "Z");
+              by = 30 - (int) k;
+              lv_obj_set_style_bg_opa(b, LV_OPA_TRANSP, 0);
+              lv_obj_set_style_text_color(b, lv_color_hex(0x6E7681), 0);
+              lv_obj_set_style_text_opa(b, k < 22 ? LV_OPA_COVER : (lv_opa_t) (255 - (k - 22) * 30), 0);
+              lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN);
+              break;
+            }
+            case clawd::PENDING:
+            case NEEDS_INPUT:
+            case DONE:
+            case SENT_OK:
+            case SENT_NO: {
+              lv_label_set_text(b, g_mode == clawd::PENDING ? "!" : g_mode == NEEDS_INPUT ? "?" : g_mode == SENT_NO ? "✕" : "✓");
+              lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+              lv_obj_set_style_bg_color(b, lv_color_hex(acc), 0);
+              lv_obj_set_style_text_color(b, lv_color_hex(0x0A0C10), 0);
+              lv_obj_set_style_text_opa(b, LV_OPA_COVER, 0);
+              by = 12 - ((f / 5) % 2);  // 2-frame bob
+              // Done's check pops in after the hop, then retires after 8 s.
+              bool show = !(g_mode == DONE && (t < 6 || t > 80));
+              if (show) lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
+              break;
+            }
+            default:
+              lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
+          }
+          lv_obj_set_y(b, by);
+
+          // Clock: elapsed while working, time left on a pending request, run length when done.
+          char buf[32] = "";
+          if (g_mode == WORKING || g_mode == NEEDS_INPUT || g_mode == SENT_OK || g_mode == SENT_NO) {
+            fmt_elapsed(buf, sizeof(buf), now - g_work_start);
+          } else if (g_mode == clawd::PENDING) {
+            uint32_t gone = now - g_pending_start, total = ${claude_decision_timeout} * 1000;
+            uint32_t left = gone < total ? total - gone : 0;
+            snprintf(buf, sizeof(buf), "%us left", (unsigned) ((left + 999) / 1000));
+          } else if (g_mode == DONE && g_last_run > 0) {
+            char d[16];
+            fmt_elapsed(d, sizeof(d), g_last_run);
+            snprintf(buf, sizeof(buf), "took %s", d);
+          } else if (g_mode == RATE_LIMITED) {
+            snprintf(buf, sizeof(buf), "%s", g_rl_is_7d ? "7D LIMIT" : "5H LIMIT");
+          }
+          lv_label_set_text(id(lbl_claude_time), buf);
+          lv_obj_set_style_text_color(id(lbl_claude_time), lv_color_hex(g_mode == RATE_LIMITED ? 0xFF7B72 : 0x8B949E), 0);
+
+          // Rate-limit countdown & draining progress bar.
+          uint64_t rl_left = 0;
+          if (g_mode == RATE_LIMITED) {
+            rl_left = rl_left_ms(now);
+            char cbuf[32];
+            fmt_countdown(cbuf, sizeof(cbuf), rl_left);
+            if (rl_left == 0) {
+              lv_label_set_text(id(lbl_rl_countdown), "Ready (0s)");
+              lv_obj_set_style_text_color(id(lbl_rl_countdown), lv_color_hex(0x3FB950), 0);
+              lv_obj_set_width(id(claude_rl_fill), 0);
+            } else {
+              lv_label_set_text(id(lbl_rl_countdown), cbuf);
+              lv_obj_set_style_text_color(id(lbl_rl_countdown), lv_color_hex(0xF0F6FC), 0);
+              int w = (int) ((374ULL * rl_left) / g_rl_total_ms);
+              if (w < 4) w = 4;
+              if (w > 374) w = 374;
+              lv_obj_set_width(id(claude_rl_fill), w);
+              uint32_t fill_col = (rl_left * 10 <= g_rl_total_ms) ? 0xFFB020 : 0xF85149;
+              lv_obj_set_style_bg_color(id(claude_rl_fill), lv_color_hex(fill_col), 0);
+            }
+            if (g_rl_reset_at.empty()) {
+              lv_label_set_text(id(lbl_rl_reset), "");
+            } else {
+              char rbuf[48];
+              snprintf(rbuf, sizeof(rbuf), "Resets %s", g_rl_reset_at.c_str());
+              lv_label_set_text(id(lbl_rl_reset), rbuf);
+            }
+          }
+
+          // Activity line.
+          lv_obj_t *track = id(claude_track), *fill = id(claude_track_fill);
+          if (g_mode == WORKING) {
+            lv_obj_clear_flag(track, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_y(track, 134);
+            // 96 px comet crossing 376 px and wrapping, ~2.4 s per pass with ease-in-out.
+            int span = 376 + 96, k = (int) (f % 24);
+            float e = k / 24.0f;
+            e = e < 0.5f ? 2 * e * e : 1 - 2 * (1 - e) * (1 - e);
+            lv_obj_set_width(fill, 96);
+            lv_obj_set_x(fill, (int) (e * span) - 96);
+            lv_obj_set_style_bg_color(fill, lv_color_hex(BODY), 0);
+          } else if (g_mode == clawd::PENDING) {
+            lv_obj_clear_flag(track, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_y(track, 90);
+            uint32_t gone = now - g_pending_start, total = ${claude_decision_timeout} * 1000;
+            int w = gone < total ? (int) (376.0f * (total - gone) / total) : 0;
+            lv_obj_set_width(fill, w < 4 ? 4 : w);
+            lv_obj_set_x(fill, 0);
+            lv_obj_set_style_bg_color(fill, lv_color_hex(acc), 0);
+          } else {
+            lv_obj_add_flag(track, LV_OBJ_FLAG_HIDDEN);
+          }
+
+          // Border: breathes amber while a request waits, resting otherwise.
+          uint32_t border = 0x30363D;
+          if (g_mode == clawd::PENDING) border = (f / 5) % 2 ? 0xFFB020 : 0x8A5D12;
+          else if (g_mode == NEEDS_INPUT) border = 0x6E5BA8;
+          else if (g_mode == SENT_OK) border = 0x2EA043;
+          else if (g_mode == SENT_NO) border = 0xF85149;
+          else if (g_mode == RATE_LIMITED) border = rl_left == 0 ? 0x2EA043 : 0x9E3632;
+          lv_obj_set_style_border_color(id(ai_card), lv_color_hex(border), 0);
+
+
+interval:
+  - interval: 100ms
+    then:
+      - lambda: "clawd::g_frame++;"
+      - script.execute: claude_tick

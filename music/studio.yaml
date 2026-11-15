@@ -2,7 +2,7 @@
 # Pulled in by waveshare_sim.yaml as packages: music: !include music/${music_variant}.yaml
 
 font:
-  - file: "fonts/DejaVuSansMono-Bold.ttf"
+  - file: "../fonts/DejaVuSansMono-Bold.ttf"
     id: studio_mono_12
     size: 12
     bpp: 4

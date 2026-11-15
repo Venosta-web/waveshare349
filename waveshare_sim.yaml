@@ -86,12 +86,12 @@ substitutions:
   # Idle / Lock Clock Screen
   idle_variant: "aurora"
 
-  # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  # Claude Code card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
   claude_variant: "terminal"
   # Seconds the bridge waits for a tap (CLAUDE_HA_DECISION_TIMEOUT)
   claude_decision_timeout: "110"
 
-  # Codex card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  # Codex card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
   codex_variant: "terminal"
   codex_decision_timeout: "110"
 
@@ -107,9 +107,6 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  includes:
-    - claude/clawd.h
-    - codex/codex_pet.h
   on_boot:
     priority: -100
     then:
@@ -122,17 +119,14 @@ esphome:
             id(idle_wifi_rssi) = -54;
             id(idle_wifi_ssid) = "GrowLab-5G";
           }
-      - script.execute: update_grow_ui
-      - script.execute: update_music_ui
 
 packages:
-  ui: !include packages/display_ui.yaml
-  idle_common: !include idle/common.yaml
-  idle: !include idle/${idle_variant}.yaml
-  claude: !include claude/${claude_variant}.yaml
-  codex: !include codex/${codex_variant}.yaml
-  music_common: !include music/common.yaml
-  music: !include music/${music_variant}.yaml
+  core_ui: !include packages/waveshare_349/core_ui.yaml
+  mod_grow: !include packages/waveshare_349/mod_grow.yaml
+  mod_music: !include packages/waveshare_349/mod_music.yaml
+  mod_claude: !include packages/waveshare_349/mod_claude.yaml
+  mod_codex: !include packages/waveshare_349/mod_codex.yaml
+  mod_idle: !include packages/waveshare_349/mod_idle.yaml
 
 host:
 
@@ -142,10 +136,6 @@ logger:
 # Native API server listens on TCP 6053 on your PC's LAN/WSL IP
 api:
   port: 6053
-  on_client_connected:
-    - delay: 1s
-    - script.execute: update_grow_ui
-    - script.execute: update_music_ui
 
 # ============================================================================
 # SDL2 DISPLAY & MOUSE TOUCHSCREEN EMULATOR (640 x 172)

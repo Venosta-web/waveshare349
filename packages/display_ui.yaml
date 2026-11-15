@@ -91,19 +91,6 @@ font:
       - "\U000F075A" # music
       - "\U000F0387" # music-note
       - "\U000F0E66" # sprout
-      - "\U000F033E" # lock
-      - "\U000F0079" # battery
-      - "\U000F0081" # battery-80
-      - "\U000F007E" # battery-50
-      - "\U000F007B" # battery-20
-      - "\U000F0083" # battery-alert
-      - "\U000F0084" # battery-charging
-      - "\U000F0091" # battery-unknown
-      - "\U000F0928" # wifi-strength-4
-      - "\U000F0925" # wifi-strength-3
-      - "\U000F0922" # wifi-strength-2
-      - "\U000F091F" # wifi-strength-1
-      - "\U000F05AA" # wifi-off
 
   - file: "fonts/materialdesignicons-webfont.ttf"
     id: icons_24
@@ -196,9 +183,6 @@ lvgl:
   pages:
     - id: home_page
       bg_color: 0x0A0C10
-      on_click:
-        then:
-          - script.execute: reset_idle_timer
       widgets:
         # ── LEFT NAVIGATION RAIL (64 x 160, 3 visible entries, scrollable) ──
         - obj:
@@ -342,22 +326,6 @@ lvgl:
                   on_click:
                     then:
                       - script.execute: on_voice_ptt
-
-              - button:
-                  id: nav_lock
-                  width: 64
-                  height: 50
-                  styles: nav_btn
-                  widgets:
-                    - label:
-                        id: nav_lock_icon
-                        text: "\U000F033E"
-                        text_font: icons_20
-                        text_color: 0x8B949E
-                        align: CENTER
-                  on_click:
-                    then:
-                      - script.execute: lock_idle_screen
 
         # ── CARD 1: GROWSPACE MANAGER (560 x 160) ──────────────────────────
         - obj:
@@ -572,7 +540,6 @@ lvgl:
                     then:
                       - lambda: "id(nav_direction) = -1;"
                       - script.execute: navigate_space
-                      - script.execute: reset_idle_timer
 
               - button:
                   id: btn_next_space
@@ -592,7 +559,6 @@ lvgl:
                     then:
                       - lambda: "id(nav_direction) = 1;"
                       - script.execute: navigate_space
-                      - script.execute: reset_idle_timer
 
         # ── CARD 2: MUSIC ASSISTANT (Hidden initially) ───────────────────────
         # Widgets live in music/<variant>_card.yaml, logic in music/<variant>.yaml.
@@ -605,10 +571,6 @@ lvgl:
         # ── CARD 4: CODEX (Hidden initially) ───────────────────────────────
         # Widgets live in codex/<variant>_card.yaml, logic in codex/<variant>.yaml.
         - obj: !include ../codex/${codex_variant}_card.yaml
-
-        # ── IDLE / LOCK CLOCK OVERLAY (Shown after 5m inactivity or manual lock) ─
-        # Widgets live in idle/<variant>_card.yaml, logic in idle/<variant>.yaml.
-        - obj: !include ../idle/${idle_variant}_card.yaml
 
         # ── GLOBAL VOICE OVERLAY (Shown while Voice Satellite is active) ───
         - obj:
@@ -735,25 +697,11 @@ text_sensor:
     entity_id: input_text.claude_status
     on_value:
       - script.execute: update_ai_ui
-      - if:
-          condition:
-            lambda: |-
-              std::string s = id(claude_status).state;
-              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
-          then:
-            - script.execute: unlock_idle_screen
   - platform: homeassistant
     id: claude_detail
     entity_id: input_text.claude_detail
     on_value:
       - script.execute: update_ai_ui
-      - if:
-          condition:
-            lambda: |-
-              std::string s = id(claude_status).state;
-              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
-          then:
-            - script.execute: unlock_idle_screen
   - platform: homeassistant
     id: claude_request
     entity_id: input_text.claude_request
@@ -762,13 +710,6 @@ text_sensor:
     entity_id: input_text.claude_steps
     on_value:
       - script.execute: update_ai_ui
-      - if:
-          condition:
-            lambda: |-
-              std::string s = id(claude_status).state;
-              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
-          then:
-            - script.execute: unlock_idle_screen
 
   # Codex bridge
   - platform: homeassistant
@@ -776,25 +717,11 @@ text_sensor:
     entity_id: input_text.codex_status
     on_value:
       - script.execute: update_codex_ui
-      - if:
-          condition:
-            lambda: |-
-              std::string s = id(codex_status).state;
-              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
-          then:
-            - script.execute: unlock_idle_screen
   - platform: homeassistant
     id: codex_detail
     entity_id: input_text.codex_detail
     on_value:
       - script.execute: update_codex_ui
-      - if:
-          condition:
-            lambda: |-
-              std::string s = id(codex_status).state;
-              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
-          then:
-            - script.execute: unlock_idle_screen
   - platform: homeassistant
     id: codex_request
     entity_id: input_text.codex_request
@@ -803,13 +730,6 @@ text_sensor:
     entity_id: input_text.codex_steps
     on_value:
       - script.execute: update_codex_ui
-      - if:
-          condition:
-            lambda: |-
-              std::string s = id(codex_status).state;
-              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
-          then:
-            - script.execute: unlock_idle_screen
 
   - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage, on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs0_is_day, entity_id: "${gs_0_metrics}", attribute: is_day }
@@ -914,7 +834,6 @@ script:
             id(display_view).publish_state(opts[tab_idx]);
           }
           lv_obj_invalidate(lv_scr_act());
-      - script.execute: reset_idle_timer
 
   - id: set_voice_overlay
     parameters:
@@ -924,7 +843,6 @@ script:
     then:
       - lambda: |-
           if (visible) {
-            id(unlock_idle_screen).execute();
             lv_label_set_text(id(voice_overlay_text), status_text.c_str());
             lv_obj_set_style_border_color(id(voice_overlay), lv_color_hex(accent_hex), 0);
             lv_obj_set_style_text_color(id(voice_overlay_icon), lv_color_hex(accent_hex), 0);
@@ -937,7 +855,6 @@ script:
   # Overridden in waveshare_349.yaml to trigger voice_assistant.start/stop
   - id: on_voice_ptt
     then:
-      - script.execute: unlock_idle_screen
       - lambda: |-
           bool hidden = lv_obj_has_flag(id(voice_overlay), LV_OBJ_FLAG_HIDDEN);
           id(set_voice_overlay).execute(hidden, hidden ? "Sim Voice: Listening..." : "", 0x58A6FF);

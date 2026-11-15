@@ -1,0 +1,81 @@
+# Hardware base for ESP32-S3 480x320 Prototype (AXS15231 QSPI 320x480 rotated 90°).
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  project:
+    name: "Guition.ESP32-Clean-UI"
+    version: "480x320-Prototype"
+
+esp32:
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP_MAIN_TASK_STACK_SIZE: "20480"
+    advanced:
+      execute_from_psram: true
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: INFO
+
+api:
+
+ota:
+  - platform: esphome
+
+output:
+  - platform: ledc
+    pin: 1
+    id: gpio_backlight_pwm
+    frequency: 1000Hz
+
+light:
+  - platform: monochromatic
+    output: gpio_backlight_pwm
+    name: "Display Backlight"
+    id: display_backlight
+    restore_mode: ALWAYS_ON
+
+i2c:
+  - id: bus_a
+    sda: GPIO4
+    scl: GPIO8
+    scan: true
+
+spi:
+  - type: quad
+    clk_pin: GPIO47
+    data_pins: [21, 48, 40, 39]
+
+touchscreen:
+  - platform: axs15231
+    id: my_touchscreen
+    i2c_id: bus_a
+    display: my_display
+    on_touch:
+      - lambda: |-
+          id(last_touch_ms) = millis();
+          if (id(dim_state) != 0) {
+            id(dim_state) = 0;
+            id(wake_lock) = true;
+            auto call = id(display_backlight).make_call();
+            call.set_brightness(1.0f);
+            call.perform();
+            return;
+          }
+
+display:
+  - id: my_display
+    platform: qspi_dbi
+    dimensions:
+      width: 320
+      height: 480
+    model: AXS15231
+    data_rate: 40MHz
+    cs_pin: 45

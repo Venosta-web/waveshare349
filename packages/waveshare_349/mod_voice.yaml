@@ -1,0 +1,227 @@
+# Feature Module: Voice Satellite (ES8311 + I2S + micro_wake_word + voice_assistant + UI overlay)
+
+esphome:
+  on_boot:
+    - priority: -48
+      then:
+        - lambda: "lv_obj_set_parent(id(nav_mic), id(nav_rail));"
+
+i2s_audio:
+  - id: i2s_audio_bus
+    i2s_lrclk_pin: GPIO46
+    i2s_bclk_pin: GPIO15
+    i2s_mclk_pin: GPIO7
+
+audio_dac:
+  - platform: es8311
+    id: es8311_dac
+    i2c_id: sys_i2c
+    bits_per_sample: 16bit
+    sample_rate: 16000
+
+microphone:
+  - platform: i2s_audio
+    id: mic_i2s
+    i2s_audio_id: i2s_audio_bus
+    i2s_din_pin: GPIO45
+    adc_type: external
+    bits_per_sample: 16bit
+    pdm: false
+
+speaker:
+  - platform: i2s_audio
+    id: spk_i2s
+    i2s_audio_id: i2s_audio_bus
+    dac_type: external
+    i2s_dout_pin: GPIO6
+    audio_dac: es8311_dac
+    bits_per_sample: 16bit
+    sample_rate: 16000
+
+micro_wake_word:
+  id: mww
+  microphone: mic_i2s
+  models:
+    - model: okay_nabu
+  on_wake_word_detected:
+    - if:
+        condition:
+          lambda: "return !id(voice_muted);"
+        then:
+          - script.execute: unlock_idle_screen
+          - voice_assistant.start:
+
+voice_assistant:
+  id: va
+  microphone: mic_i2s
+  speaker: spk_i2s
+  noise_suppression_level: 2
+  auto_gain: 31dBFS
+  volume_multiplier: 2.0
+  on_listening:
+    - script.execute: unlock_idle_screen
+    - lvgl.widget.update:
+        id: nav_mic_icon
+        text_color: 0x58A6FF
+    - script.execute:
+        id: set_voice_overlay
+        visible: true
+        status_text: "Listening..."
+        accent_hex: 0x58A6FF
+  on_stt_vad_end:
+    - script.execute: unlock_idle_screen
+    - lvgl.widget.update:
+        id: nav_mic_icon
+        text_color: 0xFFC107
+    - script.execute:
+        id: set_voice_overlay
+        visible: true
+        status_text: "Thinking..."
+        accent_hex: 0xFFC107
+  on_tts_start:
+    - script.execute: unlock_idle_screen
+    - lvgl.widget.update:
+        id: nav_mic_icon
+        text_color: 0x1DB954
+    - script.execute:
+        id: set_voice_overlay
+        visible: true
+        status_text: !lambda "return x;"
+        accent_hex: 0x1DB954
+  on_end:
+    - delay: 2s
+    - lvgl.widget.update:
+        id: nav_mic_icon
+        text_color: !lambda "return id(voice_muted) ? lv_color_hex(0xFF5252) : lv_color_hex(0x8B949E);"
+    - script.execute:
+        id: set_voice_overlay
+        visible: false
+        status_text: ""
+        accent_hex: 0x58A6FF
+  on_error:
+    - script.execute: unlock_idle_screen
+    - script.execute:
+        id: set_voice_overlay
+        visible: true
+        status_text: !lambda "return message;"
+        accent_hex: 0xFF5252
+    - delay: 3s
+    - lvgl.widget.update:
+        id: nav_mic_icon
+        text_color: !lambda "return id(voice_muted) ? lv_color_hex(0xFF5252) : lv_color_hex(0x8B949E);"
+    - script.execute:
+        id: set_voice_overlay
+        visible: false
+        status_text: ""
+        accent_hex: 0x58A6FF
+
+switch:
+  - platform: template
+    id: mic_mute_switch
+    name: "Mute Microphone"
+    icon: "mdi:microphone-off"
+    optimistic: true
+    turn_on_action:
+      - lambda: "id(voice_muted) = true;"
+      - micro_wake_word.stop:
+      - lvgl.label.update:
+          id: nav_mic_icon
+          text: "\U000F036D"
+          text_color: 0xFF5252
+    turn_off_action:
+      - lambda: "id(voice_muted) = false;"
+      - micro_wake_word.start:
+      - lvgl.label.update:
+          id: nav_mic_icon
+          text: "\U000F036C"
+          text_color: 0x8B949E
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - button:
+            id: nav_mic
+            width: 64
+            height: 50
+            styles: nav_btn
+            widgets:
+              - label:
+                  id: nav_mic_icon
+                  text: "\U000F036C"
+                  text_font: icons_20
+                  text_color: 0x8B949E
+                  align: CENTER
+            on_click:
+              then:
+                - script.execute: on_voice_ptt
+
+        - obj:
+            id: voice_overlay
+            width: 520
+            height: 40
+            align: TOP_RIGHT
+            x: -26
+            y: 6
+            bg_color: 0x161B22
+            bg_opa: 95%
+            border_color: 0x58A6FF
+            border_width: 2
+            radius: 20
+            pad_left: 12
+            pad_right: 12
+            scrollbar_mode: "off"
+            hidden: true
+            widgets:
+              - label:
+                  id: voice_overlay_icon
+                  text: "\U000F036C"
+                  text_font: icons_20
+                  text_color: 0x58A6FF
+                  align: LEFT_MID
+                  x: 0
+                  y: 0
+              - label:
+                  id: voice_overlay_text
+                  text: "Listening..."
+                  text_font: font_14
+                  text_color: 0xFFFFFF
+                  width: 460
+                  long_mode: DOT
+                  align: LEFT_MID
+                  x: 28
+                  y: 0
+
+script:
+  - id: set_voice_overlay
+    parameters:
+      visible: bool
+      status_text: std::string
+      accent_hex: int
+    then:
+      - lambda: |-
+          if (visible) {
+            id(unlock_idle_screen).execute();
+            lv_label_set_text(id(voice_overlay_text), status_text.c_str());
+            lv_obj_set_style_border_color(id(voice_overlay), lv_color_hex(accent_hex), 0);
+            lv_obj_set_style_text_color(id(voice_overlay_icon), lv_color_hex(accent_hex), 0);
+            lv_obj_clear_flag(id(voice_overlay), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(id(voice_overlay), LV_OBJ_FLAG_HIDDEN);
+          }
+          lv_obj_invalidate(lv_scr_act());
+
+  - id: !extend on_voice_ptt
+    then:
+      - script.execute: unlock_idle_screen
+      - if:
+          condition:
+            lambda: "return id(va).is_running();"
+          then:
+            - voice_assistant.stop:
+          else:
+            - if:
+                condition:
+                  lambda: "return !id(voice_muted);"
+                then:
+                  - voice_assistant.start:

@@ -1,0 +1,120 @@
+# Feature Module: Codex Status & Approval Card (Waveshare 3.49)
+# Requires substitutions: codex_variant ("stage" | "terminal" | "fishing" | "mining" | "pingpong" | "campfire"), codex_decision_timeout
+
+packages:
+  codex_variant: !include ../../codex/${codex_variant}.yaml
+
+esphome:
+  includes:
+    - ../../codex/codex_pet.h
+    - ../../pet_scenes.h
+  on_boot:
+    - priority: -46
+      then:
+        - lambda: "lv_obj_set_parent(id(nav_codex), id(nav_rail));"
+    - priority: -56
+      then:
+        - lambda: |-
+            if (id(active_tab) < 0) {
+              id(switch_tab).execute(3);
+            }
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - button:
+            id: nav_codex
+            width: 64
+            height: 50
+            styles: nav_btn
+            widgets:
+              - obj:
+                  id: nav_codex_box
+                  width: 28
+                  height: 22
+                  align: CENTER
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  clickable: false
+                  scrollbar_mode: "off"
+              - obj:
+                  id: codex_alert_badge
+                  width: 10
+                  height: 10
+                  align: TOP_RIGHT
+                  x: -4
+                  y: 4
+                  radius: 5
+                  bg_color: 0xFF5252
+                  bg_opa: COVER
+                  border_width: 0
+                  hidden: true
+            on_click:
+              then:
+                - script.execute:
+                    id: switch_tab
+                    tab_idx: 3
+
+        - obj: !include ../../codex/${codex_variant}_card.yaml
+
+text_sensor:
+  - platform: homeassistant
+    id: codex_status
+    entity_id: input_text.codex_status
+    on_value:
+      - script.execute: update_codex_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(codex_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
+  - platform: homeassistant
+    id: codex_detail
+    entity_id: input_text.codex_detail
+    on_value:
+      - script.execute: update_codex_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(codex_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
+  - platform: homeassistant
+    id: codex_request
+    entity_id: input_text.codex_request
+  - platform: homeassistant
+    id: codex_steps
+    entity_id: input_text.codex_steps
+    on_value:
+      - script.execute: update_codex_ui
+      - if:
+          condition:
+            lambda: |-
+              std::string s = id(codex_status).state;
+              return !s.empty() && s != "unknown" && s != "unavailable" && s != "idle" && s != "Idle";
+          then:
+            - script.execute: unlock_idle_screen
+
+script:
+  - id: !extend switch_tab
+    then:
+      - lambda: |-
+          const bool active = (tab_idx == 3);
+          if (active) {
+            lv_obj_clear_flag(id(codex_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_codex), lv_color_hex(0x1F6FEB), 0);
+            lv_obj_set_style_border_color(id(nav_codex), lv_color_hex(0x58A6FF), 0);
+            lv_obj_scroll_to_view(id(nav_codex), LV_ANIM_ON);
+            lv_obj_add_flag(id(codex_alert_badge), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(id(codex_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_codex), lv_color_hex(0x161B22), 0);
+            lv_obj_set_style_border_color(id(nav_codex), lv_color_hex(0x30363D), 0);
+          }
+          lv_obj_invalidate(lv_scr_act());
