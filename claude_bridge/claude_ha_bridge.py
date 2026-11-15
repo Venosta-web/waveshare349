@@ -90,6 +90,23 @@ def set_display(status=None, detail=None, request=None):
             return
 
 
+def request_pending():
+    """True while some session is waiting for a tap (request id is set)."""
+    req = urllib.request.Request(f"{HA_URL}/api/states/{ENT_REQUEST}",
+                                 headers={"Authorization": f"Bearer {HA_TOKEN}"})
+    try:
+        state = json.loads(urllib.request.urlopen(req, timeout=2).read()).get("state", "")
+    except Exception:
+        return False
+    return state not in ("", "unknown", "unavailable")
+
+
+def set_status(status, detail):
+    """Status-only update from other hooks; never clobbers a pending approval."""
+    if HA_TOKEN and not request_pending():
+        set_display(status, detail)
+
+
 def display_ready():
     """True if HA answers and the status helper exists (fast fail before waiting)."""
     req = urllib.request.Request(f"{HA_URL}/api/states/{ENT_STATUS}",
@@ -241,11 +258,11 @@ def run_hook():
     if event == "PermissionRequest":
         handle_permission_request(payload)
     elif event == "UserPromptSubmit":
-        set_display("Working", f"{project} | {payload.get('prompt', '')}", "")
+        set_status("Working", f"{project} | {payload.get('prompt', '')}")
     elif event == "Stop":
-        set_display("Ready", f"{project} | Finished. Waiting for the next prompt.", "")
+        set_status("Ready", f"{project} | Finished. Waiting for the next prompt.")
     elif event == "Notification" and payload.get("notification_type") == "idle_prompt":
-        set_display("Needs Input", f"{project} | {payload.get('message', 'Claude is waiting for you')}", "")
+        set_status("Needs Input", f"{project} | {payload.get('message', 'Claude is waiting for you')}")
 
 
 # ---------------------------------------------------------------- setup / check / test
