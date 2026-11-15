@@ -25,6 +25,8 @@ globals:
     initial_value: "false"
 
 esphome:
+  includes:
+    - ai_sounds.h
   on_boot:
     - priority: -190
       then:
@@ -232,6 +234,13 @@ script:
   - id: unlock_idle_screen
     then:
       - lambda: "return;"
+
+  # Extended by board.yaml on hardware with an ES8311 speaker
+  - id: play_ai_chime
+    parameters:
+      chime_id: int
+    then:
+      - lambda: "(void) chime_id;"
 
   - id: reset_idle_timer
     then:

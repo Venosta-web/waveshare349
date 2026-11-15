@@ -4,8 +4,6 @@ esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
   min_version: 2025.11.0
-  includes:
-    - ai_sounds.h
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -110,3 +108,15 @@ number:
     max_value: 100
     step: 5
     unit_of_measurement: "%"
+
+script:
+  - id: !extend play_ai_chime
+    then:
+      - lambda: |-
+          ai_sounds::maybe_play(
+            id(spk_i2s),
+            static_cast<ai_sounds::ChimeId>(chime_id),
+            id(ai_sound_enabled).state,
+            id(ai_sound_volume).state,
+            id(voice_active)
+          );
