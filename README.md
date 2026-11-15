@@ -62,8 +62,17 @@ Select `fishing`, `mining`, `pingpong`, or `campfire` (or `terminal_fishing`, `t
 
 ### 6. Voice Satellite & Local Assist Pipeline
 - **On-device wake word & audio** ([`waveshare_349.yaml`](waveshare_349.yaml)): `micro_wake_word` (`okay_nabu`), ES8311 I2S audio codec, noise suppression, auto-gain, push-to-talk (`on_voice_ptt`), and a `Mute Microphone` switch (`mic_mute_switch`).
+- **Full-stage Voice AI Activation UI** ([`packages/waveshare_349/mod_voice.yaml`](packages/waveshare_349/mod_voice.yaml), [`voice/voice_icon.h`](voice/voice_icon.h)): Pinned 10 Hz acoustic waveform & neural spark in the sidebar (`nav_mic`) paired with a `560 × 160` card-aligned activation stage for `Listening`, `Thinking`, `Speaking` (with wrapped multi-line TTS output), `Muted`, and `Error` states, plus tap-to-cancel/dismiss.
 - **100% local server pipeline** (see [ADR-0002](docs/adr/0002-voice-satellite-ha-local-llm.md) & [`ha_assist_tools.yaml`](ha_assist_tools.yaml)): Designed for Home Assistant Assist with Wyoming `faster-whisper` (STT), Ollama tool-calling LLM (e.g., `qwen2.5:7b` / `qwen3:8b`), and Wyoming `piper` (TTS).
 - **Declarative Display View control**: Exposes `select.<device>_display_view` (`Growspace`, `Music`, `AI`, `Codex`) so voice commands and Automations can switch screens directly.
+
+| Voice Activation Flow (`Idle` → `Listening` → `Thinking` → `Speaking`) |
+|---|
+| ![Voice Satellite activation flow](docs/images/voice-activation-flow.gif) |
+
+| Edge States (`Mic Muted` & `Voice Error`) |
+|---|
+| ![Voice Satellite muted and error states](docs/images/voice-muted-error.gif) |
 
 ---
 
