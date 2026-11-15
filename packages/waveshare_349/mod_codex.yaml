@@ -6,7 +6,7 @@ packages:
 
 esphome:
   includes:
-    - codex/codex_pet.h
+    - ../../codex/codex_pet.h
   on_boot:
     - priority: -46
       then:

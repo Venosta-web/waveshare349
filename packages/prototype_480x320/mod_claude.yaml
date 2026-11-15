@@ -6,7 +6,7 @@ packages:
 
 esphome:
   includes:
-    - prototype/esp32-s3-480-320-prototype/claude/clawd.h
+    - ../../prototype/esp32-s3-480-320-prototype/claude/clawd.h
   on_boot:
     - priority: -44
       then:

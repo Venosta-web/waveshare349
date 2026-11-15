@@ -6,7 +6,7 @@ packages:
 
 esphome:
   includes:
-    - claude/clawd.h
+    - ../../claude/clawd.h
   on_boot:
     - priority: -44
       then:
