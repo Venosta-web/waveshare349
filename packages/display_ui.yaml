@@ -565,9 +565,9 @@ lvgl:
 # ============================================================================
 sensor:
   # Space 0: 4x4
-  - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_vpd}" }
-  - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_temp}" }
-  - { platform: homeassistant, id: gs0_hum, entity_id: "${gs_0_hum}" }
+  - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs0_hum, entity_id: "${gs_0_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs0_vpd_tgt_min, entity_id: "${gs_0_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs0_vpd_tgt_max, entity_id: "${gs_0_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs0_vpd_dng_min, entity_id: "${gs_0_metrics}", attribute: vpd_danger_min }
@@ -576,9 +576,9 @@ sensor:
   - { platform: homeassistant, id: gs0_circ, entity_id: "${gs_0_circ}", attribute: percentage }
 
   # Space 1: SOG 2x5
-  - { platform: homeassistant, id: gs1_vpd, entity_id: "${gs_1_vpd}" }
-  - { platform: homeassistant, id: gs1_temp, entity_id: "${gs_1_temp}" }
-  - { platform: homeassistant, id: gs1_hum, entity_id: "${gs_1_hum}" }
+  - { platform: homeassistant, id: gs1_vpd, entity_id: "${gs_1_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs1_temp, entity_id: "${gs_1_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs1_hum, entity_id: "${gs_1_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs1_vpd_tgt_min, entity_id: "${gs_1_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs1_vpd_tgt_max, entity_id: "${gs_1_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs1_vpd_dng_min, entity_id: "${gs_1_metrics}", attribute: vpd_danger_min }
@@ -587,9 +587,9 @@ sensor:
   - { platform: homeassistant, id: gs1_circ, entity_id: "${gs_1_circ}", attribute: percentage }
 
   # Space 2: Nursery Dome
-  - { platform: homeassistant, id: gs2_vpd, entity_id: "${gs_2_vpd}" }
-  - { platform: homeassistant, id: gs2_temp, entity_id: "${gs_2_temp}" }
-  - { platform: homeassistant, id: gs2_hum, entity_id: "${gs_2_hum}" }
+  - { platform: homeassistant, id: gs2_vpd, entity_id: "${gs_2_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs2_temp, entity_id: "${gs_2_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs2_hum, entity_id: "${gs_2_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs2_vpd_tgt_min, entity_id: "${gs_2_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs2_vpd_tgt_max, entity_id: "${gs_2_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs2_vpd_dng_min, entity_id: "${gs_2_metrics}", attribute: vpd_danger_min }
@@ -598,9 +598,9 @@ sensor:
   - { platform: homeassistant, id: gs2_circ, entity_id: "${gs_2_circ}", attribute: percentage }
 
   # Space 3: Clone
-  - { platform: homeassistant, id: gs3_vpd, entity_id: "${gs_3_vpd}" }
-  - { platform: homeassistant, id: gs3_temp, entity_id: "${gs_3_temp}" }
-  - { platform: homeassistant, id: gs3_hum, entity_id: "${gs_3_hum}" }
+  - { platform: homeassistant, id: gs3_vpd, entity_id: "${gs_3_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs3_temp, entity_id: "${gs_3_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs3_hum, entity_id: "${gs_3_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs3_vpd_tgt_min, entity_id: "${gs_3_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs3_vpd_tgt_max, entity_id: "${gs_3_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs3_vpd_dng_min, entity_id: "${gs_3_metrics}", attribute: vpd_danger_min }
@@ -609,9 +609,9 @@ sensor:
   - { platform: homeassistant, id: gs3_circ, entity_id: "${gs_3_circ}", attribute: percentage }
 
   # Space 4: Mother
-  - { platform: homeassistant, id: gs4_vpd, entity_id: "${gs_4_vpd}" }
-  - { platform: homeassistant, id: gs4_temp, entity_id: "${gs_4_temp}" }
-  - { platform: homeassistant, id: gs4_hum, entity_id: "${gs_4_hum}" }
+  - { platform: homeassistant, id: gs4_vpd, entity_id: "${gs_4_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs4_temp, entity_id: "${gs_4_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs4_hum, entity_id: "${gs_4_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs4_vpd_tgt_min, entity_id: "${gs_4_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs4_vpd_tgt_max, entity_id: "${gs_4_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs4_vpd_dng_min, entity_id: "${gs_4_metrics}", attribute: vpd_danger_min }
@@ -620,9 +620,9 @@ sensor:
   - { platform: homeassistant, id: gs4_circ, entity_id: "${gs_4_circ}", attribute: percentage }
 
   # Space 5: Dry
-  - { platform: homeassistant, id: gs5_vpd, entity_id: "${gs_5_vpd}" }
-  - { platform: homeassistant, id: gs5_temp, entity_id: "${gs_5_temp}" }
-  - { platform: homeassistant, id: gs5_hum, entity_id: "${gs_5_hum}" }
+  - { platform: homeassistant, id: gs5_vpd, entity_id: "${gs_5_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs5_temp, entity_id: "${gs_5_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs5_hum, entity_id: "${gs_5_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs5_vpd_tgt_min, entity_id: "${gs_5_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs5_vpd_tgt_max, entity_id: "${gs_5_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs5_vpd_dng_min, entity_id: "${gs_5_metrics}", attribute: vpd_danger_min }
@@ -631,9 +631,9 @@ sensor:
   - { platform: homeassistant, id: gs5_circ, entity_id: "${gs_5_circ}", attribute: percentage }
 
   # Space 6: Cure
-  - { platform: homeassistant, id: gs6_vpd, entity_id: "${gs_6_vpd}" }
-  - { platform: homeassistant, id: gs6_temp, entity_id: "${gs_6_temp}" }
-  - { platform: homeassistant, id: gs6_hum, entity_id: "${gs_6_hum}" }
+  - { platform: homeassistant, id: gs6_vpd, entity_id: "${gs_6_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs6_temp, entity_id: "${gs_6_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs6_hum, entity_id: "${gs_6_hum}", on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs6_vpd_tgt_min, entity_id: "${gs_6_metrics}", attribute: vpd_target_min }
   - { platform: homeassistant, id: gs6_vpd_tgt_max, entity_id: "${gs_6_metrics}", attribute: vpd_target_max }
   - { platform: homeassistant, id: gs6_vpd_dng_min, entity_id: "${gs_6_metrics}", attribute: vpd_danger_min }
@@ -821,13 +821,36 @@ script:
           esphome::text_sensor::TextSensor* fw_s[] = { id(gs0_flower_week), id(gs1_flower_week), id(gs2_flower_week), id(gs3_flower_week), id(gs4_flower_week), id(gs5_flower_week), id(gs6_flower_week) };
           esphome::text_sensor::TextSensor* vw_s[] = { id(gs0_veg_week), id(gs1_veg_week), id(gs2_veg_week), id(gs3_veg_week), id(gs4_veg_week), id(gs5_veg_week), id(gs6_veg_week) };
 
-          float vpd = (vpd_s[idx] != nullptr && vpd_s[idx]->has_state()) ? vpd_s[idx]->state : 0.0f;
-          float temp = (temp_s[idx] != nullptr && temp_s[idx]->has_state()) ? temp_s[idx]->state : 0.0f;
-          float hum = (hum_s[idx] != nullptr && hum_s[idx]->has_state()) ? hum_s[idx]->state : 0.0f;
-          float tgt_min = (tgt_min_s[idx] != nullptr && tgt_min_s[idx]->has_state()) ? tgt_min_s[idx]->state : 0.8f;
-          float tgt_max = (tgt_max_s[idx] != nullptr && tgt_max_s[idx]->has_state()) ? tgt_max_s[idx]->state : 1.2f;
-          float dng_min = (dng_min_s[idx] != nullptr && dng_min_s[idx]->has_state()) ? dng_min_s[idx]->state : 0.4f;
-          float dng_max = (dng_max_s[idx] != nullptr && dng_max_s[idx]->has_state()) ? dng_max_s[idx]->state : 1.6f;
+          auto is_valid = [](esphome::sensor::Sensor* s) -> bool {
+            return s != nullptr && s->has_state() && std::isfinite(s->state);
+          };
+
+          auto resolve_vpd = [&](int space_idx, float& out_vpd) -> bool {
+            if (is_valid(vpd_s[space_idx])) {
+              out_vpd = vpd_s[space_idx]->state;
+              return true;
+            }
+            if (is_valid(temp_s[space_idx]) && is_valid(hum_s[space_idx])) {
+              float t = temp_s[space_idx]->state;
+              float rh = hum_s[space_idx]->state;
+              float svp = 0.61078f * expf((17.27f * t) / (t + 237.3f));
+              float calc = svp * (1.0f - rh / 100.0f);
+              out_vpd = calc < 0.0f ? 0.0f : calc;
+              return true;
+            }
+            return false;
+          };
+
+          float vpd = 0.0f;
+          bool has_vpd = resolve_vpd(idx, vpd);
+          bool has_temp = is_valid(temp_s[idx]);
+          bool has_hum = is_valid(hum_s[idx]);
+          float temp = has_temp ? temp_s[idx]->state : 0.0f;
+          float hum = has_hum ? hum_s[idx]->state : 0.0f;
+          float tgt_min = is_valid(tgt_min_s[idx]) ? tgt_min_s[idx]->state : 0.8f;
+          float tgt_max = is_valid(tgt_max_s[idx]) ? tgt_max_s[idx]->state : 1.2f;
+          float dng_min = is_valid(dng_min_s[idx]) ? dng_min_s[idx]->state : 0.4f;
+          float dng_max = is_valid(dng_max_s[idx]) ? dng_max_s[idx]->state : 1.6f;
 
           // Phase badge
           std::string phase = (phase_s[idx] != nullptr && phase_s[idx]->has_state()) ? phase_s[idx]->state : "unknown";
@@ -870,15 +893,21 @@ script:
 
           // VPD Value & Status Color
           char buf[48];
-          snprintf(buf, sizeof(buf), "%.2f kPa", vpd);
-          lv_label_set_text(id(gs_vpd_val), buf);
+          if (has_vpd) {
+            snprintf(buf, sizeof(buf), "%.2f kPa", vpd);
+            lv_label_set_text(id(gs_vpd_val), buf);
+          } else {
+            lv_label_set_text(id(gs_vpd_val), "-- kPa");
+          }
 
           snprintf(buf, sizeof(buf), "Target\n%.1f-%.1f", tgt_min, tgt_max);
           lv_label_set_text(id(gs_vpd_range), buf);
 
           uint32_t sc;
           const char* si;
-          if (vpd >= tgt_min && vpd <= tgt_max) {
+          if (!has_vpd) {
+            sc = 0x6E7681; si = "\U000F012C";
+          } else if (vpd >= tgt_min && vpd <= tgt_max) {
             sc = 0x4CAF50; si = "\U000F012C";
           } else if (vpd >= dng_min && vpd <= dng_max) {
             sc = 0xFFC107; si = "\U000F0029";
@@ -890,7 +919,7 @@ script:
 
           // VPD Gauge Bar (270px width)
           float gw = 270.0f, gmin = ${vpd_gauge_min}f, gmax = ${vpd_gauge_max}f, gr = gmax - gmin;
-          float mp = (vpd - gmin) / gr;
+          float mp = has_vpd ? (vpd - gmin) / gr : 0.0f;
           if (mp < 0) mp = 0; if (mp > 1) mp = 1;
           lv_obj_set_x(id(gs_gauge_marker), (int)(mp * gw) - 4);
           lv_obj_set_style_bg_color(id(gs_gauge_marker), lv_color_hex(sc), 0);
@@ -903,17 +932,25 @@ script:
           lv_obj_set_width(id(gs_gauge_zone), zw);
 
           // Temp & Humidity
-          snprintf(buf, sizeof(buf), "%.1f °C", temp);
-          lv_label_set_text(id(gs_temp_val), buf);
-          snprintf(buf, sizeof(buf), "%.0f %%", hum);
-          lv_label_set_text(id(gs_hum_val), buf);
+          if (has_temp) {
+            snprintf(buf, sizeof(buf), "%.1f °C", temp);
+            lv_label_set_text(id(gs_temp_val), buf);
+          } else {
+            lv_label_set_text(id(gs_temp_val), "--.- °C");
+          }
+          if (has_hum) {
+            snprintf(buf, sizeof(buf), "%.0f %%", hum);
+            lv_label_set_text(id(gs_hum_val), buf);
+          } else {
+            lv_label_set_text(id(gs_hum_val), "-- %");
+          }
 
           // Equipment readouts (nullptr-safe for omitted growspace equipment)
           if (exh_s[idx] == nullptr) {
             lv_label_set_text(id(gs_exh_lbl), "Exh: --");
             lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(0x6E7681), 0);
           } else {
-            float exh_v = exh_s[idx]->has_state() ? exh_s[idx]->state : 0;
+            float exh_v = is_valid(exh_s[idx]) ? exh_s[idx]->state : 0;
             snprintf(buf, sizeof(buf), exh_v > 0 ? "Exh: %.0f%%" : "Exh: Off", exh_v);
             lv_label_set_text(id(gs_exh_lbl), buf);
             lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(exh_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
@@ -923,7 +960,7 @@ script:
             lv_label_set_text(id(gs_circ_lbl), "Circ: --");
             lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(0x6E7681), 0);
           } else {
-            float circ_v = circ_s[idx]->has_state() ? circ_s[idx]->state : 0;
+            float circ_v = is_valid(circ_s[idx]) ? circ_s[idx]->state : 0;
             snprintf(buf, sizeof(buf), circ_v > 0 ? "Circ: %.0f%%" : "Circ: Off", circ_v);
             lv_label_set_text(id(gs_circ_lbl), buf);
             lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(circ_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
@@ -942,9 +979,10 @@ script:
           bool global_danger = false;
           for (int i = 0; i < MAX_SPACES; i++) {
             if (phase_s[i] != nullptr && phase_s[i]->has_state() && phase_s[i]->state != "empty") {
-              float v = (vpd_s[i] != nullptr && vpd_s[i]->has_state()) ? vpd_s[i]->state : 0.0f;
-              float d_min = (dng_min_s[i] != nullptr && dng_min_s[i]->has_state()) ? dng_min_s[i]->state : 0.4f;
-              float d_max = (dng_max_s[i] != nullptr && dng_max_s[i]->has_state()) ? dng_max_s[i]->state : 1.6f;
+              float v = 0.0f;
+              if (!resolve_vpd(i, v)) continue;
+              float d_min = is_valid(dng_min_s[i]) ? dng_min_s[i]->state : 0.4f;
+              float d_max = is_valid(dng_max_s[i]) ? dng_max_s[i]->state : 1.6f;
               if (v < d_min || v > d_max) {
                 global_danger = true;
                 break;
