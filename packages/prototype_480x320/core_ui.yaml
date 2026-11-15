@@ -104,6 +104,14 @@ font:
       - "\U000F03E4" # pause
       - "\U000F0387" # music-note
       - "\U000F0E66" # sprout
+      - "\U000F033E" # lock
+      - "\U000F0079" # battery
+      - "\U000F0081" # battery-80
+      - "\U000F007E" # battery-50
+      - "\U000F007B" # battery-20
+      - "\U000F0083" # battery-alert
+      - "\U000F0084" # battery-charging
+      - "\U000F0091" # battery-unknown
 
   - file: "../../fonts/materialdesignicons-webfont.ttf"
     id: icons_24
@@ -136,6 +144,7 @@ select:
       - "Growspace"
       - "Music"
       - "AI"
+      - "Codex"
     initial_option: "Growspace"
     optimistic: true
     set_action:
@@ -143,6 +152,7 @@ select:
           int target = 0;
           if (x == "Music") target = 1;
           else if (x == "AI") target = 2;
+          else if (x == "Codex") target = 3;
           id(switch_tab).execute(target);
 
 lvgl:
@@ -268,7 +278,10 @@ lvgl:
             border_width: 0
             pad_all: 0
             radius: 0
-            scrollbar_mode: "off"
+            scrollable: true
+            scroll_dir: VER
+            scroll_snap_y: START
+            scrollbar_mode: "active"
             layout:
               type: flex
               flex_flow: COLUMN
@@ -372,8 +385,8 @@ script:
     then:
       - lambda: |-
           id(active_tab) = tab_idx;
-          const char* opts[] = { "Growspace", "Music", "AI" };
-          if (tab_idx >= 0 && tab_idx < 3 && id(display_view).current_option() != opts[tab_idx]) {
+          const char* opts[] = { "Growspace", "Music", "AI", "Codex" };
+          if (tab_idx >= 0 && tab_idx < 4 && id(display_view).current_option() != opts[tab_idx]) {
             id(display_view).publish_state(opts[tab_idx]);
           }
           lv_obj_invalidate(lv_scr_act());
@@ -403,6 +416,15 @@ script:
               - "id(ha_time).now().hour"
               - "id(ha_time).now().minute"
       - lambda: "lv_obj_invalidate(lv_scr_act());"
+
+  # Extended by mod_idle.yaml when the idle clock module is enabled
+  - id: unlock_idle_screen
+    then:
+      - lambda: "return;"
+
+  - id: reset_idle_timer
+    then:
+      - lambda: "return;"
 
 interval:
   - interval: 100ms

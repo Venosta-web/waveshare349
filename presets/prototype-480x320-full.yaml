@@ -67,6 +67,10 @@ substitutions:
   music_player_entity: "media_player.music_assistant_player"
   claude_variant: "terminal"
   claude_decision_timeout: "110"
+  codex_variant: "terminal"
+  codex_decision_timeout: "110"
+  idle_variant: "aurora"
+  idle_timeout: "300"
   vpd_gauge_min: "0.4"
   vpd_gauge_max: "1.8"
 
@@ -77,3 +81,5 @@ packages:
   mod_grow: !include ../packages/prototype_480x320/mod_grow.yaml
   mod_music: !include ../packages/prototype_480x320/mod_music.yaml
   mod_claude: !include ../packages/prototype_480x320/mod_claude.yaml
+  mod_codex: !include ../packages/prototype_480x320/mod_codex.yaml
+  mod_idle: !include ../packages/prototype_480x320/mod_idle.yaml
