@@ -1,0 +1,57 @@
+# Headless preview: plays Codex states on the Codex tab and records GIFs.
+#   ESPHOME_SNAPSHOT_DIR=out esphome run codex_preview.yaml
+# Variant comes from the codex_variant substitution (override with -s).
+substitutions:
+  device_name: "codex-preview"
+
+packages:
+  base: !include waveshare_sim.yaml
+
+api:
+  port: 6066
+
+display:
+  - id: !extend my_display
+    headless: true
+    snapshot_key: !remove
+    window_options: !remove
+
+touchscreen: !remove
+
+lvgl:
+  touchscreens: !remove
+
+script:
+  - id: demo_codex_state
+    parameters:
+      status: std::string
+      detail: std::string
+      steps: std::string
+    then:
+      - lambda: |-
+          id(codex_steps).publish_state(steps);
+          id(codex_detail).publish_state(detail);
+          id(codex_status).publish_state(status);
+
+  - id: codex_demo
+    then:
+      - delay: 1s
+      - script.execute: { id: switch_tab, tab_idx: 3 }
+      - script.execute: { id: demo_codex_state, status: "Working", detail: "Waveshare349 | Add animated GIF captures to README.md", steps: "2/4|Capture headless GIFs|Update README.md" }
+      - delay: 2s
+      - snapshot.take: { id: my_display, filename: "codex-${codex_variant}-working", frames: 40, frame_rate: 10Hz }
+      - delay: 4500ms
+      - script.execute: { id: demo_codex_state, status: "Pending Approval", detail: "Waveshare349 | Run: esphome config waveshare_349.yaml", steps: "2/4|Capture headless GIFs|Update README.md" }
+      - delay: 200ms
+      - snapshot.take: { id: my_display, filename: "codex-${codex_variant}-pending", frames: 30, frame_rate: 10Hz }
+      - delay: 3500ms
+      - lambda: "exit(0);"
+
+interval:
+  - interval: 2s
+    then:
+      - if:
+          condition:
+            lambda: "static bool once = false; if (once) return false; once = true; return true;"
+          then:
+            - script.execute: codex_demo
