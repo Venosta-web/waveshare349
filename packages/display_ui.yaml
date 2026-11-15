@@ -536,7 +536,7 @@ lvgl:
                         text: "\U000F0141"
                         text_font: icons_24
                         align: CENTER
-                  on_press:
+                  on_click:
                     then:
                       - lambda: "id(nav_direction) = -1;"
                       - script.execute: navigate_space
@@ -555,7 +555,7 @@ lvgl:
                         text: "\U000F0142"
                         text_font: icons_24
                         align: CENTER
-                  on_press:
+                  on_click:
                     then:
                       - lambda: "id(nav_direction) = 1;"
                       - script.execute: navigate_space
@@ -848,17 +848,45 @@ script:
   - id: navigate_space
     then:
       - lambda: |-
+          const int MAX_SPACES = 7;
           int total = id(gs_total);
+          if (total <= 0 || total > MAX_SPACES) total = MAX_SPACES;
           int dir = id(nav_direction);
           int idx = id(vpd_sensor_index);
           esphome::text_sensor::TextSensor* phase_s[] = {
             id(gs0_phase), id(gs1_phase), id(gs2_phase), id(gs3_phase),
             id(gs4_phase), id(gs5_phase), id(gs6_phase)
           };
+          esphome::sensor::Sensor* vpd_s[] = { id(gs0_vpd), id(gs1_vpd), id(gs2_vpd), id(gs3_vpd), id(gs4_vpd), id(gs5_vpd), id(gs6_vpd) };
+          esphome::sensor::Sensor* temp_s[] = { id(gs0_temp), id(gs1_temp), id(gs2_temp), id(gs3_temp), id(gs4_temp), id(gs5_temp), id(gs6_temp) };
+          esphome::sensor::Sensor* hum_s[] = { id(gs0_hum), id(gs1_hum), id(gs2_hum), id(gs3_hum), id(gs4_hum), id(gs5_hum), id(gs6_hum) };
+
+          auto has_num = [](esphome::sensor::Sensor* s) -> bool {
+            return s != nullptr && s->has_state() && std::isfinite(s->state);
+          };
+          auto is_space_active = [&](int i) -> bool {
+            if (phase_s[i] != nullptr && phase_s[i]->has_state()) {
+              return phase_s[i]->state != "empty";
+            }
+            return has_num(vpd_s[i]) || has_num(temp_s[i]) || has_num(hum_s[i]);
+          };
+
+          bool any_active = false;
           for (int i = 0; i < total; i++) {
-            idx = (idx + dir + total) % total;
-            if (phase_s[idx] != nullptr && phase_s[idx]->has_state() && phase_s[idx]->state != "empty") break;
+            if (is_space_active(i)) {
+              any_active = true;
+              break;
+            }
           }
+          if (!any_active) {
+            idx = (idx + dir + total) % total;
+          } else {
+            for (int i = 0; i < total; i++) {
+              idx = (idx + dir + total) % total;
+              if (is_space_active(idx)) break;
+            }
+          }
+          ESP_LOGI("growspace", "navigate_space: dir=%d idx=%d any_active=%d", dir, idx, any_active ? 1 : 0);
           id(vpd_sensor_index) = idx;
           id(cycle_timer) = ${cycle_interval};
           id(cycle_paused) = true;
