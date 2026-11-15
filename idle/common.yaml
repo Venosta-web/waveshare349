@@ -50,7 +50,7 @@ time:
     id: ha_time
 
 script:
-  - id: reset_idle_timer
+  - id: !extend reset_idle_timer
     mode: restart
     then:
       - lambda: |-
@@ -68,7 +68,7 @@ script:
           lv_obj_move_foreground(id(idle_lock_overlay));
           lv_obj_invalidate(lv_scr_act());
 
-  - id: unlock_idle_screen
+  - id: !extend unlock_idle_screen
     mode: single
     then:
       - lambda: |-

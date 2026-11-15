@@ -224,3 +224,12 @@ script:
   - id: on_voice_ptt
     then:
       - lambda: "return;"
+
+  # Extended by mod_idle.yaml when the idle clock module is enabled
+  - id: unlock_idle_screen
+    then:
+      - lambda: "return;"
+
+  - id: reset_idle_timer
+    then:
+      - lambda: "return;"
