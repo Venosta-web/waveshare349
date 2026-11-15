@@ -71,7 +71,7 @@ export const PRESETS = [
     deviceId: 'waveshare-349',
     name: 'Full Suite',
     modules: ['grow', 'music', 'claude', 'codex', 'voice'],
-    defaults: { musicVariant: 'studio', claudeVariant: 'stage', codexVariant: 'stage' },
+    defaults: { musicVariant: 'studio', claudeVariant: 'terminal', codexVariant: 'terminal' },
   },
   {
     id: 'waveshare-349-grow-voice',
@@ -92,7 +92,7 @@ export const PRESETS = [
     deviceId: 'waveshare-349',
     name: 'AI Desk Companion',
     modules: ['claude', 'codex', 'voice'],
-    defaults: { claudeVariant: 'stage', codexVariant: 'stage' },
+    defaults: { claudeVariant: 'terminal', codexVariant: 'terminal' },
   },
   {
     id: 'waveshare-349-grow-only',

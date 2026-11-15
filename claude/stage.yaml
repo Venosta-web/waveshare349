@@ -156,12 +156,26 @@ script:
           using namespace clawd;
           tick_nav(id(nav_clawd_box));
           static Puppet p;
-          if (p.root == nullptr) build(p, id(clawd_box), 7);
-          if (lv_obj_has_flag(id(ai_card), LV_OBJ_FLAG_HIDDEN)) return;
+          static pet_scenes::StageSceneMux scene_mux;
+          const bool card_hidden = lv_obj_has_flag(id(ai_card), LV_OBJ_FLAG_HIDDEN);
+          if (!scene_mux.stage) {
+            scene_mux.init(id(claude_stage), id(clawd_box), id(claude_bubble), false);
+          }
+          scene_mux.maybe_reroll(static_cast<pet_scenes::PetMode>(g_mode), g_work_start, millis(), g_frame, card_hidden);
+          const int want_u = scene_mux.desired_u();
+          if (p.root == nullptr || p.u != want_u) {
+            lv_obj_clean(id(clawd_box));
+            build(p, id(clawd_box), want_u);
+          }
+          if (card_hidden) return;
 
           const uint32_t f = g_frame, t = g_frame - g_mode_frame, now = millis();
           const uint32_t acc = accent(g_mode);
-          apply(p, animate(g_mode, f, t, p.u));
+          Pose s = animate(g_mode, f, t, p.u);
+          if (scene_mux.has_scene()) {
+            pet_scenes::merge_pose(s, scene_mux.tick(static_cast<pet_scenes::PetMode>(g_mode), f, t));
+          }
+          apply(p, s);
 
           // Spinner: Claude Code's sparkle while working, a still mark otherwise.
           const char *spin = g_mode == WORKING ? spinner(f)

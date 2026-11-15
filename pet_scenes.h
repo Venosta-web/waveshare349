@@ -5,6 +5,7 @@
 // mascot's base animation at 10 Hz.
 #include <lvgl.h>
 #include <cstdint>
+#include <ctime>
 
 namespace pet_scenes {
 
@@ -986,6 +987,187 @@ struct TerminalCampfireScene {
     place(stick, pet_x + 52 + po.dx, sy + po.dy, 28, 2);
     place(mallow, pet_x + 78 + po.dx, sy - 2 + po.dy, 5, 5);
     return po;
+  }
+};
+
+// ── Random Variation Multiplexers ────────────────────────────────────────────
+
+// Shared PRNG and reroll policy for cycling through default + 4 themed scenes.
+struct SceneSelector {
+  static constexpr int kVariantCount = 5;
+  int current = -1;
+  uint32_t rng = 0;
+  uint32_t last_work_start = UINT32_MAX;
+  uint32_t idle_ticks = 0;
+  bool was_hidden = true;
+
+  void mix(uint32_t now_ms, uint32_t frame) {
+    uint32_t s = rng ^ now_ms ^ (frame * 2654435761U) ^
+                 static_cast<uint32_t>(std::time(nullptr)) ^
+                 static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this));
+    if (s == 0) s = 0x9E3779B9U;
+    s ^= s << 13;
+    s ^= s >> 17;
+    s ^= s << 5;
+    rng = s;
+  }
+
+  int pick_next() {
+    if (current < 0) return static_cast<int>(rng % kVariantCount);
+    return (current + 1 + static_cast<int>(rng % (kVariantCount - 1))) % kVariantCount;
+  }
+
+  // Returns >= 0 when a new variant should be activated, or -1 if unchanged.
+  int poll(PetMode m, uint32_t work_start, uint32_t now_ms, uint32_t frame, bool hidden) {
+    if (current < 0) {
+      mix(now_ms, frame);
+      current = pick_next();
+      last_work_start = work_start;
+      was_hidden = hidden;
+      idle_ticks = 0;
+      return current;
+    }
+    bool reroll = false;
+    if (work_start != last_work_start && work_start != 0) {
+      last_work_start = work_start;
+      reroll = true;
+    } else if (was_hidden && !hidden && m != PM_PENDING && m != PM_RATE_LIMITED) {
+      reroll = true;
+    } else if (m == PM_IDLE && !hidden) {
+      if (++idle_ticks >= 600) {
+        idle_ticks = 0;
+        reroll = true;
+      }
+    } else {
+      idle_ticks = 0;
+    }
+    was_hidden = hidden;
+    if (!reroll) return -1;
+    mix(now_ms, frame);
+    current = pick_next();
+    return current;
+  }
+};
+
+struct StageSceneMux {
+  lv_obj_t *stage = nullptr, *pet_box = nullptr, *bubble = nullptr, *layer = nullptr;
+  bool is_codex = false;
+  SceneSelector sel;
+  FishingScene fishing;
+  MiningScene mining;
+  PingPongScene pingpong;
+  CampfireScene campfire;
+
+  void init(lv_obj_t *s, lv_obj_t *pb, lv_obj_t *bub, bool codex) {
+    stage = s;
+    pet_box = pb;
+    bubble = bub;
+    is_codex = codex;
+    lv_obj_set_style_clip_corner(stage, true, 0);
+  }
+
+  int desired_u() const { return sel.current <= 0 ? 7 : 5; }
+  bool has_scene() const { return sel.current > 0; }
+
+  void select(int idx) {
+    if (layer != nullptr) {
+      lv_obj_set_parent(pet_box, stage);
+      lv_obj_set_parent(bubble, stage);
+      lv_obj_delete(layer);
+      layer = nullptr;
+    }
+    if (idx == 0) {
+      lv_obj_set_pos(pet_box, 26, 55);
+      lv_obj_set_pos(bubble, 104, 12);
+      lv_obj_move_foreground(pet_box);
+      lv_obj_move_foreground(bubble);
+      return;
+    }
+    layer = blk(stage, 0x0D1117, LV_OPA_COVER, 10);
+    place(layer, 0, 0, 150, 140);
+    lv_obj_set_parent(pet_box, layer);
+    lv_obj_set_parent(bubble, layer);
+    switch (idx) {
+      case 1: fishing = FishingScene{}; fishing.build(layer, pet_box, bubble, is_codex); break;
+      case 2: mining = MiningScene{}; mining.build(layer, pet_box, bubble, is_codex); break;
+      case 3: pingpong = PingPongScene{}; pingpong.build(layer, pet_box, bubble, is_codex); break;
+      case 4: campfire = CampfireScene{}; campfire.build(layer, pet_box, bubble, is_codex); break;
+    }
+  }
+
+  void maybe_reroll(PetMode m, uint32_t work_start, uint32_t now_ms, uint32_t frame, bool hidden) {
+    int next = sel.poll(m, work_start, now_ms, frame, hidden);
+    if (next >= 0) select(next);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t) {
+    switch (sel.current) {
+      case 1: return fishing.tick(m, f, t);
+      case 2: return mining.tick(m, f, t);
+      case 3: return pingpong.tick(m, f, t);
+      case 4: return campfire.tick(m, f, t);
+      default: return PoseOffset{};
+    }
+  }
+};
+
+struct TerminalSceneMux {
+  lv_obj_t *card = nullptr, *pet_box = nullptr, *bubble = nullptr, *layer = nullptr;
+  bool is_codex = false;
+  SceneSelector sel;
+  TerminalFishingScene fishing;
+  TerminalMiningScene mining;
+  TerminalPingPongScene pingpong;
+  TerminalCampfireScene campfire;
+
+  void init(lv_obj_t *c, lv_obj_t *pb, lv_obj_t *bub, bool codex) {
+    card = c;
+    pet_box = pb;
+    bubble = bub;
+    is_codex = codex;
+  }
+
+  bool has_scene() const { return sel.current > 0; }
+
+  void select(int idx) {
+    if (layer != nullptr) {
+      lv_obj_set_parent(pet_box, card);
+      lv_obj_set_parent(bubble, card);
+      lv_obj_delete(layer);
+      layer = nullptr;
+    }
+    if (idx == 0) {
+      lv_obj_move_foreground(pet_box);
+      lv_obj_move_foreground(bubble);
+      return;
+    }
+    layer = blk(card, 0x0D1117, LV_OPA_TRANSP);
+    place(layer, 0, 0, 540, 140);
+    lv_obj_add_flag(layer, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_move_background(layer);
+    lv_obj_set_parent(pet_box, layer);
+    lv_obj_set_parent(bubble, layer);
+    switch (idx) {
+      case 1: fishing = TerminalFishingScene{}; fishing.build(layer, pet_box, bubble, is_codex); break;
+      case 2: mining = TerminalMiningScene{}; mining.build(layer, pet_box, bubble, is_codex); break;
+      case 3: pingpong = TerminalPingPongScene{}; pingpong.build(layer, pet_box, bubble, is_codex); break;
+      case 4: campfire = TerminalCampfireScene{}; campfire.build(layer, pet_box, bubble, is_codex); break;
+    }
+  }
+
+  void maybe_reroll(PetMode m, uint32_t work_start, uint32_t now_ms, uint32_t frame, bool hidden) {
+    int next = sel.poll(m, work_start, now_ms, frame, hidden);
+    if (next >= 0) select(next);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t, int &pet_x) {
+    switch (sel.current) {
+      case 1: return fishing.tick(m, f, t, pet_x);
+      case 2: return mining.tick(m, f, t, pet_x);
+      case 3: return pingpong.tick(m, f, t, pet_x);
+      case 4: return campfire.tick(m, f, t, pet_x);
+      default: return PoseOffset{};
+    }
   }
 };
 
