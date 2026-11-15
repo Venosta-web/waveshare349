@@ -6,6 +6,8 @@ packages:
   music_variant: !include ../../prototype/esp32-s3-480-320-prototype/music/${music_variant}.yaml
 
 esphome:
+  includes:
+    - ../../music/music_icon.h
   on_boot:
     - priority: -42
       then:
@@ -36,13 +38,18 @@ lvgl:
             height: 84
             styles: nav_btn
             widgets:
-              - label:
-                  id: nav_music_icon
-                  text: "\U000F0387"
-                  text_font: icons_20
-                  text_color: 0x8B949E
+              - obj:
+                  id: nav_music_box
+                  width: 28
+                  height: 22
                   align: TOP_MID
                   y: 18
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  clickable: false
+                  scrollbar_mode: "off"
               - label:
                   id: nav_music_lbl
                   text: "MUSIC"
@@ -67,19 +74,31 @@ script:
     then:
       - lambda: |-
           const bool active = (tab_idx == 1);
+          music_icon::g_active = active;
           if (active) {
             lv_obj_clear_flag(id(music_card), LV_OBJ_FLAG_HIDDEN);
             lv_obj_set_style_bg_color(id(nav_music), lv_color_hex(0x1F6FEB), 0);
             lv_obj_set_style_border_color(id(nav_music), lv_color_hex(0x58A6FF), 0);
-            lv_obj_set_style_text_color(id(nav_music_icon), lv_color_hex(0xFFFFFF), 0);
             lv_obj_set_style_text_color(id(nav_music_lbl), lv_color_hex(0xFFFFFF), 0);
+            lv_obj_scroll_to_view(id(nav_music), LV_ANIM_ON);
             id(cycle_paused) = true;
             id(pause_timer) = 3600;
           } else {
             lv_obj_add_flag(id(music_card), LV_OBJ_FLAG_HIDDEN);
             lv_obj_set_style_bg_color(id(nav_music), lv_color_hex(0x161B22), 0);
             lv_obj_set_style_border_color(id(nav_music), lv_color_hex(0x30363D), 0);
-            lv_obj_set_style_text_color(id(nav_music_icon), lv_color_hex(0x8B949E), 0);
             lv_obj_set_style_text_color(id(nav_music_lbl), lv_color_hex(0x8B949E), 0);
           }
           lv_obj_invalidate(lv_scr_act());
+
+  - id: music_nav_tick
+    then:
+      - lambda: |-
+          music_icon::g_playing = id(ma_is_playing);
+          music_icon::g_muted = id(ma_muted);
+          music_icon::tick_nav(id(nav_music_box));
+
+interval:
+  - interval: 100ms
+    then:
+      - script.execute: music_nav_tick

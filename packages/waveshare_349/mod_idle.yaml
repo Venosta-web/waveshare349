@@ -36,6 +36,10 @@ lvgl:
 
         - obj: !include ../../idle/${idle_variant}_card.yaml
 
+time:
+  - platform: homeassistant
+    id: ha_time
+
 script:
   - id: !extend switch_tab
     then:

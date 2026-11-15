@@ -20,9 +20,8 @@ export const TARGET_DEVICES = [
     packageDir: 'packages/prototype_480x320',
     defaultDeviceName: 'infoscreen-480x320',
     defaultFriendlyName: '480x320 Prototype Display',
-    supportedModules: ['grow', 'music', 'claude'],
+    supportedModules: ['grow', 'music', 'claude', 'codex'],
     unsupportedReasons: {
-      codex: 'No 480×320 Codex card layout yet.',
       voice: 'No onboard I2S mic/speaker codec on this board.',
     },
   },
@@ -106,8 +105,8 @@ export const PRESETS = [
     id: 'prototype-480x320-full',
     deviceId: 'prototype-480x320',
     name: 'Full Prototype',
-    modules: ['grow', 'music', 'claude'],
-    defaults: { musicVariant: 'studio', claudeVariant: 'terminal' },
+    modules: ['grow', 'music', 'claude', 'codex'],
+    defaults: { musicVariant: 'studio', claudeVariant: 'terminal', codexVariant: 'terminal' },
   },
   {
     id: 'prototype-480x320-grow-music',

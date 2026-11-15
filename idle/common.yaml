@@ -45,10 +45,6 @@ globals:
     type: std::string
     initial_value: '"---"'
 
-time:
-  - platform: homeassistant
-    id: ha_time
-
 script:
   - id: !extend reset_idle_timer
     mode: restart
