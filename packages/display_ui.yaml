@@ -731,46 +731,60 @@ text_sensor:
     on_value:
       - script.execute: update_codex_ui
 
-  - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage, on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs0_is_day, entity_id: "${gs_0_metrics}", attribute: is_day }
-  - { platform: homeassistant, id: gs0_flower_week, entity_id: "${gs_0_metrics}", attribute: flower_week }
-  - { platform: homeassistant, id: gs0_veg_week, entity_id: "${gs_0_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs0_flower_days, entity_id: "${gs_0_metrics}", attribute: flower_days }
+  - { platform: homeassistant, id: gs0_veg_days, entity_id: "${gs_0_metrics}", attribute: veg_days }
+  - { platform: homeassistant, id: gs0_dry_days, entity_id: "${gs_0_metrics}", attribute: dry_days }
+  - { platform: homeassistant, id: gs0_cure_days, entity_id: "${gs_0_metrics}", attribute: cure_days }
   - { platform: homeassistant, id: gs0_humid, entity_id: "${gs_0_humid}" }
 
-  - { platform: homeassistant, id: gs1_phase, entity_id: "${gs_1_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs1_phase, entity_id: "${gs_1_metrics}", attribute: granular_stage, on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs1_is_day, entity_id: "${gs_1_metrics}", attribute: is_day }
-  - { platform: homeassistant, id: gs1_flower_week, entity_id: "${gs_1_metrics}", attribute: flower_week }
-  - { platform: homeassistant, id: gs1_veg_week, entity_id: "${gs_1_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs1_flower_days, entity_id: "${gs_1_metrics}", attribute: flower_days }
+  - { platform: homeassistant, id: gs1_veg_days, entity_id: "${gs_1_metrics}", attribute: veg_days }
+  - { platform: homeassistant, id: gs1_dry_days, entity_id: "${gs_1_metrics}", attribute: dry_days }
+  - { platform: homeassistant, id: gs1_cure_days, entity_id: "${gs_1_metrics}", attribute: cure_days }
   - { platform: homeassistant, id: gs1_humid, entity_id: "${gs_1_humid}" }
 
-  - { platform: homeassistant, id: gs2_phase, entity_id: "${gs_2_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs2_phase, entity_id: "${gs_2_metrics}", attribute: granular_stage, on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs2_is_day, entity_id: "${gs_2_metrics}", attribute: is_day }
-  - { platform: homeassistant, id: gs2_flower_week, entity_id: "${gs_2_metrics}", attribute: flower_week }
-  - { platform: homeassistant, id: gs2_veg_week, entity_id: "${gs_2_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs2_flower_days, entity_id: "${gs_2_metrics}", attribute: flower_days }
+  - { platform: homeassistant, id: gs2_veg_days, entity_id: "${gs_2_metrics}", attribute: veg_days }
+  - { platform: homeassistant, id: gs2_dry_days, entity_id: "${gs_2_metrics}", attribute: dry_days }
+  - { platform: homeassistant, id: gs2_cure_days, entity_id: "${gs_2_metrics}", attribute: cure_days }
   - { platform: homeassistant, id: gs2_humid, entity_id: "${gs_2_humid}" }
 
-  - { platform: homeassistant, id: gs3_phase, entity_id: "${gs_3_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs3_phase, entity_id: "${gs_3_metrics}", attribute: granular_stage, on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs3_is_day, entity_id: "${gs_3_metrics}", attribute: is_day }
-  - { platform: homeassistant, id: gs3_flower_week, entity_id: "${gs_3_metrics}", attribute: flower_week }
-  - { platform: homeassistant, id: gs3_veg_week, entity_id: "${gs_3_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs3_flower_days, entity_id: "${gs_3_metrics}", attribute: flower_days }
+  - { platform: homeassistant, id: gs3_veg_days, entity_id: "${gs_3_metrics}", attribute: veg_days }
+  - { platform: homeassistant, id: gs3_dry_days, entity_id: "${gs_3_metrics}", attribute: dry_days }
+  - { platform: homeassistant, id: gs3_cure_days, entity_id: "${gs_3_metrics}", attribute: cure_days }
   - { platform: homeassistant, id: gs3_humid, entity_id: "${gs_3_humid}" }
 
-  - { platform: homeassistant, id: gs4_phase, entity_id: "${gs_4_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs4_phase, entity_id: "${gs_4_metrics}", attribute: granular_stage, on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs4_is_day, entity_id: "${gs_4_metrics}", attribute: is_day }
-  - { platform: homeassistant, id: gs4_flower_week, entity_id: "${gs_4_metrics}", attribute: flower_week }
-  - { platform: homeassistant, id: gs4_veg_week, entity_id: "${gs_4_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs4_flower_days, entity_id: "${gs_4_metrics}", attribute: flower_days }
+  - { platform: homeassistant, id: gs4_veg_days, entity_id: "${gs_4_metrics}", attribute: veg_days }
+  - { platform: homeassistant, id: gs4_dry_days, entity_id: "${gs_4_metrics}", attribute: dry_days }
+  - { platform: homeassistant, id: gs4_cure_days, entity_id: "${gs_4_metrics}", attribute: cure_days }
   - { platform: homeassistant, id: gs4_humid, entity_id: "${gs_4_humid}" }
 
-  - { platform: homeassistant, id: gs5_phase, entity_id: "${gs_5_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs5_phase, entity_id: "${gs_5_metrics}", attribute: granular_stage, on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs5_is_day, entity_id: "${gs_5_metrics}", attribute: is_day }
-  - { platform: homeassistant, id: gs5_flower_week, entity_id: "${gs_5_metrics}", attribute: flower_week }
-  - { platform: homeassistant, id: gs5_veg_week, entity_id: "${gs_5_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs5_flower_days, entity_id: "${gs_5_metrics}", attribute: flower_days }
+  - { platform: homeassistant, id: gs5_veg_days, entity_id: "${gs_5_metrics}", attribute: veg_days }
+  - { platform: homeassistant, id: gs5_dry_days, entity_id: "${gs_5_metrics}", attribute: dry_days }
+  - { platform: homeassistant, id: gs5_cure_days, entity_id: "${gs_5_metrics}", attribute: cure_days }
   - { platform: homeassistant, id: gs5_humid, entity_id: "${gs_5_humid}" }
 
-  - { platform: homeassistant, id: gs6_phase, entity_id: "${gs_6_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs6_phase, entity_id: "${gs_6_metrics}", attribute: granular_stage, on_value: [script.execute: update_grow_ui] }
   - { platform: homeassistant, id: gs6_is_day, entity_id: "${gs_6_metrics}", attribute: is_day }
-  - { platform: homeassistant, id: gs6_flower_week, entity_id: "${gs_6_metrics}", attribute: flower_week }
-  - { platform: homeassistant, id: gs6_veg_week, entity_id: "${gs_6_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs6_flower_days, entity_id: "${gs_6_metrics}", attribute: flower_days }
+  - { platform: homeassistant, id: gs6_veg_days, entity_id: "${gs_6_metrics}", attribute: veg_days }
+  - { platform: homeassistant, id: gs6_dry_days, entity_id: "${gs_6_metrics}", attribute: dry_days }
+  - { platform: homeassistant, id: gs6_cure_days, entity_id: "${gs_6_metrics}", attribute: cure_days }
   - { platform: homeassistant, id: gs6_humid, entity_id: "${gs_6_humid}" }
 
 # ============================================================================
@@ -920,8 +934,10 @@ script:
           esphome::text_sensor::TextSensor* humid_s[] = { id(gs0_humid), id(gs1_humid), id(gs2_humid), id(gs3_humid), id(gs4_humid), id(gs5_humid), id(gs6_humid) };
           esphome::text_sensor::TextSensor* phase_s[] = { id(gs0_phase), id(gs1_phase), id(gs2_phase), id(gs3_phase), id(gs4_phase), id(gs5_phase), id(gs6_phase) };
           esphome::text_sensor::TextSensor* day_s[] = { id(gs0_is_day), id(gs1_is_day), id(gs2_is_day), id(gs3_is_day), id(gs4_is_day), id(gs5_is_day), id(gs6_is_day) };
-          esphome::text_sensor::TextSensor* fw_s[] = { id(gs0_flower_week), id(gs1_flower_week), id(gs2_flower_week), id(gs3_flower_week), id(gs4_flower_week), id(gs5_flower_week), id(gs6_flower_week) };
-          esphome::text_sensor::TextSensor* vw_s[] = { id(gs0_veg_week), id(gs1_veg_week), id(gs2_veg_week), id(gs3_veg_week), id(gs4_veg_week), id(gs5_veg_week), id(gs6_veg_week) };
+          esphome::text_sensor::TextSensor* fd_s[] = { id(gs0_flower_days), id(gs1_flower_days), id(gs2_flower_days), id(gs3_flower_days), id(gs4_flower_days), id(gs5_flower_days), id(gs6_flower_days) };
+          esphome::text_sensor::TextSensor* vd_s[] = { id(gs0_veg_days), id(gs1_veg_days), id(gs2_veg_days), id(gs3_veg_days), id(gs4_veg_days), id(gs5_veg_days), id(gs6_veg_days) };
+          esphome::text_sensor::TextSensor* dd_s[] = { id(gs0_dry_days), id(gs1_dry_days), id(gs2_dry_days), id(gs3_dry_days), id(gs4_dry_days), id(gs5_dry_days), id(gs6_dry_days) };
+          esphome::text_sensor::TextSensor* cd_s[] = { id(gs0_cure_days), id(gs1_cure_days), id(gs2_cure_days), id(gs3_cure_days), id(gs4_cure_days), id(gs5_cure_days), id(gs6_cure_days) };
 
           auto is_valid = [](esphome::sensor::Sensor* s) -> bool {
             return s != nullptr && s->has_state() && std::isfinite(s->state);
@@ -955,14 +971,26 @@ script:
           float dng_max = is_valid(dng_max_s[idx]) ? dng_max_s[idx]->state : 1.6f;
 
           // Phase badge
+          auto format_stage_badge = [](char* out, size_t out_sz, const char* label, esphome::text_sensor::TextSensor* days_s) {
+            if (days_s != nullptr && days_s->has_state()) {
+              char* endptr = nullptr;
+              long d = strtol(days_s->state.c_str(), &endptr, 10);
+              if (endptr != days_s->state.c_str() && d >= 0) {
+                snprintf(out, out_sz, "%s D%ld", label, d);
+                return;
+              }
+            }
+            snprintf(out, out_sz, "%s", label);
+          };
+
           std::string phase = (phase_s[idx] != nullptr && phase_s[idx]->has_state()) ? phase_s[idx]->state : "unknown";
           char badge[32] = "";
           uint32_t badge_color = 0x555555;
           if (phase.find("flower") != std::string::npos) {
-            snprintf(badge, sizeof(badge), "Flower W%s", (fw_s[idx] != nullptr && fw_s[idx]->has_state()) ? fw_s[idx]->state.c_str() : "");
+            format_stage_badge(badge, sizeof(badge), "Flower", fd_s[idx]);
             badge_color = 0xFF9800;
           } else if (phase.find("veg") != std::string::npos) {
-            snprintf(badge, sizeof(badge), "Veg W%s", (vw_s[idx] != nullptr && vw_s[idx]->has_state()) ? vw_s[idx]->state.c_str() : "");
+            format_stage_badge(badge, sizeof(badge), "Veg", vd_s[idx]);
             badge_color = 0x4CAF50;
           } else if (phase == "seedling") {
             snprintf(badge, sizeof(badge), "Seedling");
@@ -974,11 +1002,13 @@ script:
             snprintf(badge, sizeof(badge), "Mother");
             badge_color = 0xE91E63;
           } else if (phase == "dry") {
-            snprintf(badge, sizeof(badge), "Drying");
+            format_stage_badge(badge, sizeof(badge), "Drying", dd_s[idx]);
             badge_color = 0x9C27B0;
           } else if (phase == "cure") {
-            snprintf(badge, sizeof(badge), "Curing");
+            format_stage_badge(badge, sizeof(badge), "Curing", cd_s[idx]);
             badge_color = 0x2196F3;
+          } else if (phase == "empty") {
+            snprintf(badge, sizeof(badge), "Empty");
           } else {
             snprintf(badge, sizeof(badge), "%s", phase.c_str());
           }

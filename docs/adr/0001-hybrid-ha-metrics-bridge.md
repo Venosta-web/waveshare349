@@ -4,7 +4,7 @@ status: accepted
 
 # Hybrid HA Entities and Metrics Bridge for Growspace Data
 
-Growspace Manager v1.3.1+ moved `environment` and `metrics` into nested dictionaries on the Overview Sensor's attributes, which ESPHome's `homeassistant` sensor platform cannot index into directly. We decided to read live climate and actuator values directly from their underlying Home Assistant entities (`sensor.*`, `fan.*`, `humidifier.*`/`switch.*`) while introducing a lightweight Home Assistant template sensor (Metrics Bridge) to flatten the computed `metrics` fields (`granular_stage`, `is_day`, `flower_week`, `veg_week`, `vpd_target_*`, `vpd_danger_*`). This avoids double-hopping live sensor updates through the Overview Sensor and avoids fragile C++ parsing of large nested attribute strings in ESPHome.
+Growspace Manager v1.3.1+ moved `environment` and `metrics` into nested dictionaries on the Overview Sensor's attributes, which ESPHome's `homeassistant` sensor platform cannot index into directly. We decided to read live climate and actuator values directly from their underlying Home Assistant entities (`sensor.*`, `fan.*`, `humidifier.*`/`switch.*`) while introducing a lightweight Home Assistant template sensor (Metrics Bridge) to flatten the computed `metrics` fields (`granular_stage`, `is_day`, `max_flower_days`/`max_veg_days`/`max_dry_days`/`max_cure_days` as `*_days`, `flower_week`, `veg_week`, `vpd_target_*`, `vpd_danger_*`). This avoids double-hopping live sensor updates through the Overview Sensor and avoids fragile C++ parsing of large nested attribute strings in ESPHome.
 
 ## Considered Options
 
