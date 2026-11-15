@@ -1,0 +1,36 @@
+name: ESPHome Lint
+
+on:
+  push:
+    paths:
+      - '*.yaml'
+      - '.github/workflows/esphome-lint.yml'
+  pull_request:
+    paths:
+      - '*.yaml'
+      - '.github/workflows/esphome-lint.yml'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install ESPHome
+        run: pip install esphome
+
+      - name: Validate ESPHome configs
+        run: |
+          for file in *.yaml; do
+            [ "$file" = "secrets.yaml" ] && continue
+            echo "Validating $file..."
+            esphome config "$file"
+          done
