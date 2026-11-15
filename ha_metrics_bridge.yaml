@@ -1,0 +1,100 @@
+# Home Assistant Template Sensors — Growspace Manager Metrics Bridge
+#
+# Flattens the nested `metrics` dictionary from Growspace Manager v1.3.1+
+# Overview Sensors into top-level attributes so ESPHome can subscribe to them.
+#
+# Include this in your Home Assistant `configuration.yaml` (e.g. via packages)
+# and adjust the source `sensor.<growspace>` entity IDs if yours differ.
+
+template:
+  - sensor:
+      - name: "4x4 Metrics Bridge"
+        unique_id: gs_4x4_metrics_bridge
+        state: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+        attributes:
+          granular_stage: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+          is_day: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('is_day', true) }}"
+          flower_week: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('flower_week', 0) }}"
+          veg_week: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('veg_week', 0) }}"
+          vpd_target_min: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('vpd_target_min') }}"
+          vpd_target_max: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('vpd_target_max') }}"
+          vpd_danger_min: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('vpd_danger_min') }}"
+          vpd_danger_max: "{{ (state_attr('sensor.4x4', 'metrics') or {}).get('vpd_danger_max') }}"
+
+      - name: "SOG 2x5 Metrics Bridge"
+        unique_id: gs_sog_2x5_metrics_bridge
+        state: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+        attributes:
+          granular_stage: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+          is_day: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('is_day', true) }}"
+          flower_week: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('flower_week', 0) }}"
+          veg_week: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('veg_week', 0) }}"
+          vpd_target_min: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('vpd_target_min') }}"
+          vpd_target_max: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('vpd_target_max') }}"
+          vpd_danger_min: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('vpd_danger_min') }}"
+          vpd_danger_max: "{{ (state_attr('sensor.sog_2x5', 'metrics') or {}).get('vpd_danger_max') }}"
+
+      - name: "Nursery Dome Metrics Bridge"
+        unique_id: gs_nursery_dome_metrics_bridge
+        state: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+        attributes:
+          granular_stage: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+          is_day: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('is_day', true) }}"
+          flower_week: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('flower_week', 0) }}"
+          veg_week: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('veg_week', 0) }}"
+          vpd_target_min: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('vpd_target_min') }}"
+          vpd_target_max: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('vpd_target_max') }}"
+          vpd_danger_min: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('vpd_danger_min') }}"
+          vpd_danger_max: "{{ (state_attr('sensor.nursery_dome_overview', 'metrics') or {}).get('vpd_danger_max') }}"
+
+      - name: "Clone Metrics Bridge"
+        unique_id: gs_clone_metrics_bridge
+        state: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+        attributes:
+          granular_stage: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+          is_day: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('is_day', true) }}"
+          flower_week: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('flower_week', 0) }}"
+          veg_week: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('veg_week', 0) }}"
+          vpd_target_min: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('vpd_target_min') }}"
+          vpd_target_max: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('vpd_target_max') }}"
+          vpd_danger_min: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('vpd_danger_min') }}"
+          vpd_danger_max: "{{ (state_attr('sensor.clone', 'metrics') or {}).get('vpd_danger_max') }}"
+
+      - name: "Mother Metrics Bridge"
+        unique_id: gs_mother_metrics_bridge
+        state: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+        attributes:
+          granular_stage: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+          is_day: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('is_day', true) }}"
+          flower_week: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('flower_week', 0) }}"
+          veg_week: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('veg_week', 0) }}"
+          vpd_target_min: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('vpd_target_min') }}"
+          vpd_target_max: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('vpd_target_max') }}"
+          vpd_danger_min: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('vpd_danger_min') }}"
+          vpd_danger_max: "{{ (state_attr('sensor.mother', 'metrics') or {}).get('vpd_danger_max') }}"
+
+      - name: "Dry Metrics Bridge"
+        unique_id: gs_dry_metrics_bridge
+        state: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+        attributes:
+          granular_stage: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+          is_day: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('is_day', true) }}"
+          flower_week: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('flower_week', 0) }}"
+          veg_week: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('veg_week', 0) }}"
+          vpd_target_min: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('vpd_target_min') }}"
+          vpd_target_max: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('vpd_target_max') }}"
+          vpd_danger_min: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('vpd_danger_min') }}"
+          vpd_danger_max: "{{ (state_attr('sensor.dry', 'metrics') or {}).get('vpd_danger_max') }}"
+
+      - name: "Cure Metrics Bridge"
+        unique_id: gs_cure_metrics_bridge
+        state: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+        attributes:
+          granular_stage: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('granular_stage', 'unknown') }}"
+          is_day: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('is_day', true) }}"
+          flower_week: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('flower_week', 0) }}"
+          veg_week: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('veg_week', 0) }}"
+          vpd_target_min: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('vpd_target_min') }}"
+          vpd_target_max: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('vpd_target_max') }}"
+          vpd_danger_min: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('vpd_danger_min') }}"
+          vpd_danger_max: "{{ (state_attr('sensor.cure', 'metrics') or {}).get('vpd_danger_max') }}"
