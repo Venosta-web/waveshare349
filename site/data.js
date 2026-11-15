@@ -151,7 +151,7 @@ export const HA_COMPANION_GUIDES = {
     summary: 'Auto-detects the active Music Assistant media_player and remembers the last player used.',
     steps: [
       'Copy ha_music_bridge.yaml into Home Assistant.',
-      'Set music_player_entity to sensor.music_assistant_bridge (Waveshare) or your media_player.* entity.',
+      'Set music_player_entity to sensor.music_assistant_bridge.',
     ],
   },
   claude: {

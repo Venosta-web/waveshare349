@@ -9,10 +9,10 @@ esphome:
   includes:
     - ../../music/music_icon.h
   on_boot:
-    - priority: -42
+    - priority: -142
       then:
         - lambda: "lv_obj_set_parent(id(nav_music), id(nav_rail));"
-    - priority: -52
+    - priority: -152
       then:
         - lambda: |-
             if (id(active_tab) < 0) {

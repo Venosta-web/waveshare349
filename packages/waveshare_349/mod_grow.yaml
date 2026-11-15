@@ -16,10 +16,10 @@ esphome:
   includes:
     - ../../grow/grow_icon.h
   on_boot:
-    - priority: -40
+    - priority: -140
       then:
         - lambda: "lv_obj_set_parent(id(nav_grow), id(nav_rail));"
-    - priority: -50
+    - priority: -150
       then:
         - lambda: |-
             if (id(active_tab) < 0) {

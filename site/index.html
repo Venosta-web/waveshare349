@@ -85,6 +85,10 @@
             <input type="checkbox" id="use-improv" />
             <span>Use Improv Wi-Fi &amp; Captive Portal (for Web Serial; leave unchecked to use <code>!secret wifi_ssid</code> / <code>!secret wifi_password</code>)</span>
           </label>
+          <label class="inline-check">
+            <input type="checkbox" id="use-api-secret" />
+            <span>Encrypt Home Assistant API with <code>!secret api_encryption_key</code> (from ESPHome <code>secrets.yaml</code>)</span>
+          </label>
         </div>
 
         <div id="module-options" class="module-options"></div>

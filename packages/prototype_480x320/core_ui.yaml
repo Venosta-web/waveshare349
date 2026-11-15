@@ -33,7 +33,7 @@ esphome:
     - priority: -10
       then:
         - lambda: "id(last_touch_ms) = millis();"
-    - priority: -90
+    - priority: -190
       then:
         - lambda: |-
             if (lv_obj_get_child_cnt(id(nav_rail)) <= 1) {
