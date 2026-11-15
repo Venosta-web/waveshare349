@@ -29,3 +29,17 @@ _Avoid_: Question state, Waiting
 **Done**:
 The AI card state after a turn finished with nothing pending for the user.
 _Avoid_: Ready, Finished
+
+## Voice & Display
+
+**Voice Satellite**:
+The ESP32-S3 device running `micro_wake_word`, audio I/O, and the LVGL display.
+_Avoid_: local LLM node, smart speaker
+
+**Assist Pipeline**:
+The Home Assistant-hosted STT → local LLM → TTS chain that processes voice commands and invokes tools.
+_Avoid_: voice backend, AI pipeline
+
+**Display View**:
+A top-level LVGL screen selectable by touch or an exposed Home Assistant entity (such as `Growspace` or `Music`).
+_Avoid_: tab, mode, screen

@@ -57,9 +57,16 @@ script:
           condition:
             lambda: "return clawd::g_mode == clawd::PENDING;"
           then:
-            - script.execute:
-                id: switch_tab
-                tab_idx: 2
+            - lvgl.widget.update:
+                id: ai_alert_badge
+                hidden: false
+            - if:
+                condition:
+                  lambda: "return id(active_tab) != 1;"
+                then:
+                  - script.execute:
+                      id: switch_tab
+                      tab_idx: 2
 
   # Immediate feedback after a tap, before HA echoes the new state back.
   - id: claude_sent
