@@ -101,7 +101,7 @@ interval:
             id(idle_day_str) = dbuf;
           } else {
           #ifdef USE_HOST
-            time_t raw = time(nullptr);
+            time_t raw = ::time(nullptr);
             if (raw > 1700000000) {
               struct tm* lt = localtime(&raw);
               if (lt != nullptr) {

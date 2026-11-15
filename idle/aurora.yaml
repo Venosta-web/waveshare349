@@ -20,7 +20,7 @@ font:
     id: aurora_meta_12
     size: 12
     bpp: 4
-    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-/dBm"
+    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-/dm"
 
   - file: "fonts/materialdesignicons-webfont.ttf"
     id: aurora_icons_14

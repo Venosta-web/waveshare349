@@ -17,7 +17,7 @@ font:
     id: term_mono_16b
     size: 16
     bpp: 4
-    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[]:-#.%+-/"
+    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[]:-#.%+/"
 
   - file: "fonts/DejaVuSansMono.ttf"
     id: term_mono_13
