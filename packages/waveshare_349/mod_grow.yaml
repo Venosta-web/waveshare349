@@ -1,0 +1,688 @@
+# Feature Module: Growspace Manager Display View (Waveshare 3.49)
+# Requires substitutions: gs_count, gs_0..6_*, cycle_interval, pause_timeout, vpd_gauge_min, vpd_gauge_max
+
+globals:
+  - id: vpd_sensor_index
+    type: int
+    initial_value: "0"
+  - id: cycle_timer
+    type: int
+    initial_value: "${cycle_interval}"
+  - id: gs_total
+    type: int
+    initial_value: "${gs_count}"
+
+esphome:
+  on_boot:
+    - priority: -40
+      then:
+        - lambda: "lv_obj_set_parent(id(nav_grow), id(nav_rail));"
+    - priority: -50
+      then:
+        - lambda: |-
+            if (id(active_tab) < 0) {
+              id(switch_tab).execute(0);
+            }
+    - priority: -100
+      then:
+        - delay: 3s
+        - script.execute: update_grow_ui
+
+api:
+  on_client_connected:
+    - delay: 1s
+    - script.execute: update_grow_ui
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - button:
+            id: nav_grow
+            width: 64
+            height: 50
+            styles: nav_btn_active
+            widgets:
+              - label:
+                  id: nav_grow_icon
+                  text: "\U000F0E66"
+                  text_font: icons_20
+                  text_color: 0xFFFFFF
+                  align: CENTER
+            on_click:
+              then:
+                - script.execute:
+                    id: switch_tab
+                    tab_idx: 0
+
+        - obj:
+            id: grow_card
+            width: 560
+            height: 160
+            align: RIGHT_MID
+            x: -6
+            y: 0
+            styles: card_style
+            scrollbar_mode: "off"
+            widgets:
+              - label:
+                  id: gs_name_lbl
+                  text: "4x4"
+                  text_font: font_20
+                  text_color: 0x00D1FF
+                  align: TOP_LEFT
+                  x: 4
+                  y: 0
+
+              - label:
+                  id: gs_day_icon
+                  text: "\U000F06B5"
+                  text_font: icons_20
+                  text_color: 0xFFC107
+                  align: TOP_LEFT
+                  x: 155
+                  y: 2
+
+              - label:
+                  id: gs_pause_icon
+                  text: "\U000F03E4"
+                  text_font: icons_20
+                  text_color: 0xFFC107
+                  align: TOP_LEFT
+                  x: 180
+                  y: 2
+                  hidden: true
+
+              - label:
+                  id: gs_phase_badge
+                  text: "Waiting HA"
+                  text_font: font_12
+                  text_color: 0xFFFFFF
+                  styles: phase_badge
+                  align: TOP_LEFT
+                  x: 205
+                  y: 2
+
+              - label:
+                  id: gs_vpd_status
+                  text: "\U000F012C"
+                  text_font: icons_20
+                  text_color: 0x4CAF50
+                  align: LEFT_MID
+                  x: 4
+                  y: -2
+
+              - label:
+                  id: gs_vpd_val
+                  text: "-- kPa"
+                  text_font: font_32
+                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 28
+                  y: -2
+
+              - label:
+                  id: gs_vpd_range
+                  text: "Target\n-- - --"
+                  text_font: font_12
+                  text_color: 0x8B949E
+                  align: LEFT_MID
+                  x: 185
+                  y: 0
+
+              - obj:
+                  id: gs_gauge_bg
+                  width: 270
+                  height: 10
+                  align: BOTTOM_LEFT
+                  x: 4
+                  y: -16
+                  bg_color: 0x30363D
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 4
+                  widgets:
+                    - obj:
+                        id: gs_gauge_zone
+                        width: 80
+                        height: 10
+                        align: LEFT_MID
+                        x: 70
+                        bg_color: 0x4CAF50
+                        bg_opa: 65%
+                        border_width: 0
+                        radius: 4
+                    - obj:
+                        id: gs_gauge_marker
+                        width: 8
+                        height: 16
+                        align: LEFT_MID
+                        x: 110
+                        bg_color: 0x00D1FF
+                        bg_opa: COVER
+                        border_width: 0
+                        radius: 4
+
+              - label:
+                  text: "${vpd_gauge_min}"
+                  text_font: font_12
+                  text_color: 0x6E7681
+                  align: BOTTOM_LEFT
+                  x: 4
+                  y: 0
+
+              - label:
+                  text: "${vpd_gauge_max}"
+                  text_font: font_12
+                  text_color: 0x6E7681
+                  align: BOTTOM_LEFT
+                  x: 254
+                  y: 0
+
+              - obj:
+                  width: 1
+                  height: 132
+                  align: LEFT_MID
+                  x: 292
+                  bg_color: 0x30363D
+                  bg_opa: COVER
+                  border_width: 0
+
+              - label:
+                  text: "\U000F050F"
+                  text_font: icons_20
+                  text_color: 0xFF6B6B
+                  align: TOP_LEFT
+                  x: 304
+                  y: 4
+              - label:
+                  id: gs_temp_val
+                  text: "--.- °C"
+                  text_font: font_20
+                  text_color: 0xFFFFFF
+                  align: TOP_LEFT
+                  x: 326
+                  y: 2
+
+              - label:
+                  text: "\U000F058C"
+                  text_font: icons_20
+                  text_color: 0x64B5F6
+                  align: TOP_LEFT
+                  x: 304
+                  y: 34
+              - label:
+                  id: gs_hum_val
+                  text: "-- %"
+                  text_font: font_20
+                  text_color: 0xFFFFFF
+                  align: TOP_LEFT
+                  x: 326
+                  y: 32
+
+              - label:
+                  id: gs_exh_lbl
+                  text: "Exh: --"
+                  text_font: font_12
+                  text_color: 0x8B949E
+                  align: BOTTOM_LEFT
+                  x: 304
+                  y: -36
+              - label:
+                  id: gs_circ_lbl
+                  text: "Circ: --"
+                  text_font: font_12
+                  text_color: 0x8B949E
+                  align: BOTTOM_LEFT
+                  x: 304
+                  y: -19
+              - label:
+                  id: gs_hum_eq_lbl
+                  text: "Hum: --"
+                  text_font: font_12
+                  text_color: 0x8B949E
+                  align: BOTTOM_LEFT
+                  x: 304
+                  y: -2
+
+              - button:
+                  id: btn_prev_space
+                  width: 64
+                  height: 62
+                  align: TOP_RIGHT
+                  x: 0
+                  y: 0
+                  bg_color: 0x21262D
+                  radius: 8
+                  widgets:
+                    - label:
+                        text: "\U000F0141"
+                        text_font: icons_24
+                        align: CENTER
+                  on_click:
+                    then:
+                      - lambda: "id(nav_direction) = -1;"
+                      - script.execute: navigate_space
+
+              - button:
+                  id: btn_next_space
+                  width: 64
+                  height: 62
+                  align: BOTTOM_RIGHT
+                  x: 0
+                  y: 0
+                  bg_color: 0x21262D
+                  radius: 8
+                  widgets:
+                    - label:
+                        text: "\U000F0142"
+                        text_font: icons_24
+                        align: CENTER
+                  on_click:
+                    then:
+                      - lambda: "id(nav_direction) = 1;"
+                      - script.execute: navigate_space
+
+sensor:
+  - { platform: homeassistant, id: gs0_vpd, entity_id: "${gs_0_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs0_temp, entity_id: "${gs_0_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs0_hum, entity_id: "${gs_0_hum}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs0_vpd_tgt_min, entity_id: "${gs_0_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs0_vpd_tgt_max, entity_id: "${gs_0_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs0_vpd_dng_min, entity_id: "${gs_0_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs0_vpd_dng_max, entity_id: "${gs_0_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs0_exhaust, entity_id: "${gs_0_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs0_circ, entity_id: "${gs_0_circ}", attribute: percentage }
+
+  - { platform: homeassistant, id: gs1_vpd, entity_id: "${gs_1_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs1_temp, entity_id: "${gs_1_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs1_hum, entity_id: "${gs_1_hum}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs1_vpd_tgt_min, entity_id: "${gs_1_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs1_vpd_tgt_max, entity_id: "${gs_1_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs1_vpd_dng_min, entity_id: "${gs_1_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs1_vpd_dng_max, entity_id: "${gs_1_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs1_exhaust, entity_id: "${gs_1_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs1_circ, entity_id: "${gs_1_circ}", attribute: percentage }
+
+  - { platform: homeassistant, id: gs2_vpd, entity_id: "${gs_2_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs2_temp, entity_id: "${gs_2_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs2_hum, entity_id: "${gs_2_hum}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs2_vpd_tgt_min, entity_id: "${gs_2_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs2_vpd_tgt_max, entity_id: "${gs_2_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs2_vpd_dng_min, entity_id: "${gs_2_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs2_vpd_dng_max, entity_id: "${gs_2_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs2_exhaust, entity_id: "${gs_2_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs2_circ, entity_id: "${gs_2_circ}", attribute: percentage }
+
+  - { platform: homeassistant, id: gs3_vpd, entity_id: "${gs_3_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs3_temp, entity_id: "${gs_3_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs3_hum, entity_id: "${gs_3_hum}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs3_vpd_tgt_min, entity_id: "${gs_3_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs3_vpd_tgt_max, entity_id: "${gs_3_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs3_vpd_dng_min, entity_id: "${gs_3_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs3_vpd_dng_max, entity_id: "${gs_3_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs3_exhaust, entity_id: "${gs_3_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs3_circ, entity_id: "${gs_3_circ}", attribute: percentage }
+
+  - { platform: homeassistant, id: gs4_vpd, entity_id: "${gs_4_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs4_temp, entity_id: "${gs_4_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs4_hum, entity_id: "${gs_4_hum}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs4_vpd_tgt_min, entity_id: "${gs_4_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs4_vpd_tgt_max, entity_id: "${gs_4_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs4_vpd_dng_min, entity_id: "${gs_4_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs4_vpd_dng_max, entity_id: "${gs_4_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs4_exhaust, entity_id: "${gs_4_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs4_circ, entity_id: "${gs_4_circ}", attribute: percentage }
+
+  - { platform: homeassistant, id: gs5_vpd, entity_id: "${gs_5_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs5_temp, entity_id: "${gs_5_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs5_hum, entity_id: "${gs_5_hum}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs5_vpd_tgt_min, entity_id: "${gs_5_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs5_vpd_tgt_max, entity_id: "${gs_5_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs5_vpd_dng_min, entity_id: "${gs_5_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs5_vpd_dng_max, entity_id: "${gs_5_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs5_exhaust, entity_id: "${gs_5_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs5_circ, entity_id: "${gs_5_circ}", attribute: percentage }
+
+  - { platform: homeassistant, id: gs6_vpd, entity_id: "${gs_6_vpd}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs6_temp, entity_id: "${gs_6_temp}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs6_hum, entity_id: "${gs_6_hum}", on_value: [script.execute: update_grow_ui] }
+  - { platform: homeassistant, id: gs6_vpd_tgt_min, entity_id: "${gs_6_metrics}", attribute: vpd_target_min }
+  - { platform: homeassistant, id: gs6_vpd_tgt_max, entity_id: "${gs_6_metrics}", attribute: vpd_target_max }
+  - { platform: homeassistant, id: gs6_vpd_dng_min, entity_id: "${gs_6_metrics}", attribute: vpd_danger_min }
+  - { platform: homeassistant, id: gs6_vpd_dng_max, entity_id: "${gs_6_metrics}", attribute: vpd_danger_max }
+  - { platform: homeassistant, id: gs6_exhaust, entity_id: "${gs_6_exhaust}", attribute: percentage }
+  - { platform: homeassistant, id: gs6_circ, entity_id: "${gs_6_circ}", attribute: percentage }
+
+text_sensor:
+  - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs0_is_day, entity_id: "${gs_0_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs0_flower_week, entity_id: "${gs_0_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs0_veg_week, entity_id: "${gs_0_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs0_humid, entity_id: "${gs_0_humid}" }
+
+  - { platform: homeassistant, id: gs1_phase, entity_id: "${gs_1_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs1_is_day, entity_id: "${gs_1_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs1_flower_week, entity_id: "${gs_1_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs1_veg_week, entity_id: "${gs_1_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs1_humid, entity_id: "${gs_1_humid}" }
+
+  - { platform: homeassistant, id: gs2_phase, entity_id: "${gs_2_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs2_is_day, entity_id: "${gs_2_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs2_flower_week, entity_id: "${gs_2_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs2_veg_week, entity_id: "${gs_2_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs2_humid, entity_id: "${gs_2_humid}" }
+
+  - { platform: homeassistant, id: gs3_phase, entity_id: "${gs_3_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs3_is_day, entity_id: "${gs_3_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs3_flower_week, entity_id: "${gs_3_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs3_veg_week, entity_id: "${gs_3_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs3_humid, entity_id: "${gs_3_humid}" }
+
+  - { platform: homeassistant, id: gs4_phase, entity_id: "${gs_4_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs4_is_day, entity_id: "${gs_4_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs4_flower_week, entity_id: "${gs_4_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs4_veg_week, entity_id: "${gs_4_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs4_humid, entity_id: "${gs_4_humid}" }
+
+  - { platform: homeassistant, id: gs5_phase, entity_id: "${gs_5_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs5_is_day, entity_id: "${gs_5_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs5_flower_week, entity_id: "${gs_5_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs5_veg_week, entity_id: "${gs_5_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs5_humid, entity_id: "${gs_5_humid}" }
+
+  - { platform: homeassistant, id: gs6_phase, entity_id: "${gs_6_metrics}", attribute: granular_stage }
+  - { platform: homeassistant, id: gs6_is_day, entity_id: "${gs_6_metrics}", attribute: is_day }
+  - { platform: homeassistant, id: gs6_flower_week, entity_id: "${gs_6_metrics}", attribute: flower_week }
+  - { platform: homeassistant, id: gs6_veg_week, entity_id: "${gs_6_metrics}", attribute: veg_week }
+  - { platform: homeassistant, id: gs6_humid, entity_id: "${gs_6_humid}" }
+
+script:
+  - id: !extend switch_tab
+    then:
+      - lambda: |-
+          const bool active = (tab_idx == 0);
+          if (active) {
+            lv_obj_clear_flag(id(grow_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_grow), lv_color_hex(0x1F6FEB), 0);
+            lv_obj_set_style_border_color(id(nav_grow), lv_color_hex(0x58A6FF), 0);
+            lv_obj_set_style_text_color(id(nav_grow_icon), lv_color_hex(0xFFFFFF), 0);
+            lv_obj_scroll_to_view(id(nav_grow), LV_ANIM_ON);
+            if (id(pause_timer) > ${pause_timeout}) {
+              id(pause_timer) = ${pause_timeout};
+            }
+          } else {
+            lv_obj_add_flag(id(grow_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_grow), lv_color_hex(0x161B22), 0);
+            lv_obj_set_style_border_color(id(nav_grow), lv_color_hex(0x30363D), 0);
+            lv_obj_set_style_text_color(id(nav_grow_icon), lv_color_hex(0x8B949E), 0);
+          }
+          lv_obj_invalidate(lv_scr_act());
+
+  - id: navigate_space
+    then:
+      - lambda: |-
+          const int MAX_SPACES = 7;
+          int total = id(gs_total);
+          if (total <= 0 || total > MAX_SPACES) total = MAX_SPACES;
+          int dir = id(nav_direction);
+          int idx = id(vpd_sensor_index);
+          esphome::text_sensor::TextSensor* phase_s[] = {
+            id(gs0_phase), id(gs1_phase), id(gs2_phase), id(gs3_phase),
+            id(gs4_phase), id(gs5_phase), id(gs6_phase)
+          };
+          esphome::sensor::Sensor* vpd_s[] = { id(gs0_vpd), id(gs1_vpd), id(gs2_vpd), id(gs3_vpd), id(gs4_vpd), id(gs5_vpd), id(gs6_vpd) };
+          esphome::sensor::Sensor* temp_s[] = { id(gs0_temp), id(gs1_temp), id(gs2_temp), id(gs3_temp), id(gs4_temp), id(gs5_temp), id(gs6_temp) };
+          esphome::sensor::Sensor* hum_s[] = { id(gs0_hum), id(gs1_hum), id(gs2_hum), id(gs3_hum), id(gs4_hum), id(gs5_hum), id(gs6_hum) };
+
+          auto has_num = [](esphome::sensor::Sensor* s) -> bool {
+            return s != nullptr && s->has_state() && std::isfinite(s->state);
+          };
+          auto is_space_active = [&](int i) -> bool {
+            if (phase_s[i] != nullptr && phase_s[i]->has_state()) {
+              return phase_s[i]->state != "empty";
+            }
+            return has_num(vpd_s[i]) || has_num(temp_s[i]) || has_num(hum_s[i]);
+          };
+
+          bool any_active = false;
+          for (int i = 0; i < total; i++) {
+            if (is_space_active(i)) {
+              any_active = true;
+              break;
+            }
+          }
+          if (!any_active) {
+            idx = (idx + dir + total) % total;
+          } else {
+            for (int i = 0; i < total; i++) {
+              idx = (idx + dir + total) % total;
+              if (is_space_active(idx)) break;
+            }
+          }
+          ESP_LOGI("growspace", "navigate_space: dir=%d idx=%d any_active=%d", dir, idx, any_active ? 1 : 0);
+          id(vpd_sensor_index) = idx;
+          id(cycle_timer) = ${cycle_interval};
+          id(cycle_paused) = true;
+          id(pause_timer) = ${pause_timeout};
+      - lvgl.widget.update:
+          id: gs_pause_icon
+          hidden: false
+      - script.execute: update_grow_ui
+
+  - id: update_grow_ui
+    then:
+      - lambda: |-
+          const int MAX_SPACES = 7;
+          int idx = id(vpd_sensor_index) % MAX_SPACES;
+
+          const char* names[] = {
+            "${gs_0_name}", "${gs_1_name}", "${gs_2_name}", "${gs_3_name}",
+            "${gs_4_name}", "${gs_5_name}", "${gs_6_name}"
+          };
+
+          esphome::sensor::Sensor* vpd_s[] = { id(gs0_vpd), id(gs1_vpd), id(gs2_vpd), id(gs3_vpd), id(gs4_vpd), id(gs5_vpd), id(gs6_vpd) };
+          esphome::sensor::Sensor* temp_s[] = { id(gs0_temp), id(gs1_temp), id(gs2_temp), id(gs3_temp), id(gs4_temp), id(gs5_temp), id(gs6_temp) };
+          esphome::sensor::Sensor* hum_s[] = { id(gs0_hum), id(gs1_hum), id(gs2_hum), id(gs3_hum), id(gs4_hum), id(gs5_hum), id(gs6_hum) };
+          esphome::sensor::Sensor* tgt_min_s[] = { id(gs0_vpd_tgt_min), id(gs1_vpd_tgt_min), id(gs2_vpd_tgt_min), id(gs3_vpd_tgt_min), id(gs4_vpd_tgt_min), id(gs5_vpd_tgt_min), id(gs6_vpd_tgt_min) };
+          esphome::sensor::Sensor* tgt_max_s[] = { id(gs0_vpd_tgt_max), id(gs1_vpd_tgt_max), id(gs2_vpd_tgt_max), id(gs3_vpd_tgt_max), id(gs4_vpd_tgt_max), id(gs5_vpd_tgt_max), id(gs6_vpd_tgt_max) };
+          esphome::sensor::Sensor* dng_min_s[] = { id(gs0_vpd_dng_min), id(gs1_vpd_dng_min), id(gs2_vpd_dng_min), id(gs3_vpd_dng_min), id(gs4_vpd_dng_min), id(gs5_vpd_dng_min), id(gs6_vpd_dng_min) };
+          esphome::sensor::Sensor* dng_max_s[] = { id(gs0_vpd_dng_max), id(gs1_vpd_dng_max), id(gs2_vpd_dng_max), id(gs3_vpd_dng_max), id(gs4_vpd_dng_max), id(gs5_vpd_dng_max), id(gs6_vpd_dng_max) };
+          esphome::sensor::Sensor* exh_s[] = { id(gs0_exhaust), id(gs1_exhaust), id(gs2_exhaust), id(gs3_exhaust), id(gs4_exhaust), id(gs5_exhaust), id(gs6_exhaust) };
+          esphome::sensor::Sensor* circ_s[] = { id(gs0_circ), id(gs1_circ), id(gs2_circ), id(gs3_circ), id(gs4_circ), id(gs5_circ), id(gs6_circ) };
+
+          esphome::text_sensor::TextSensor* humid_s[] = { id(gs0_humid), id(gs1_humid), id(gs2_humid), id(gs3_humid), id(gs4_humid), id(gs5_humid), id(gs6_humid) };
+          esphome::text_sensor::TextSensor* phase_s[] = { id(gs0_phase), id(gs1_phase), id(gs2_phase), id(gs3_phase), id(gs4_phase), id(gs5_phase), id(gs6_phase) };
+          esphome::text_sensor::TextSensor* day_s[] = { id(gs0_is_day), id(gs1_is_day), id(gs2_is_day), id(gs3_is_day), id(gs4_is_day), id(gs5_is_day), id(gs6_is_day) };
+          esphome::text_sensor::TextSensor* fw_s[] = { id(gs0_flower_week), id(gs1_flower_week), id(gs2_flower_week), id(gs3_flower_week), id(gs4_flower_week), id(gs5_flower_week), id(gs6_flower_week) };
+          esphome::text_sensor::TextSensor* vw_s[] = { id(gs0_veg_week), id(gs1_veg_week), id(gs2_veg_week), id(gs3_veg_week), id(gs4_veg_week), id(gs5_veg_week), id(gs6_veg_week) };
+
+          auto is_valid = [](esphome::sensor::Sensor* s) -> bool {
+            return s != nullptr && s->has_state() && std::isfinite(s->state);
+          };
+
+          auto resolve_vpd = [&](int space_idx, float& out_vpd) -> bool {
+            if (is_valid(vpd_s[space_idx])) {
+              out_vpd = vpd_s[space_idx]->state;
+              return true;
+            }
+            if (is_valid(temp_s[space_idx]) && is_valid(hum_s[space_idx])) {
+              float t = temp_s[space_idx]->state;
+              float rh = hum_s[space_idx]->state;
+              float svp = 0.61078f * expf((17.27f * t) / (t + 237.3f));
+              float calc = svp * (1.0f - rh / 100.0f);
+              out_vpd = calc < 0.0f ? 0.0f : calc;
+              return true;
+            }
+            return false;
+          };
+
+          float vpd = 0.0f;
+          bool has_vpd = resolve_vpd(idx, vpd);
+          bool has_temp = is_valid(temp_s[idx]);
+          bool has_hum = is_valid(hum_s[idx]);
+          float temp = has_temp ? temp_s[idx]->state : 0.0f;
+          float hum = has_hum ? hum_s[idx]->state : 0.0f;
+          float tgt_min = is_valid(tgt_min_s[idx]) ? tgt_min_s[idx]->state : 0.8f;
+          float tgt_max = is_valid(tgt_max_s[idx]) ? tgt_max_s[idx]->state : 1.2f;
+          float dng_min = is_valid(dng_min_s[idx]) ? dng_min_s[idx]->state : 0.4f;
+          float dng_max = is_valid(dng_max_s[idx]) ? dng_max_s[idx]->state : 1.6f;
+
+          std::string phase = (phase_s[idx] != nullptr && phase_s[idx]->has_state()) ? phase_s[idx]->state : "unknown";
+          char badge[32] = "";
+          uint32_t badge_color = 0x555555;
+          if (phase.find("flower") != std::string::npos) {
+            snprintf(badge, sizeof(badge), "Flower W%s", (fw_s[idx] != nullptr && fw_s[idx]->has_state()) ? fw_s[idx]->state.c_str() : "");
+            badge_color = 0xFF9800;
+          } else if (phase.find("veg") != std::string::npos) {
+            snprintf(badge, sizeof(badge), "Veg W%s", (vw_s[idx] != nullptr && vw_s[idx]->has_state()) ? vw_s[idx]->state.c_str() : "");
+            badge_color = 0x4CAF50;
+          } else if (phase == "seedling") {
+            snprintf(badge, sizeof(badge), "Seedling");
+            badge_color = 0x8BC34A;
+          } else if (phase == "clone") {
+            snprintf(badge, sizeof(badge), "Clone");
+            badge_color = 0xFF5722;
+          } else if (phase == "mother") {
+            snprintf(badge, sizeof(badge), "Mother");
+            badge_color = 0xE91E63;
+          } else if (phase == "dry") {
+            snprintf(badge, sizeof(badge), "Drying");
+            badge_color = 0x9C27B0;
+          } else if (phase == "cure") {
+            snprintf(badge, sizeof(badge), "Curing");
+            badge_color = 0x2196F3;
+          } else {
+            snprintf(badge, sizeof(badge), "%s", phase.c_str());
+          }
+
+          lv_label_set_text(id(gs_name_lbl), names[idx]);
+          lv_label_set_text(id(gs_phase_badge), badge);
+          lv_obj_set_style_bg_color(id(gs_phase_badge), lv_color_hex(badge_color), 0);
+
+          std::string day_str = (day_s[idx] != nullptr && day_s[idx]->has_state()) ? day_s[idx]->state : "on";
+          bool is_day = (day_str == "on" || day_str == "True" || day_str == "true");
+          lv_label_set_text(id(gs_day_icon), is_day ? "\U000F06B5" : "\U000F06B8");
+          lv_obj_set_style_text_color(id(gs_day_icon), lv_color_hex(is_day ? 0xFFC107 : 0x555555), 0);
+
+          char buf[48];
+          if (has_vpd) {
+            snprintf(buf, sizeof(buf), "%.2f kPa", vpd);
+            lv_label_set_text(id(gs_vpd_val), buf);
+          } else {
+            lv_label_set_text(id(gs_vpd_val), "-- kPa");
+          }
+
+          snprintf(buf, sizeof(buf), "Target\n%.1f-%.1f", tgt_min, tgt_max);
+          lv_label_set_text(id(gs_vpd_range), buf);
+
+          uint32_t sc;
+          const char* si;
+          if (!has_vpd) {
+            sc = 0x6E7681; si = "\U000F012C";
+          } else if (vpd >= tgt_min && vpd <= tgt_max) {
+            sc = 0x4CAF50; si = "\U000F012C";
+          } else if (vpd >= dng_min && vpd <= dng_max) {
+            sc = 0xFFC107; si = "\U000F0029";
+          } else {
+            sc = 0xFF5252; si = "\U000F0159";
+          }
+          lv_label_set_text(id(gs_vpd_status), si);
+          lv_obj_set_style_text_color(id(gs_vpd_status), lv_color_hex(sc), 0);
+
+          float gw = 270.0f, gmin = ${vpd_gauge_min}f, gmax = ${vpd_gauge_max}f, gr = gmax - gmin;
+          float mp = has_vpd ? (vpd - gmin) / gr : 0.0f;
+          if (mp < 0) mp = 0; if (mp > 1) mp = 1;
+          lv_obj_set_x(id(gs_gauge_marker), (int)(mp * gw) - 4);
+          lv_obj_set_style_bg_color(id(gs_gauge_marker), lv_color_hex(sc), 0);
+
+          float zsp = (tgt_min - gmin) / gr, zep = (tgt_max - gmin) / gr;
+          if (zsp < 0) zsp = 0; if (zep > 1) zep = 1;
+          int zw = (int)((zep - zsp) * gw);
+          if (zw < 4) zw = 4;
+          lv_obj_set_x(id(gs_gauge_zone), (int)(zsp * gw));
+          lv_obj_set_width(id(gs_gauge_zone), zw);
+
+          if (has_temp) {
+            snprintf(buf, sizeof(buf), "%.1f °C", temp);
+            lv_label_set_text(id(gs_temp_val), buf);
+          } else {
+            lv_label_set_text(id(gs_temp_val), "--.- °C");
+          }
+          if (has_hum) {
+            snprintf(buf, sizeof(buf), "%.0f %%", hum);
+            lv_label_set_text(id(gs_hum_val), buf);
+          } else {
+            lv_label_set_text(id(gs_hum_val), "-- %");
+          }
+
+          if (exh_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_exh_lbl), "Exh: --");
+            lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            float exh_v = is_valid(exh_s[idx]) ? exh_s[idx]->state : 0;
+            snprintf(buf, sizeof(buf), exh_v > 0 ? "Exh: %.0f%%" : "Exh: Off", exh_v);
+            lv_label_set_text(id(gs_exh_lbl), buf);
+            lv_obj_set_style_text_color(id(gs_exh_lbl), lv_color_hex(exh_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
+          }
+
+          if (circ_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_circ_lbl), "Circ: --");
+            lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            float circ_v = is_valid(circ_s[idx]) ? circ_s[idx]->state : 0;
+            snprintf(buf, sizeof(buf), circ_v > 0 ? "Circ: %.0f%%" : "Circ: Off", circ_v);
+            lv_label_set_text(id(gs_circ_lbl), buf);
+            lv_obj_set_style_text_color(id(gs_circ_lbl), lv_color_hex(circ_v > 0 ? 0x4CAF50 : 0x6E7681), 0);
+          }
+
+          if (humid_s[idx] == nullptr) {
+            lv_label_set_text(id(gs_hum_eq_lbl), "Hum: --");
+            lv_obj_set_style_text_color(id(gs_hum_eq_lbl), lv_color_hex(0x6E7681), 0);
+          } else {
+            bool hum_on = humid_s[idx]->has_state() && humid_s[idx]->state == "on";
+            lv_label_set_text(id(gs_hum_eq_lbl), hum_on ? "Hum: On" : "Hum: Off");
+            lv_obj_set_style_text_color(id(gs_hum_eq_lbl), lv_color_hex(hum_on ? 0x64B5F6 : 0x6E7681), 0);
+          }
+
+          bool global_danger = false;
+          for (int i = 0; i < MAX_SPACES; i++) {
+            if (phase_s[i] != nullptr && phase_s[i]->has_state() && phase_s[i]->state != "empty") {
+              float v = 0.0f;
+              if (!resolve_vpd(i, v)) continue;
+              float d_min = is_valid(dng_min_s[i]) ? dng_min_s[i]->state : 0.4f;
+              float d_max = is_valid(dng_max_s[i]) ? dng_max_s[i]->state : 1.6f;
+              if (v < d_min || v > d_max) {
+                global_danger = true;
+                break;
+              }
+            }
+          }
+          lv_obj_set_style_border_color(id(grow_card), lv_color_hex(global_danger ? 0xFF5252 : 0x30363D), 0);
+          lv_obj_invalidate(lv_scr_act());
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (!id(cycle_paused)) {
+            if (id(cycle_timer) > 0) id(cycle_timer)--;
+          } else {
+            if (id(pause_timer) > 0) {
+              id(pause_timer)--;
+            } else {
+              id(cycle_paused) = false;
+              id(cycle_timer) = ${cycle_interval};
+              lv_obj_add_flag(id(gs_pause_icon), LV_OBJ_FLAG_HIDDEN);
+            }
+          }
+      - if:
+          condition:
+            lambda: "return id(cycle_timer) == 0 && !id(cycle_paused);"
+          then:
+            - lambda: "id(nav_direction) = 1;"
+            - script.execute: navigate_space
+            - lambda: "id(cycle_paused) = false;"
+            - lvgl.widget.update:
+                id: gs_pause_icon
+                hidden: true

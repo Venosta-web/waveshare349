@@ -2,12 +2,12 @@
 # Pulled in by waveshare_349.yaml / waveshare_sim.yaml as packages: codex: !include codex/${codex_variant}.yaml
 
 font:
-  - file: "fonts/DejaVuSans-Bold.ttf"
+  - file: "../fonts/DejaVuSans-Bold.ttf"
     id: codex_glyph_20
     size: 20
     bpp: 4
     glyphs: "·✢✳✶✻✽✓✕!?zZ"
-  - file: "fonts/DejaVuSans-Bold.ttf"
+  - file: "../fonts/DejaVuSans-Bold.ttf"
     id: codex_glyph_14
     size: 14
     bpp: 4

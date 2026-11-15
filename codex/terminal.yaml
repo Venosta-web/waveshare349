@@ -2,17 +2,17 @@
 # Pulled in by waveshare_349.yaml / waveshare_sim.yaml as packages: codex: !include codex/${codex_variant}.yaml
 
 font:
-  - file: "fonts/DejaVuSansMono-Bold.ttf"
+  - file: "../fonts/DejaVuSansMono-Bold.ttf"
     id: codex_mono_16b
     size: 16
     bpp: 4
     glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·✢✳✶✻✽✓✕…"
-  - file: "fonts/DejaVuSansMono.ttf"
+  - file: "../fonts/DejaVuSansMono.ttf"
     id: codex_mono_14
     size: 14
     bpp: 4
     glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•…›○✓"
-  - file: "fonts/DejaVuSansMono.ttf"
+  - file: "../fonts/DejaVuSansMono.ttf"
     id: codex_mono_12
     size: 12
     bpp: 4

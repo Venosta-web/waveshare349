@@ -103,23 +103,13 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  includes:
-    - claude/clawd.h
-    - codex/codex_pet.h
-    - pet_scenes.h
-  on_boot:
-    priority: -100
-    then:
-      - delay: 3s
-      - script.execute: update_grow_ui
-      - script.execute: update_music_ui
 
 packages:
-  ui: !include packages/display_ui.yaml
-  claude: !include claude/${claude_variant}.yaml
-  codex: !include codex/${codex_variant}.yaml
-  music_common: !include music/common.yaml
-  music: !include music/${music_variant}.yaml
+  core_ui: !include packages/waveshare_349/core_ui.yaml
+  mod_grow: !include packages/waveshare_349/mod_grow.yaml
+  mod_music: !include packages/waveshare_349/mod_music.yaml
+  mod_claude: !include packages/waveshare_349/mod_claude.yaml
+  mod_codex: !include packages/waveshare_349/mod_codex.yaml
 
 host:
 
@@ -129,10 +119,6 @@ logger:
 # Native API server listens on TCP 6053 on your PC's LAN/WSL IP
 api:
   port: 6053
-  on_client_connected:
-    - delay: 1s
-    - script.execute: update_grow_ui
-    - script.execute: update_music_ui
 
 # ============================================================================
 # SDL2 DISPLAY & MOUSE TOUCHSCREEN EMULATOR (640 x 172)

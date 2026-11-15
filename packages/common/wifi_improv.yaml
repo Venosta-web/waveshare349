@@ -1,0 +1,7 @@
+wifi:
+  ap:
+    ssid: "${device_name}-fallback"
+
+captive_portal:
+
+improv_serial:

@@ -3,12 +3,12 @@
 
 font:
   # Claude Code's spinner glyphs plus the bubble marks. DejaVu ships them; Roboto doesn't.
-  - file: "fonts/DejaVuSans-Bold.ttf"
+  - file: "../fonts/DejaVuSans-Bold.ttf"
     id: claude_glyph_20
     size: 20
     bpp: 4
     glyphs: "·✢✳✶✻✽✓✕!?zZ"
-  - file: "fonts/DejaVuSans-Bold.ttf"
+  - file: "../fonts/DejaVuSans-Bold.ttf"
     id: claude_glyph_14
     size: 14
     bpp: 4
