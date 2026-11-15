@@ -1,0 +1,199 @@
+# Variant B, "Terminal": the Claude Code status line and prompt box, with Clawd
+# pacing the floor underneath while a prompt runs.
+# Content box is 366 x 242 (390 x 266 card, 2 px border, 10 px padding).
+id: ai_card
+width: 390
+height: 266
+align: TOP_RIGHT
+x: -6
+y: 48
+styles: card_style
+bg_color: 0x0D1117
+hidden: true
+scrollbar_mode: "off"
+widgets:
+  # ── Status line:  ✻ Working… (1m 05s)                 ~/project ──────────
+  - label:
+      id: claude_spin
+      text: "·"
+      text_font: mono_16b
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 2
+      y: 0
+  - label:
+      id: lbl_agent_status
+      text: "Idle"
+      text_font: mono_16b
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 22
+      y: 0
+  - label:
+      id: lbl_claude_time
+      text: ""
+      text_font: mono_12
+      text_color: 0x6E7681
+      align: TOP_LEFT
+      x: 110
+      y: 3
+  - label:
+      id: lbl_claude_project
+      text: ""
+      text_font: mono_12
+      text_color: 0x8B949E
+      align: TOP_RIGHT
+      x: 0
+      y: 3
+
+  # ── Prompt box, as in the Claude Code input/permission frame ────────────
+  - obj:
+      id: claude_box
+      width: 366
+      height: 92
+      align: TOP_LEFT
+      x: 0
+      y: 26
+      bg_opa: TRANSP
+      border_color: 0x30363D
+      border_width: 1
+      radius: 6
+      pad_left: 10
+      pad_right: 10
+      pad_top: 8
+      pad_bottom: 8
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: claude_caret
+            text: ">"
+            text_font: mono_14
+            text_color: 0x6E7681
+            align: TOP_LEFT
+            x: 0
+            y: 0
+        - label:
+            id: lbl_agent_detail
+            text: "Waiting for Claude Code"
+            text_font: mono_14
+            text_color: 0xC9D1D9
+            align: TOP_LEFT
+            x: 16
+            y: 0
+            width: 328
+            height: 74
+            long_mode: DOT
+
+  # ── Floor at y = 178; Clawd's feet land on it ───────────────────────────
+  - obj:
+      id: claude_floor
+      width: 366
+      height: 1
+      align: TOP_LEFT
+      x: 0
+      y: 178
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_width: 0
+      radius: 0
+      pad_all: 0
+  # Trail of footprints Clawd leaves behind on a long run.
+  - obj:
+      id: claude_trail
+      width: 0
+      height: 2
+      align: TOP_LEFT
+      x: 0
+      y: 177
+      bg_color: 0xD97757
+      bg_opa: 60%
+      border_width: 0
+      radius: 0
+      pad_all: 0
+  - obj:
+      id: clawd_box
+      align: TOP_LEFT
+      x: 0
+      y: 142
+      width: 56
+      height: 41
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      scrollbar_mode: "off"
+  - label:
+      id: claude_bubble
+      text: "z"
+      text_font: mono_14
+      text_color: 0x6E7681
+      align: TOP_LEFT
+      x: 50
+      y: 124
+
+  # Approve / Reject only appear while a permission request is pending.
+  - button:
+      id: btn_claude_approve
+      width: 178
+      height: 48
+      align: BOTTOM_LEFT
+      x: 0
+      y: 0
+      hidden: true
+      bg_color: 0x238636
+      border_color: 0x2EA043
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "APPROVE"
+            text_font: mono_16b
+            text_color: 0xFFFFFF
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - homeassistant.event:
+                    event: esphome.claude_command
+                    data:
+                      action: approve
+                      request_id: !lambda "return id(claude_request).state;"
+                - script.execute:
+                    id: claude_sent
+                    verdict: "Approved"
+
+  - button:
+      id: btn_claude_reject
+      width: 178
+      height: 48
+      align: BOTTOM_RIGHT
+      x: 0
+      y: 0
+      hidden: true
+      bg_color: 0x161B22
+      border_color: 0xF85149
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "REJECT"
+            text_font: mono_16b
+            text_color: 0xFF7B72
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - homeassistant.event:
+                    event: esphome.claude_command
+                    data:
+                      action: reject
+                      request_id: !lambda "return id(claude_request).state;"
+                - script.execute:
+                    id: claude_sent
+                    verdict: "Rejected"
