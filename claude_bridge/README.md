@@ -15,6 +15,7 @@ through Home Assistant to the waiting hook.
 | Stop, turn ends with a question           | `Needs Input` + the question                             |
 | Stop, turn hands you a command to run     | `Needs Input` + `Run: <command>`                         |
 | Stop, otherwise                           | `Done`                                                   |
+| StopFailure `rate_limit`                  | `Rate Limited` + 5h/7d countdown bar and reset time      |
 
 At Stop the bridge reads the turn's transcript: the desktop app's end-of-turn
 question box is used when there is one; otherwise it guesses from the last

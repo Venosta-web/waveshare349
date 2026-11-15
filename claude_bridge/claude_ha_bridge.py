@@ -2,10 +2,11 @@
 """Claude Code <-> Home Assistant <-> Waveshare display bridge.
 
 Subcommands:
-  hook    Claude Code hook entry point (reads hook JSON on stdin).
-  setup   Create the input_text helpers in Home Assistant if missing.
-  check   Verify the token and that the helpers exist.
-  test    Send a fake permission request to the display and print the tap.
+  hook        Claude Code hook entry point (reads hook JSON on stdin).
+  statusline  Optional: read Claude Code statusLine JSON on stdin to cache rate_limits.
+  setup       Create the input_text helpers in Home Assistant if missing.
+  check       Verify the token and that the helpers exist.
+  test        Send a fake permission request to the display and print the tap.
 
 Config: ~/.config/claude-ha-bridge/config.env (HA_URL=..., HA_TOKEN=...).
 
@@ -14,6 +15,7 @@ in time, Home Assistant is unreachable, or anything fails, it prints nothing
 and Claude Code falls back to its normal permission prompt.
 """
 import asyncio
+from datetime import datetime, timedelta
 import json
 import os
 import re
@@ -27,6 +29,7 @@ from pathlib import Path
 CONFIG_FILE = Path.home() / ".config" / "claude-ha-bridge" / "config.env"
 # Which session's Needs Input is on the display (other sessions must not hide it).
 OWNER_FILE = Path.home() / ".cache" / "claude-ha-bridge" / "needs_input_owner.json"
+RATE_LIMIT_CACHE = Path.home() / ".cache" / "claude-ha-bridge" / "rate_limits.json"
 OWNER_MAX_AGE = 12 * 3600  # forget a Needs Input whose session never came back
 WRAP_UP_TOOL = "mcp__ccd_turn__wrap_up"  # desktop app's end-of-turn box
 EVENT_TYPE = "esphome.claude_command"
@@ -364,6 +367,172 @@ def guess_waiting_on(text):
     return None
 
 
+# ---------------------------------------------------------------- rate limits
+
+_RL_KEYWORDS = (
+    "rate_limit",
+    "rate limit",
+    "limit reached",
+    "usage limit",
+    "too many requests",
+    "hit your limit",
+    "auto-resuming",
+)
+_MONTHS = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6,
+    "jul": 7, "july": 7, "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
+}
+_RE_REL = re.compile(
+    r"resets?\s+in\s+(?:(\d+)\s*d(?:ays?)?\s*)?(?:(\d+)\s*h(?:ours?|rs?)?\s*)?(?:(\d+)\s*m(?:ins?|inutes?)?)?",
+    re.I,
+)
+_RE_MONTH_TIME = re.compile(
+    r"(?:resets?|resuming)(?:\s+at)?\s+([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?",
+    re.I,
+)
+_RE_TIME = re.compile(
+    r"(?:resets?|resuming|at)\s+(?:at\s+)?(\d{1,2})(?::(\d{2})\s*(am|pm)?|\s*(am|pm))",
+    re.I,
+)
+
+
+def is_rate_limit_text(text):
+    low = (text or "").lower()
+    return any(k in low for k in _RL_KEYWORDS) or bool(re.search(r"\b429\b", low))
+
+
+def _to_24h(hour, ampm):
+    if ampm:
+        ap = ampm.lower()
+        if ap == "pm" and hour != 12:
+            return hour + 12
+        if ap == "am" and hour == 12:
+            return 0
+    return hour
+
+
+def parse_reset_timestamp(text, now_dt=None):
+    """Best-effort parse of a Claude rate-limit reset time into a Unix timestamp."""
+    now_dt = now_dt or datetime.now()
+    s = text or ""
+
+    m = _RE_REL.search(s)
+    if m and any(m.groups()):
+        days = int(m.group(1) or 0)
+        hours = int(m.group(2) or 0)
+        mins = int(m.group(3) or 0)
+        return (now_dt + timedelta(days=days, hours=hours, minutes=mins)).timestamp()
+
+    m = _RE_MONTH_TIME.search(s)
+    if m:
+        month = _MONTHS.get(m.group(1).lower())
+        if month:
+            day = int(m.group(2))
+            hour = _to_24h(int(m.group(3)), m.group(5))
+            minute = int(m.group(4) or 0)
+            year = now_dt.year
+            try:
+                target = now_dt.replace(year=year, month=month, day=day, hour=hour, minute=minute, second=0, microsecond=0)
+                if target <= now_dt - timedelta(days=1):
+                    target = target.replace(year=year + 1)
+                return target.timestamp()
+            except ValueError:
+                pass
+
+    m = _RE_TIME.search(s)
+    if m:
+        hour = _to_24h(int(m.group(1)), m.group(3) or m.group(4))
+        minute = int(m.group(2) or 0)
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            target = now_dt.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if target <= now_dt:
+                target += timedelta(days=1)
+            return target.timestamp()
+
+    return None
+
+
+def _load_cached_rate_limits():
+    try:
+        data = json.loads(RATE_LIMIT_CACHE.read_text())
+        if time.time() - data.get("at", 0) <= 600:
+            return data.get("rate_limits") or {}
+    except (OSError, ValueError):
+        pass
+    return {}
+
+
+def save_rate_limits_cache(rate_limits):
+    if not isinstance(rate_limits, dict):
+        return
+    try:
+        RATE_LIMIT_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = RATE_LIMIT_CACHE.with_suffix(f".{os.getpid()}.tmp")
+        tmp.write_text(json.dumps({"rate_limits": rate_limits, "at": time.time()}))
+        tmp.replace(RATE_LIMIT_CACHE)
+    except OSError:
+        pass
+
+
+def parse_rate_limit_info(text, payload=None, now_dt=None):
+    """Return (window, remaining_secs, reset_clock_str, summary_text)."""
+    now_dt = now_dt or datetime.now()
+    now_ts = now_dt.timestamp()
+    payload = payload or {}
+    rl = payload.get("rate_limits") or _load_cached_rate_limits()
+
+    window = None
+    resets_at = None
+    for key, wname in (("seven_day", "7d"), ("five_hour", "5h")):
+        entry = rl.get(key) if isinstance(rl, dict) else None
+        if isinstance(entry, dict) and float(entry.get("used_percentage") or 0) >= 99.9:
+            ra = entry.get("resets_at")
+            if ra and float(ra) > now_ts:
+                window = wname
+                resets_at = float(ra)
+                break
+
+    if resets_at is None:
+        resets_at = parse_reset_timestamp(text, now_dt)
+
+    low = (text or "").lower()
+    delta = (resets_at - now_ts) if resets_at is not None else None
+    if window is None:
+        if any(k in low for k in ("7-day", "7 day", "7d", "weekly")):
+            window = "7d"
+        elif any(k in low for k in ("5-hour", "5 hour", "5h")):
+            window = "5h"
+        elif delta is not None and delta > 5.5 * 3600:
+            window = "7d"
+        else:
+            window = "5h"
+
+    if resets_at is None:
+        resets_at = now_ts + (7 * 86400 if window == "7d" else 5 * 3600)
+
+    remaining_secs = max(0, int(round(resets_at - now_ts)))
+    reset_dt = datetime.fromtimestamp(resets_at)
+    if reset_dt.date() == now_dt.date():
+        reset_clock_str = reset_dt.strftime("%-I:%M %p")
+    else:
+        reset_clock_str = reset_dt.strftime("%b %-d, %-I:%M %p")
+
+    summary = "7-day usage limit reached" if window == "7d" else "5-hour usage limit reached"
+    return window, remaining_secs, reset_clock_str, summary
+
+
+def show_rate_limit(project, window, remaining_secs, reset_clock_str, summary):
+    if not HA_TOKEN:
+        return
+    clear_owner()
+    body = f"{project} | {summary}" if project else summary
+    detail = f"{window}|{int(remaining_secs)}|{reset_clock_str}|{body}"
+    if not request_pending():
+        set_display("Rate Limited", detail)
+
+
 def run_hook():
     if not HA_TOKEN:
         return
@@ -386,20 +555,40 @@ def run_hook():
         show(session, "Working", f"{project} | Answered. Back to work.")
     elif event == "Stop":
         ask, text = last_turn(payload.get("transcript_path"))
-        waiting_on = ask or guess_waiting_on(text or payload.get("last_assistant_message", ""))
+        combined = text or payload.get("last_assistant_message", "")
+        if payload.get("error") == "rate_limit" or is_rate_limit_text(combined):
+            w, rem, rstr, summary = parse_rate_limit_info(combined, payload)
+            show_rate_limit(project, w, rem, rstr, summary)
+            return
+        waiting_on = ask or guess_waiting_on(combined)
         if waiting_on:
             show(session, "Needs Input", f"{project} | {waiting_on}", needs_input=True)
         else:
             show(session, "Done", f"{project} | Finished. Waiting for the next prompt.")
+    elif event == "StopFailure":
+        err_type = (payload.get("error_type") or payload.get("error") or "").lower()
+        err_msg = payload.get("error_message") or payload.get("message") or ""
+        if not err_msg:
+            _, err_msg = last_turn(payload.get("transcript_path"))
+        if err_type == "rate_limit" or is_rate_limit_text(err_msg):
+            w, rem, rstr, summary = parse_rate_limit_info(err_msg, payload)
+            show_rate_limit(project, w, rem, rstr, summary)
+        else:
+            label = err_msg or err_type or "API error"
+            show(session, "Needs Input", f"{project} | {label}", needs_input=True)
     elif event == "Notification":
         kind = payload.get("notification_type")
+        msg = payload.get("message", "")
         owner = load_owner()
-        if kind == "elicitation_dialog":
-            show(session, "Needs Input", f"{project} | {payload.get('message', 'An MCP server needs your input')}",
+        if kind == "rate_limit" or is_rate_limit_text(msg):
+            w, rem, rstr, summary = parse_rate_limit_info(msg, payload)
+            show_rate_limit(project, w, rem, rstr, summary)
+        elif kind == "elicitation_dialog":
+            show(session, "Needs Input", f"{project} | {msg or 'An MCP server needs your input'}",
                  needs_input=True)
         elif kind == "idle_prompt" and not (owner and owner.get("session") == session):
             # Don't replace this session's own, more specific question.
-            show(session, "Needs Input", f"{project} | {payload.get('message', 'Claude is waiting for you')}",
+            show(session, "Needs Input", f"{project} | {msg or 'Claude is waiting for you'}",
                  needs_input=True)
 
 
@@ -448,6 +637,15 @@ def cmd_test():
     print(f"Display answered: {result or 'nothing (timed out)'}")
 
 
+def run_statusline():
+    try:
+        payload = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        return
+    if "rate_limits" in payload:
+        save_rate_limits_cache(payload["rate_limits"])
+
+
 def main():
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))  # run cleanup if Claude cancels the hook
     cmd = sys.argv[1] if len(sys.argv) > 1 else "hook"
@@ -456,6 +654,11 @@ def main():
             run_hook()
         except BaseException:
             pass  # a hook must never break Claude Code
+    elif cmd == "statusline":
+        try:
+            run_statusline()
+        except BaseException:
+            pass
     elif cmd == "setup":
         cmd_setup(create=True)
     elif cmd == "check":
