@@ -21,11 +21,11 @@ substitutions:
   # Space 1: SOG 2x5
   gs_1_name: "SOG 2x5"
   gs_1_metrics: "sensor.sog_2x5_metrics_bridge"
-  gs_1_vpd: "sensor.sog_2x5_calculated_vpd"
-  gs_1_temp: "sensor.sog_2x5_temperature"
-  gs_1_hum: "sensor.sog_2x5_humidity"
+  gs_1_vpd: "sensor.4x4_vpd"
+  gs_1_temp: "sensor.4x4_temperature"
+  gs_1_hum: "sensor.4x4_humidity"
   gs_1_exhaust: "fan.sog_2x5_exhaust"
-  gs_1_circ: "fan.sog_2x5_circulation"
+  gs_1_circ: "fan.sog_under_canopy"
   gs_1_humid: "humidifier.sog_2x5_humidifier"
 
   # Space 2: Nursery Dome
