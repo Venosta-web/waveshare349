@@ -1,0 +1,622 @@
+#pragma once
+// Additional 150x140 activity-stage dioramas shared by Clawd (Claude) and Byte (Codex).
+// Each scene builds its own LVGL pixel-art props inside `stage`, positions `pet_box`
+// and `bubble` in the right z-order, and returns a `PoseOffset` to layer onto the
+// mascot's base animation at 10 Hz.
+#include <lvgl.h>
+#include <cstdint>
+
+namespace pet_scenes {
+
+enum PetMode : uint8_t {
+  PM_IDLE = 0,
+  PM_WORKING,
+  PM_PENDING,
+  PM_NEEDS_INPUT,
+  PM_DONE,
+  PM_SENT_OK,
+  PM_SENT_NO,
+  PM_RATE_LIMITED,
+};
+
+struct PoseOffset {
+  int dx = 0, dy = 0;
+  int arm_l = 0, arm_r = 0;
+  int eye_dx = 0;
+  int eye_h = -1;  // >= 0 overrides eye height
+  bool override_arms = false;
+  bool override_eye_dx = false;
+};
+
+inline lv_obj_t *blk(lv_obj_t *parent, uint32_t color, lv_opa_t opa = LV_OPA_COVER, int radius = 0) {
+  lv_obj_t *o = lv_obj_create(parent);
+  lv_obj_remove_style_all(o);
+  lv_obj_set_style_bg_color(o, lv_color_hex(color), 0);
+  lv_obj_set_style_bg_opa(o, opa, 0);
+  lv_obj_set_style_radius(o, radius, 0);
+  lv_obj_remove_flag(o, (lv_obj_flag_t) (LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE));
+  return o;
+}
+
+inline void place(lv_obj_t *o, int x, int y, int w, int h) {
+  lv_obj_set_pos(o, x, y);
+  lv_obj_set_size(o, w, h);
+}
+
+inline void set_vis(lv_obj_t *o, bool visible) {
+  if (visible) lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+}
+
+template <typename PoseT>
+inline void merge_pose(PoseT &s, const PoseOffset &po) {
+  s.dx += po.dx;
+  s.dy += po.dy;
+  if (po.override_arms) {
+    s.arm_l = po.arm_l;
+    s.arm_r = po.arm_r;
+  } else {
+    s.arm_l += po.arm_l;
+    s.arm_r += po.arm_r;
+  }
+  if (po.override_eye_dx) s.eye_dx = po.eye_dx;
+  else s.eye_dx += po.eye_dx;
+  if (po.eye_h >= 0) s.eye_h = po.eye_h;
+}
+
+// ── 1. Moonlit Pier & Bobber (Fishing) ──────────────────────────────────────
+struct FishingScene {
+  lv_obj_t *stage = nullptr;
+  lv_obj_t *stars[3] = {};
+  lv_obj_t *waves[3] = {};
+  lv_obj_t *rod[3] = {};
+  lv_obj_t *line = nullptr;
+  lv_obj_t *bob_top = nullptr, *bob_bot = nullptr;
+  lv_obj_t *splash[3] = {};
+  lv_obj_t *fish_body = nullptr, *fish_tail = nullptr, *fish_eye = nullptr;
+  bool is_codex = false;
+
+  void build(lv_obj_t *s, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+    stage = s;
+    is_codex = codex;
+    lv_obj_set_style_bg_color(stage, lv_color_hex(0x09111E), 0);
+
+    // Crescent moon
+    lv_obj_t *moon = blk(stage, 0xE6EDF3, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    place(moon, 126, 10, 12, 12);
+    lv_obj_t *cut = blk(stage, 0x09111E, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    place(cut, 122, 8, 10, 10);
+
+    // Twinkling stars
+    static const int SX[3] = {20, 62, 96}, SY[3] = {14, 24, 12};
+    for (int i = 0; i < 3; i++) {
+      stars[i] = blk(stage, 0x8B949E);
+      place(stars[i], SX[i], SY[i], 2, 2);
+    }
+
+    // Water & surface highlight
+    place(blk(stage, 0x0E2A47), 0, 102, 150, 38);
+    place(blk(stage, 0x1F5685), 0, 102, 150, 2);
+    static const int WY[3] = {110, 120, 130}, WW[3] = {22, 16, 26};
+    for (int i = 0; i < 3; i++) {
+      waves[i] = blk(stage, i == 1 ? 0x2B6CB0 : 0x1E4E79, LV_OPA_80, 1);
+      place(waves[i], 10 + i * 40, WY[i], WW[i], 2);
+    }
+
+    // Wooden pier & pilings
+    place(blk(stage, 0x4A311D), 12, 102, 6, 38);
+    place(blk(stage, 0x4A311D), 48, 102, 6, 38);
+    place(blk(stage, 0x6E4B2E), 0, 96, 66, 6);
+    place(blk(stage, 0x8B6240), 0, 96, 66, 2);
+
+    // Mascot stands on the pier (u = 5 -> feet at +45 px, 51 + 45 = 96)
+    lv_obj_set_pos(pet_box, -2, 51);
+    lv_obj_move_foreground(pet_box);
+    lv_obj_set_pos(bubble, 82, 10);
+    lv_obj_move_foreground(bubble);
+
+    // Foreground fishing gear
+    for (int i = 0; i < 3; i++) rod[i] = blk(stage, i == 2 ? 0xC9D1D9 : 0xA67C52);
+    line = blk(stage, 0xC9D1D9, LV_OPA_70);
+    bob_top = blk(stage, 0xF85149, LV_OPA_COVER, 1);
+    bob_bot = blk(stage, 0xF0F6FC, LV_OPA_COVER, 1);
+    for (int i = 0; i < 3; i++) {
+      splash[i] = blk(stage, 0x79C0FF, LV_OPA_COVER, 1);
+      set_vis(splash[i], false);
+    }
+
+    uint32_t fish_col = codex ? 0x34D399 : 0xFFB020;
+    fish_body = blk(stage, fish_col, LV_OPA_COVER, 2);
+    fish_tail = blk(stage, fish_col);
+    fish_eye = blk(stage, 0x0A0C10);
+    set_vis(fish_body, false);
+    set_vis(fish_tail, false);
+    set_vis(fish_eye, false);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t) {
+    PoseOffset po;
+    // Stars twinkle
+    for (int i = 0; i < 3; i++) {
+      bool bright = ((f / 7 + i * 3) % 5) == 0;
+      lv_obj_set_style_bg_color(stars[i], lv_color_hex(bright ? 0xF0F6FC : 0x6E7681), 0);
+    }
+
+    // Drifting water shimmer
+    int speed = (m == PM_WORKING) ? 2 : 1;
+    int w0 = ((int) (f * speed) * 2) % 150;
+    int w1 = 140 - (((int) (f * speed) * 3) % 150);
+    int w2 = ((int) (f * speed) + 45) % 150;
+    lv_obj_set_x(waves[0], w0);
+    lv_obj_set_x(waves[1], w1);
+    lv_obj_set_x(waves[2], w2);
+
+    // Rod & bobber kinematics
+    int tip_dy = 0;
+    int bob_x = 104, bob_y = 100;
+    bool show_splash = false;
+
+    if (m == PM_IDLE || m == PM_RATE_LIMITED) {
+      tip_dy = (m == PM_RATE_LIMITED) ? 4 : ((f / 14) % 2);
+      bob_y = 100 + ((f / 10) % 2);
+    } else if (m == PM_WORKING) {
+      uint32_t cyc = f % 32;
+      bool nibble = (cyc >= 20 && cyc <= 27);
+      if (nibble) {
+        tip_dy = (cyc % 2) ? 5 : 2;
+        bob_y = 103 + (int) (cyc % 3);
+        show_splash = true;
+        po.dx = (cyc % 2) ? -1 : 1;
+        po.arm_r = -4;
+        po.override_arms = true;
+      } else {
+        tip_dy = (cyc < 4) ? -3 : ((f / 8) % 2);
+        bob_y = 99 + ((f / 5) % 3);
+      }
+      po.eye_dx = 2;
+      po.override_eye_dx = true;
+    } else if (m == PM_PENDING) {
+      tip_dy = (f % 2) ? -5 : 4;
+      bob_y = 104 + (f % 3);
+      bob_x = 102 + (f % 4);
+      show_splash = true;
+    } else if (m == PM_DONE || m == PM_SENT_OK) {
+      tip_dy = -6;
+      bob_y = 92;
+      show_splash = (t < 14);
+    } else if (m == PM_SENT_NO) {
+      tip_dy = 6;
+      bob_y = 101;
+    }
+
+    // Stepped fishing rod from mascot's right hand (60, 74) to (104, 46 + tip_dy)
+    place(rod[0], 58, 71 + tip_dy / 3, 16, 3);
+    place(rod[1], 71, 61 + tip_dy / 2, 16, 3);
+    place(rod[2], 84, 51 + tip_dy, 20, 2);
+
+    int lx = 103;
+    int ly = 52 + tip_dy;
+    int lh = bob_y - ly;
+    if (lh < 4) lh = 4;
+    place(line, lx, ly, 1, lh);
+    place(bob_top, bob_x - 2, bob_y, 6, 3);
+    place(bob_bot, bob_x - 2, bob_y + 3, 6, 3);
+
+    // Splash droplets
+    for (int i = 0; i < 3; i++) {
+      set_vis(splash[i], show_splash);
+      if (show_splash) {
+        int spread = (int) (f % 4) * 2;
+        int sx = bob_x + (i - 1) * (5 + spread);
+        int sy = 96 - (i == 1 ? 4 : 1) - (f % 2) * 3;
+        place(splash[i], sx, sy, 3, 3);
+      }
+    }
+
+    // Leaping fish on Done / Sent OK
+    bool show_fish = (m == PM_DONE || m == PM_SENT_OK) && t < 24;
+    set_vis(fish_body, show_fish);
+    set_vis(fish_tail, show_fish);
+    set_vis(fish_eye, show_fish);
+    if (show_fish) {
+      int k = (int) (t % 16);
+      int arc = k < 8 ? k : (15 - k);
+      int fx = 114;
+      int fy = 102 - arc * 5;
+      place(fish_body, fx, fy, 11, 7);
+      place(fish_tail, fx + 10, fy + 1, 4, 5);
+      place(fish_eye, fx + 2, fy + 2, 2, 2);
+    }
+
+    return po;
+  }
+};
+
+// ── 2. Cavern Ore & Pickaxe (Mining) ────────────────────────────────────────
+struct MiningScene {
+  lv_obj_t *stage = nullptr;
+  lv_obj_t *lantern_glow = nullptr, *lantern_core = nullptr;
+  lv_obj_t *ore[3] = {};
+  lv_obj_t *helmet = nullptr, *headlamp = nullptr;
+  lv_obj_t *pick_handle[2] = {}, *pick_head = nullptr, *pick_tip = nullptr;
+  lv_obj_t *sparks[4] = {};
+  lv_obj_t *gem[2] = {};
+  bool is_codex = false;
+
+  void build(lv_obj_t *s, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+    stage = s;
+    is_codex = codex;
+    lv_obj_set_style_bg_color(stage, lv_color_hex(0x0B0D12), 0);
+
+    // Timber beam & hanging lantern
+    place(blk(stage, 0x3D291A), 6, 8, 6, 110);
+    place(blk(stage, 0x4A311D), 0, 0, 44, 8);
+    lantern_glow = blk(stage, 0xFFB020, LV_OPA_20, LV_RADIUS_CIRCLE);
+    place(lantern_glow, 16, 10, 26, 26);
+    place(blk(stage, 0x6E7681), 28, 8, 2, 8);
+    place(blk(stage, 0x30363D), 25, 16, 8, 10);
+    lantern_core = blk(stage, 0xFFB020, LV_OPA_COVER, 1);
+    place(lantern_core, 27, 18, 4, 6);
+
+    // Cavern floor & stepped rock wall
+    place(blk(stage, 0x1C2128), 0, 118, 150, 22);
+    place(blk(stage, 0x2D333B), 10, 124, 14, 3);
+    place(blk(stage, 0x2D333B), 76, 128, 18, 3);
+
+    place(blk(stage, 0x161B22), 92, 12, 58, 18);
+    place(blk(stage, 0x21262D), 102, 26, 48, 92);
+    place(blk(stage, 0x30363D), 102, 26, 3, 92);
+
+    // Glowing ore veins
+    uint32_t c0 = codex ? 0x10B981 : 0xFFB020;
+    uint32_t c1 = codex ? 0xA7F3D0 : 0xD97757;
+    uint32_t c2 = 0x58A6FF;
+    ore[0] = blk(stage, c0, LV_OPA_COVER, 1);
+    ore[1] = blk(stage, c1, LV_OPA_COVER, 1);
+    ore[2] = blk(stage, c2, LV_OPA_COVER, 1);
+    place(ore[0], 110, 44, 10, 6);
+    place(ore[1], 124, 66, 12, 8);
+    place(ore[2], 108, 88, 9, 6);
+
+    // Mascot at (20, 73), u = 5 -> feet at 73 + 45 = 118
+    lv_obj_set_pos(pet_box, 20, 73);
+    lv_obj_move_foreground(pet_box);
+    lv_obj_set_pos(bubble, 76, 8);
+    lv_obj_move_foreground(bubble);
+
+    // Mining helmet + headlamp
+    helmet = blk(stage, 0xFFB020, LV_OPA_COVER, 2);
+    headlamp = blk(stage, 0xFFF3C4, LV_OPA_COVER, 1);
+
+    // Pickaxe & sparks
+    pick_handle[0] = blk(stage, 0x8B6F4E);
+    pick_handle[1] = blk(stage, 0x8B6F4E);
+    pick_head = blk(stage, 0xC9D1D9);
+    pick_tip = blk(stage, 0xF0F6FC);
+    for (int i = 0; i < 4; i++) {
+      sparks[i] = blk(stage, i % 2 ? 0xFFB020 : 0xF0F6FC);
+      set_vis(sparks[i], false);
+    }
+
+    // Jackpot gem
+    gem[0] = blk(stage, 0x58A6FF, LV_OPA_COVER, 2);
+    gem[1] = blk(stage, 0xA5D6FF, LV_OPA_COVER, 1);
+    set_vis(gem[0], false);
+    set_vis(gem[1], false);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t) {
+    PoseOffset po;
+    // Lantern pulse
+    lv_opa_t glow_opa = (m == PM_IDLE || m == PM_RATE_LIMITED) ? LV_OPA_10
+                      : ((f / 4) % 2 ? LV_OPA_30 : LV_OPA_20);
+    lv_obj_set_style_bg_opa(lantern_glow, glow_opa, 0);
+    uint32_t lcol = (m == PM_PENDING && (f / 3) % 2) ? 0xFFE082
+                  : (m == PM_RATE_LIMITED) ? 0x8A5D12 : 0xFFB020;
+    lv_obj_set_style_bg_color(lantern_core, lv_color_hex(lcol), 0);
+
+    bool impact = false;
+    int swing_phase = 0;  // 0 = rest, 1 = windup, 2 = strike
+    if (m == PM_WORKING) {
+      int k = (int) (f % 8);
+      if (k < 3) {
+        swing_phase = 1;
+        po.arm_r = -14;
+        po.override_arms = true;
+      } else if (k <= 5) {
+        swing_phase = 2;
+        po.dx = 4;
+        po.arm_r = 2;
+        po.override_arms = true;
+        impact = (k == 3 || k == 4);
+      } else {
+        swing_phase = 0;
+        po.dx = 1;
+      }
+      po.eye_dx = 2;
+      po.override_eye_dx = true;
+    } else if (m == PM_PENDING) {
+      swing_phase = (f / 3) % 2 ? 1 : 0;
+    } else if (m == PM_DONE || m == PM_SENT_OK) {
+      swing_phase = 1;
+    }
+
+    // Helmet tracks mascot head (pet_box at 20,73; body top at +10 = y 83, x 20+10 = 30)
+    int hx = 20 + 20 + po.dx;
+    int hy = 73 + 6 + po.dy;
+    if (m == PM_DONE && t < 9) {
+      static const int HOP[] = {0, -1, -2, -3, -3, -2, -1, 0, 0};
+      hy += HOP[t] * 5;
+    }
+    place(helmet, hx, hy, 28, 6);
+    place(headlamp, hx + 22, hy + 1, 5, 4);
+
+    // Pickaxe position
+    if (swing_phase == 1) {
+      place(pick_handle[0], 78 + po.dx, 70 + po.dy, 3, 14);
+      place(pick_handle[1], 76 + po.dx, 58 + po.dy, 3, 14);
+      place(pick_head, 68 + po.dx, 54 + po.dy, 16, 4);
+      place(pick_tip, 82 + po.dx, 56 + po.dy, 4, 4);
+    } else if (swing_phase == 2) {
+      place(pick_handle[0], 82 + po.dx, 84, 14, 3);
+      place(pick_handle[1], 92 + po.dx, 80, 10, 3);
+      place(pick_head, 99, 72, 4, 16);
+      place(pick_tip, 101, 76, 4, 4);
+    } else {
+      place(pick_handle[0], 80 + po.dx, 86, 12, 3);
+      place(pick_handle[1], 88 + po.dx, 88, 8, 3);
+      place(pick_head, 93, 82, 4, 14);
+      place(pick_tip, 95, 92, 4, 4);
+    }
+
+    // Ore flash & sparks on strike
+    lv_obj_set_style_bg_color(ore[1], lv_color_hex(impact ? 0xFFF3C4 : (is_codex ? 0xA7F3D0 : 0xD97757)), 0);
+    for (int i = 0; i < 4; i++) {
+      set_vis(sparks[i], impact);
+      if (impact) {
+        int age = (int) (f % 2);
+        int sx = 98 - (i + 1) * 4 - age * 4;
+        int sy = 76 + (i - 1) * 5 + age * 3;
+        place(sparks[i], sx, sy, 3, 3);
+      }
+    }
+
+    // Jackpot gem on Done
+    bool show_gem = (m == PM_DONE || m == PM_SENT_OK) && t < 24;
+    set_vis(gem[0], show_gem);
+    set_vis(gem[1], show_gem);
+    if (show_gem) {
+      int lift = (t < 10) ? (int) t * 3 : 30;
+      place(gem[0], 110, 56 - lift, 12, 12);
+      place(gem[1], 113, 59 - lift, 5, 5);
+    }
+    return po;
+  }
+};
+
+// ── 3. Table Tennis Rally (Ping Pong) ───────────────────────────────────────
+struct PingPongScene {
+  lv_obj_t *stage = nullptr;
+  lv_obj_t *paddle_face = nullptr, *paddle_handle = nullptr;
+  lv_obj_t *rival_body = nullptr, *rival_face = nullptr, *rival_eye = nullptr;
+  lv_obj_t *ball = nullptr, *ball_shadow = nullptr;
+  bool is_codex = false;
+
+  void build(lv_obj_t *s, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+    stage = s;
+    is_codex = codex;
+    lv_obj_set_style_bg_color(stage, lv_color_hex(0x0D1117), 0);
+
+    // Arena floor
+    place(blk(stage, 0x131922), 0, 118, 150, 22);
+
+    // Ping-pong table + net (positioned cleanly to the right of the mascot)
+    place(blk(stage, 0x30363D), 50, 94, 4, 24);
+    place(blk(stage, 0x30363D), 116, 94, 4, 24);
+    place(blk(stage, 0x1F6FEB), 42, 88, 86, 6);
+    place(blk(stage, 0xF0F6FC), 42, 88, 86, 2);
+    place(blk(stage, 0x8B949E), 84, 78, 2, 10);
+    place(blk(stage, 0xF0F6FC), 83, 78, 4, 2);
+
+    // Mascot at (0, 77), u = 4 -> feet at 77 + 36 = 113 (meets floor comfortably)
+    lv_obj_set_pos(pet_box, 0, 77);
+    lv_obj_move_foreground(pet_box);
+    lv_obj_set_pos(bubble, 62, 10);
+    lv_obj_move_foreground(bubble);
+
+    // Rival mini-paddle bot on the right
+    rival_body = blk(stage, 0x21262D, LV_OPA_COVER, 2);
+    rival_face = blk(stage, codex ? 0xD97757 : 0x10B981, LV_OPA_COVER, 1);
+    rival_eye = blk(stage, 0xF0F6FC);
+
+    // Mascot's paddle
+    paddle_handle = blk(stage, 0x8B6F4E);
+    paddle_face = blk(stage, codex ? 0x10B981 : 0xF85149, LV_OPA_COVER, 2);
+
+    // Ping-pong ball & table shadow
+    ball_shadow = blk(stage, 0x000000, LV_OPA_40, LV_RADIUS_CIRCLE);
+    ball = blk(stage, 0xFFFFFF, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t) {
+    PoseOffset po;
+    int bx = 74, by = 83;
+    int rival_x = 132, rival_y = 74;
+    int pad_x = 48, pad_y = 84;
+
+    if (m == PM_WORKING) {
+      // 16-frame crisp rally over the net
+      static const int BX[16] = {52, 62, 72, 83, 94, 106, 117, 126, 124, 114, 103, 91, 80, 68, 57, 50};
+      static const int BY[16] = {74, 68, 65, 66, 72, 83, 76, 72, 71, 66, 64, 67, 73, 83, 78, 75};
+      int k = (int) (f % 16);
+      bx = BX[k];
+      by = BY[k];
+      rival_y = by - 5;
+      if (k >= 6 && k <= 9) rival_x = 129;
+
+      bool hit_left = (k == 15 || k == 0 || k == 1);
+      if (hit_left) {
+        po.dx = 2;
+        po.arm_r = -6;
+        po.override_arms = true;
+        pad_x = 50;
+        pad_y = 76;
+      } else {
+        pad_y = 82 + (k % 2);
+      }
+      po.eye_dx = (bx > 84) ? 2 : 0;
+      po.override_eye_dx = true;
+    } else if (m == PM_PENDING) {
+      bx = 74;
+      by = 62 + ((f / 2) % 2) * 3;
+      pad_x = 46;
+      pad_y = ((f / 3) % 2) ? 68 : 82;
+    } else if (m == PM_NEEDS_INPUT) {
+      // Bounce ball gently on paddle
+      static const int JUG[6] = {0, -6, -10, -11, -7, -2};
+      bx = 49;
+      by = 76 + JUG[f % 6];
+      pad_x = 48;
+      pad_y = (f % 6 == 0) ? 81 : 83;
+    } else if (m == PM_DONE || m == PM_SENT_OK) {
+      if (t < 10) {
+        bx = 56 + (int) t * 9;
+        by = 76 - (int) (t < 5 ? t * 2 : (10 - t));
+      } else {
+        bx = 136;
+        by = 113;
+      }
+      pad_x = 48;
+      pad_y = 66;
+    } else if (m == PM_SENT_NO) {
+      bx = 34;
+      by = 113;
+      pad_x = 46;
+      pad_y = 90;
+    } else {
+      // IDLE / RATE_LIMITED
+      bx = 62;
+      by = 83;
+      pad_x = 46;
+      pad_y = 88;
+    }
+
+    place(paddle_handle, pad_x, pad_y + 8, 3, 6);
+    place(paddle_face, pad_x - 2, pad_y, 7, 10);
+
+    place(rival_body, rival_x, rival_y, 10, 18);
+    place(rival_face, rival_x - 2, rival_y + 2, 3, 14);
+    place(rival_eye, rival_x + 4, rival_y + 4, 2, 2);
+
+    bool on_table = (bx >= 42 && bx <= 126 && by <= 90);
+    set_vis(ball_shadow, on_table);
+    if (on_table) place(ball_shadow, bx, 87, 5, 2);
+    place(ball, bx, by, 5, 5);
+
+    return po;
+  }
+};
+
+// ── 4. Night Campfire & Embers (Campfire) ───────────────────────────────────
+struct CampfireScene {
+  lv_obj_t *stage = nullptr;
+  lv_obj_t *stars[4] = {};
+  lv_obj_t *glow = nullptr;
+  lv_obj_t *flame_out = nullptr, *flame_mid = nullptr, *flame_core = nullptr;
+  lv_obj_t *embers[3] = {};
+  lv_obj_t *stick = nullptr, *mallow = nullptr;
+
+  void build(lv_obj_t *s, lv_obj_t *pet_box, lv_obj_t *bubble, bool /*codex*/) {
+    stage = s;
+    lv_obj_set_style_bg_color(stage, lv_color_hex(0x080C14), 0);
+
+    static const int SX[4] = {18, 52, 92, 130}, SY[4] = {16, 10, 20, 12};
+    for (int i = 0; i < 4; i++) {
+      stars[i] = blk(stage, 0x8B949E);
+      place(stars[i], SX[i], SY[i], 2, 2);
+    }
+
+    // Ground & warm campfire glow
+    place(blk(stage, 0x131922), 0, 118, 150, 22);
+    glow = blk(stage, 0x4A2612, LV_OPA_70, LV_RADIUS_CIRCLE);
+    place(glow, 82, 112, 54, 12);
+
+    // Crossed logs
+    place(blk(stage, 0x5A3E28), 94, 112, 28, 5);
+    place(blk(stage, 0x3D291A), 98, 110, 20, 4);
+
+    // Mascot at (4, 73), u = 5 -> feet at 73 + 45 = 118
+    lv_obj_set_pos(pet_box, 4, 73);
+    lv_obj_move_foreground(pet_box);
+    lv_obj_set_pos(bubble, 78, 10);
+    lv_obj_move_foreground(bubble);
+
+    // Roasting stick & marshmallow
+    stick = blk(stage, 0x8B6F4E);
+    mallow = blk(stage, 0xF0F6FC, LV_OPA_COVER, 1);
+
+    // 3-layer flame & rising embers
+    flame_out = blk(stage, 0xF85149, LV_OPA_COVER, 4);
+    flame_mid = blk(stage, 0xFFB020, LV_OPA_COVER, 3);
+    flame_core = blk(stage, 0xFFE082, LV_OPA_COVER, 2);
+    for (int i = 0; i < 3; i++) embers[i] = blk(stage, i == 1 ? 0xF85149 : 0xFFB020);
+  }
+
+  PoseOffset tick(PetMode m, uint32_t f, uint32_t t) {
+    PoseOffset po;
+    for (int i = 0; i < 4; i++) {
+      bool bright = ((f / 6 + i * 2) % 5) == 0;
+      lv_obj_set_style_bg_color(stars[i], lv_color_hex(bright ? 0xF0F6FC : 0x6E7681), 0);
+    }
+
+    bool low_fire = (m == PM_IDLE || m == PM_RATE_LIMITED);
+    int flicker = (int) (f % 4);
+    int oh = low_fire ? 7 + (flicker % 2) : 20 + (flicker == 1 ? 4 : flicker == 3 ? -2 : 0);
+    int mh = low_fire ? 4 : 13 + ((flicker + 1) % 3) * 2;
+    int ch = low_fire ? 2 : 7 + (flicker % 2) * 2;
+    int fx_jit = low_fire ? 0 : (flicker == 2 ? 1 : flicker == 0 ? -1 : 0);
+
+    place(flame_out, 100 + fx_jit, 112 - oh, 18, oh);
+    place(flame_mid, 103 - fx_jit, 112 - mh, 12, mh);
+    place(flame_core, 106, 112 - ch, 6, ch);
+    lv_obj_set_style_bg_opa(glow, low_fire ? LV_OPA_30 : (flicker % 2 ? LV_OPA_80 : LV_OPA_60), 0);
+
+    // Rising embers
+    for (int i = 0; i < 3; i++) {
+      if (low_fire) {
+        set_vis(embers[i], false);
+      } else {
+        set_vis(embers[i], true);
+        int age = (int) ((f + i * 6) % 18);
+        int ex = 104 + i * 4 + ((age / 3) % 2 ? 2 : -2);
+        int ey = 92 - age * 3;
+        place(embers[i], ex, ey, 2, 2);
+        lv_obj_set_style_bg_opa(embers[i], age > 13 ? LV_OPA_30 : LV_OPA_COVER, 0);
+      }
+    }
+
+    // Roasting stick & marshmallow
+    int stick_y = 95;
+    if (m == PM_WORKING) {
+      stick_y = 94 + ((f / 4) % 2 ? -2 : 1);
+      po.arm_r = -4;
+      po.override_arms = true;
+      po.eye_dx = 2;
+      po.override_eye_dx = true;
+    } else if (m == PM_DONE || m == PM_SENT_OK) {
+      stick_y = (t < 8) ? 84 : 93;
+    } else if (m == PM_RATE_LIMITED || m == PM_IDLE) {
+      stick_y = 99;
+    }
+
+    uint32_t m_col = (m == PM_DONE || m == PM_SENT_OK) ? 0xE39B4B
+                   : (m == PM_SENT_NO) ? 0x30363D : 0xF0F6FC;
+    lv_obj_set_style_bg_color(mallow, lv_color_hex(m_col), 0);
+    place(stick, 66 + po.dx, stick_y + po.dy, 28, 2);
+    place(mallow, 92 + po.dx, stick_y - 2 + po.dy, 6, 6);
+
+    return po;
+  }
+};
+
+}  // namespace pet_scenes

@@ -1,0 +1,307 @@
+# Variant "campfire" (Night Campfire & Embers) — card layout.
+# Content box is 540 x 140 (560 x 160 card, 2 px border, 8 px padding).
+id: codex_card
+width: 560
+height: 160
+align: RIGHT_MID
+x: -6
+y: 0
+styles: card_style
+hidden: true
+scrollbar_mode: "off"
+widgets:
+  # ── Stage ────────────────────────────────────────────────────────────────
+  - obj:
+      id: codex_stage
+      width: 150
+      height: 140
+      align: TOP_LEFT
+      bg_color: 0x0D1117
+      bg_opa: COVER
+      border_width: 0
+      radius: 10
+      pad_all: 0
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: codex_pet_box
+            align: TOP_LEFT
+            x: 26
+            y: 55
+            width: 98
+            height: 69
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            radius: 0
+            scrollbar_mode: "off"
+        # Thought bubble above Byte's head: z / ! / ? / check.
+        - label:
+            id: codex_bubble
+            text: "z"
+            text_font: codex_glyph_20
+            text_color: 0x0A0C10
+            align: TOP_LEFT
+            x: 104
+            y: 12
+            bg_color: 0x8B949E
+            bg_opa: COVER
+            radius: 6
+            pad_left: 6
+            pad_right: 6
+            pad_top: 1
+            pad_bottom: 1
+
+  # ── Run column ───────────────────────────────────────────────────────────
+  - label:
+      id: codex_spin
+      text: "✻"
+      text_font: codex_glyph_20
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 164
+      y: 0
+  - label:
+      id: lbl_codex_status
+      text: "Idle"
+      text_font: font_20
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 190
+      y: 0
+  - label:
+      id: lbl_codex_time
+      text: ""
+      text_font: font_14
+      text_color: 0x8B949E
+      align: TOP_RIGHT
+      x: 0
+      y: 4
+  - label:
+      id: lbl_codex_project
+      text: ""
+      text_font: font_12
+      text_color: 0xC9D1D9
+      align: TOP_LEFT
+      x: 164
+      y: 32
+      bg_color: 0x21262D
+      bg_opa: COVER
+      radius: 4
+      pad_left: 6
+      pad_right: 6
+      pad_top: 2
+      pad_bottom: 2
+      hidden: true
+  - label:
+      id: lbl_codex_step_count
+      text: ""
+      text_font: font_12
+      text_color: 0x10B981
+      align: TOP_RIGHT
+      x: 0
+      y: 32
+      bg_color: 0x21262D
+      bg_opa: COVER
+      radius: 4
+      pad_left: 6
+      pad_right: 6
+      pad_top: 2
+      pad_bottom: 2
+      hidden: true
+  - label:
+      id: lbl_codex_detail
+      text: "Waiting for Codex"
+      text_font: font_14
+      text_color: 0xC9D1D9
+      align: TOP_LEFT
+      x: 164
+      y: 58
+      width: 376
+      height: 50
+      long_mode: DOT
+  - label:
+      id: lbl_codex_step_now_icon
+      text: "›"
+      text_font: codex_glyph_14
+      text_color: 0x10B981
+      align: TOP_LEFT
+      x: 164
+      y: 58
+      hidden: true
+  - label:
+      id: lbl_codex_step_now
+      text: ""
+      text_font: font_14
+      text_color: 0xF0F6FC
+      align: TOP_LEFT
+      x: 180
+      y: 58
+      width: 360
+      height: 36
+      long_mode: DOT
+      hidden: true
+  - label:
+      id: lbl_codex_step_next_icon
+      text: "○"
+      text_font: codex_glyph_14
+      text_color: 0x6E7681
+      align: TOP_LEFT
+      x: 164
+      y: 98
+      hidden: true
+  - label:
+      id: lbl_codex_step_next
+      text: ""
+      text_font: font_12
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 180
+      y: 99
+      width: 360
+      height: 18
+      long_mode: DOT
+      hidden: true
+
+  # Rate-limit cooldown block: live countdown, reset clock, and draining bar.
+  - obj:
+      id: codex_rl_box
+      width: 376
+      height: 46
+      align: TOP_LEFT
+      x: 164
+      y: 56
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: lbl_codex_rl_countdown
+            text: ""
+            text_font: font_20
+            text_color: 0xF0F6FC
+            align: TOP_LEFT
+            x: 0
+            y: 0
+        - label:
+            id: lbl_codex_rl_reset
+            text: ""
+            text_font: font_14
+            text_color: 0x8B949E
+            align: TOP_RIGHT
+            x: 0
+            y: 4
+        - obj:
+            id: codex_rl_track
+            width: 376
+            height: 10
+            align: TOP_LEFT
+            x: 0
+            y: 28
+            bg_color: 0x21262D
+            bg_opa: COVER
+            border_color: 0x30363D
+            border_width: 1
+            radius: 5
+            pad_all: 0
+            scrollbar_mode: "off"
+            widgets:
+              - obj:
+                  id: codex_rl_fill
+                  width: 374
+                  height: 8
+                  align: LEFT_MID
+                  x: 0
+                  bg_color: 0xF85149
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 4
+                  pad_all: 0
+
+  # Activity line: a comet sliding while working, a draining fuse while a
+  # permission request waits for you.
+  - obj:
+      id: codex_track
+      width: 376
+      height: 4
+      align: TOP_LEFT
+      x: 164
+      y: 134
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_width: 0
+      radius: 2
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: codex_track_fill
+            width: 96
+            height: 4
+            align: LEFT_MID
+            x: 0
+            bg_color: 0x10B981
+            bg_opa: COVER
+            border_width: 0
+            radius: 2
+            pad_all: 0
+
+  # Approve / Reject only appear while a permission request is pending.
+  # The request id is echoed back so a stale tap can't approve a newer request.
+  - button:
+      id: btn_codex_approve
+      width: 184
+      height: 44
+      align: BOTTOM_LEFT
+      x: 164
+      hidden: true
+      bg_color: 0x238636
+      border_color: 0x2EA043
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "APPROVE"
+            text_font: font_20
+            text_color: 0xFFFFFF
+            align: CENTER
+      on_click:
+        then:
+          - homeassistant.event:
+              event: esphome.codex_command
+              data:
+                action: approve
+                request_id: !lambda "return id(codex_request).state;"
+          - script.execute:
+              id: codex_sent
+              verdict: "Approved"
+
+  - button:
+      id: btn_codex_reject
+      width: 184
+      height: 44
+      align: BOTTOM_RIGHT
+      hidden: true
+      bg_color: 0x21262D
+      border_color: 0xF85149
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "REJECT"
+            text_font: font_20
+            text_color: 0xFF7B72
+            align: CENTER
+      on_click:
+        then:
+          - homeassistant.event:
+              event: esphome.codex_command
+              data:
+                action: reject
+                request_id: !lambda "return id(codex_request).state;"
+          - script.execute:
+              id: codex_sent
+              verdict: "Rejected"

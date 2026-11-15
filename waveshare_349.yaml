@@ -91,11 +91,11 @@ substitutions:
   cycle_interval: "15"
   pause_timeout: "25"
 
-  # Claude Code card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  # Claude Code card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
   claude_variant: "stage"
   claude_decision_timeout: "110"
 
-  # Codex card: "stage" (mascot-forward) or "terminal" (CLI status line)
+  # Codex card: "stage" (mascot-forward), "terminal" (CLI status line), or "fishing" / "mining" / "pingpong" / "campfire"
   codex_variant: "stage"
   codex_decision_timeout: "110"
 
@@ -110,6 +110,7 @@ esphome:
   includes:
     - claude/clawd.h
     - codex/codex_pet.h
+    - pet_scenes.h
   on_boot:
     priority: -100
     then:

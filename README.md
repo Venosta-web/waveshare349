@@ -23,9 +23,10 @@ ESPHome LVGL firmware and SDL2 desktop simulator for the **Waveshare ESP32-S3-To
 - Connects local Claude Code sessions (CLI and Desktop) to the display via [`claude_bridge/claude_ha_bridge.py`](claude_bridge/claude_ha_bridge.py) and Home Assistant `input_text` helpers.
 - Surfaces live session states: `Working`, `Pending Approval`, `Needs Input`, `Done`, and `Rate Limited` (with 5h/7d countdown bar and reset time).
 - **Touchscreen Permission Requests**: When Claude Code requests tool/command permission, the display switches to the `AI` view and lets you tap **APPROVE** or **REJECT** (fires `esphome.claude_command` back to the waiting hook; silently falls back to the normal Claude prompt after `claude_decision_timeout`, default `110s`).
-- Two selectable LVGL card variants via `claude_variant`:
+- Selectable LVGL card variants via `claude_variant` (and matching `codex_variant` for Byte):
   - **`stage`** *(default on hardware)* — Mascot-forward animated Clawd puppet ([`claude/stage.yaml`](claude/stage.yaml), [`claude/clawd.h`](claude/clawd.h)).
   - **`terminal`** *(default on simulator)* — Compact CLI status line ([`claude/terminal.yaml`](claude/terminal.yaml)).
+  - **`fishing`**, **`mining`**, **`pingpong`**, **`campfire`** — Additional animated activity-stage dioramas ([`pet_scenes.h`](pet_scenes.h)).
 
 ### 4. Voice Satellite & Local Assist Pipeline
 - **On-device wake word & audio** ([`waveshare_349.yaml`](waveshare_349.yaml)): `micro_wake_word` (`okay_nabu`), ES8311 I2S audio codec, noise suppression, auto-gain, push-to-talk (`on_voice_ptt`), and a `Mute Microphone` switch (`mic_mute_switch`).
@@ -128,7 +129,7 @@ Key `substitutions` shared across [`waveshare_349.yaml`](waveshare_349.yaml) and
 | `vpd_gauge_min` / `vpd_gauge_max` | `"0.4"` / `"1.8"` | VPD gauge scale bounds (kPa) |
 | `music_variant` | `"studio"` | Music card layout: `"studio"` or `"deck"` |
 | `music_player_entity` | `"media_player.music_assistant_player"` | Home Assistant media player entity ID |
-| `claude_variant` | `"stage"` / `"terminal"` | AI card layout: `"stage"` or `"terminal"` |
+| `claude_variant` | `"stage"` / `"terminal"` | AI card layout: `"stage"`, `"terminal"`, `"fishing"`, `"mining"`, `"pingpong"`, or `"campfire"` |
 | `claude_decision_timeout` | `"110"` | Seconds the bridge waits for an Approve/Reject tap |
 
 ---
