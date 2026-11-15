@@ -95,3 +95,52 @@ def test_run_hook_stop_failure_rate_limit(monkeypatch, tmp_path):
     assert status == "Rate Limited"
     assert detail.startswith("5h|")
     assert "|myproj | 5-hour usage limit reached" in detail
+
+
+def test_extract_seven_day_remaining():
+    now = datetime(2026, 11, 15, 14, 0, 0)  # Sunday
+    payload = {
+        "rate_limits": {
+            "five_hour": {"used_percentage": 100.0, "resets_at": now.timestamp() + 1800},
+            "seven_day": {"used_percentage": 42.0, "resets_at": datetime(2026, 11, 19, 14, 0, 0).timestamp()},
+        }
+    }
+    sd = bridge.extract_seven_day_remaining(payload=payload, now_dt=now)
+    assert sd == (58, "Thu 2:00 PM")
+
+    # Exhausted 7d returns None
+    payload["rate_limits"]["seven_day"]["used_percentage"] = 100.0
+    assert bridge.extract_seven_day_remaining(payload=payload, now_dt=now) is None
+
+
+def test_run_hook_includes_7d_when_5h_limited(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr(bridge, "HA_TOKEN", "test-token")
+    monkeypatch.setattr(bridge, "OWNER_FILE", tmp_path / "owner.json")
+    monkeypatch.setattr(bridge, "request_pending", lambda: False)
+    monkeypatch.setattr(
+        bridge,
+        "set_display",
+        lambda status=None, detail=None, request=None, steps=None: calls.append((status, detail)),
+    )
+
+    now = datetime.now()
+    payload = {
+        "hook_event_name": "StopFailure",
+        "session_id": "s1",
+        "cwd": "/tmp/myproj",
+        "error_type": "rate_limit",
+        "error_message": "5-hour limit reached · resets in 2h 30m",
+        "rate_limits": {
+            "five_hour": {"used_percentage": 100.0, "resets_at": now.timestamp() + 9000},
+            "seven_day": {"used_percentage": 42.0, "resets_at": now.timestamp() + 3 * 86400},
+        },
+    }
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
+    bridge.run_hook()
+
+    assert len(calls) == 1
+    status, detail = calls[0]
+    assert status == "Rate Limited"
+    assert "|7d=58;" in detail
+    assert detail.endswith("|myproj | 5-hour usage limit reached")

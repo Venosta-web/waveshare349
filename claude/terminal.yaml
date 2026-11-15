@@ -60,6 +60,43 @@ script:
             lv_obj_add_flag(id(claude_rl_track), LV_OBJ_FLAG_HIDDEN);
           }
 
+          const bool show_7d_wing = rate_limited && !clawd::g_rl_is_7d && clawd::g_rl_7d_left_pct >= 0;
+          if (show_7d_wing) {
+            char sub[64], pct7[20], rst7[48];
+            if (!clawd::g_rl_reset_at.empty()) {
+              snprintf(sub, sizeof(sub), "Weekly quota still available · resets %s", clawd::g_rl_reset_at.c_str());
+            } else {
+              snprintf(sub, sizeof(sub), "Weekly quota still available");
+            }
+            lv_label_set_text(id(lbl_rl_sub), sub);
+
+            snprintf(pct7, sizeof(pct7), "%d%% left", clawd::g_rl_7d_left_pct);
+            lv_label_set_text(id(lbl_rl_7d_pct), pct7);
+            uint32_t col7 = clawd::g_rl_7d_left_pct > 25 ? 0x3FB950 : 0xFFB020;
+            lv_obj_set_style_text_color(id(lbl_rl_7d_pct), lv_color_hex(col7), 0);
+            lv_obj_set_style_bg_color(id(claude_rl_7d_fill), lv_color_hex(col7), 0);
+
+            int w7 = (222 * clawd::g_rl_7d_left_pct) / 100;
+            if (clawd::g_rl_7d_left_pct > 0 && w7 < 4) w7 = 4;
+            if (w7 > 222) w7 = 222;
+            lv_obj_set_width(id(claude_rl_7d_fill), w7);
+
+            if (!clawd::g_rl_7d_reset_at.empty()) {
+              snprintf(rst7, sizeof(rst7), "resets %s", clawd::g_rl_7d_reset_at.c_str());
+            } else {
+              rst7[0] = 0;
+            }
+            lv_label_set_text(id(lbl_rl_7d_reset), rst7);
+
+            lv_obj_clear_flag(id(lbl_rl_sub), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(claude_rl_5h_wing), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(claude_rl_7d_wing), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(id(lbl_rl_sub), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(claude_rl_5h_wing), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(claude_rl_7d_wing), LV_OBJ_FLAG_HIDDEN);
+          }
+
           lv_obj_t *step_objs[] = {
               id(lbl_step_now_icon), id(lbl_step_now), id(lbl_step_count),
               id(lbl_step_next_icon), id(lbl_step_next), id(step_progress_bg)
@@ -279,6 +316,10 @@ script:
             if (rl_left == 0) {
               snprintf(tbuf, sizeof(tbuf), "(%s · ready)", g_rl_is_7d ? "7d" : "5h");
               lv_obj_set_width(id(claude_rl_fill), 0);
+              if (!g_rl_is_7d && g_rl_7d_left_pct >= 0) {
+                lv_label_set_text(id(lbl_rl_5h_pct), "Ready");
+                lv_obj_set_style_text_color(id(lbl_rl_5h_pct), lv_color_hex(0x2EA043), 0);
+              }
             } else {
               char d[24];
               fmt_countdown(d, sizeof(d), rl_left);
@@ -289,6 +330,14 @@ script:
               lv_obj_set_width(id(claude_rl_fill), w);
               uint32_t fill_col = (rl_left * 10 <= g_rl_total_ms) ? 0xFFB020 : 0xF85149;
               lv_obj_set_style_bg_color(id(claude_rl_fill), lv_color_hex(fill_col), 0);
+              if (!g_rl_is_7d && g_rl_7d_left_pct >= 0) {
+                unsigned pct5 = (unsigned) ((rl_left * 100ULL + g_rl_total_ms / 2) / g_rl_total_ms);
+                if (pct5 > 100) pct5 = 100;
+                char p5buf[24];
+                snprintf(p5buf, sizeof(p5buf), "%u%% remaining", pct5);
+                lv_label_set_text(id(lbl_rl_5h_pct), p5buf);
+                lv_obj_set_style_text_color(id(lbl_rl_5h_pct), lv_color_hex(fill_col), 0);
+              }
             }
           }
           lv_label_set_text(id(lbl_claude_time), tbuf);
