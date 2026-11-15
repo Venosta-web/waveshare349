@@ -182,105 +182,113 @@ lvgl:
     - id: home_page
       bg_color: 0x0A0C10
       widgets:
-        # ── LEFT NAVIGATION RAIL (72 x 172) ────────────────────────────────
-        - button:
-            id: nav_grow
+        # ── LEFT NAVIGATION RAIL (64 x 160, 3 visible entries, scrollable) ──
+        - obj:
+            id: nav_rail
             width: 64
-            height: 38
-            align: TOP_LEFT
+            height: 160
+            align: LEFT_MID
             x: 4
-            y: 4
-            styles: nav_btn_active
+            y: 0
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            radius: 0
+            scrollable: true
+            scroll_dir: VER
+            scroll_snap_y: START
+            scrollbar_mode: "active"
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              pad_row: 5
             widgets:
-              - label:
-                  id: nav_grow_icon
-                  text: "\U000F0E66"
-                  text_font: icons_20
-                  text_color: 0xFFFFFF
-                  align: CENTER
-            on_press:
-              then:
-                - script.execute:
-                    id: switch_tab
-                    tab_idx: 0
+              - button:
+                  id: nav_grow
+                  width: 64
+                  height: 50
+                  styles: nav_btn_active
+                  widgets:
+                    - label:
+                        id: nav_grow_icon
+                        text: "\U000F0E66"
+                        text_font: icons_20
+                        text_color: 0xFFFFFF
+                        align: CENTER
+                  on_click:
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 0
 
-        - button:
-            id: nav_music
-            width: 64
-            height: 38
-            align: TOP_LEFT
-            x: 4
-            y: 45
-            styles: nav_btn
-            widgets:
-              - label:
-                  id: nav_music_icon
-                  text: "\U000F0387"
-                  text_font: icons_20
-                  text_color: 0x8B949E
-                  align: CENTER
-            on_press:
-              then:
-                - script.execute:
-                    id: switch_tab
-                    tab_idx: 1
+              - button:
+                  id: nav_music
+                  width: 64
+                  height: 50
+                  styles: nav_btn
+                  widgets:
+                    - label:
+                        id: nav_music_icon
+                        text: "\U000F0387"
+                        text_font: icons_20
+                        text_color: 0x8B949E
+                        align: CENTER
+                  on_click:
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 1
 
-        - button:
-            id: nav_ai
-            width: 64
-            height: 38
-            align: TOP_LEFT
-            x: 4
-            y: 86
-            styles: nav_btn
-            widgets:
-              - obj:
-                  id: nav_clawd_box
-                  width: 28
-                  height: 22
-                  align: CENTER
-                  bg_opa: TRANSP
-                  border_width: 0
-                  pad_all: 0
-                  radius: 0
-                  clickable: false
-                  scrollbar_mode: "off"
-              - obj:
-                  id: ai_alert_badge
-                  width: 10
-                  height: 10
-                  align: TOP_RIGHT
-                  x: -4
-                  y: 4
-                  radius: 5
-                  bg_color: 0xFF5252
-                  bg_opa: COVER
-                  border_width: 0
-                  hidden: true
-            on_press:
-              then:
-                - script.execute:
-                    id: switch_tab
-                    tab_idx: 2
+              - button:
+                  id: nav_ai
+                  width: 64
+                  height: 50
+                  styles: nav_btn
+                  widgets:
+                    - obj:
+                        id: nav_clawd_box
+                        width: 28
+                        height: 22
+                        align: CENTER
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        radius: 0
+                        clickable: false
+                        scrollbar_mode: "off"
+                    - obj:
+                        id: ai_alert_badge
+                        width: 10
+                        height: 10
+                        align: TOP_RIGHT
+                        x: -4
+                        y: 4
+                        radius: 5
+                        bg_color: 0xFF5252
+                        bg_opa: COVER
+                        border_width: 0
+                        hidden: true
+                  on_click:
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 2
 
-        - button:
-            id: nav_mic
-            width: 64
-            height: 40
-            align: TOP_LEFT
-            x: 4
-            y: 127
-            styles: nav_btn
-            widgets:
-              - label:
-                  id: nav_mic_icon
-                  text: "\U000F036C"
-                  text_font: icons_20
-                  text_color: 0x8B949E
-                  align: CENTER
-            on_press:
-              then:
-                - script.execute: on_voice_ptt
+              - button:
+                  id: nav_mic
+                  width: 64
+                  height: 50
+                  styles: nav_btn
+                  widgets:
+                    - label:
+                        id: nav_mic_icon
+                        text: "\U000F036C"
+                        text_font: icons_20
+                        text_color: 0x8B949E
+                        align: CENTER
+                  on_click:
+                    then:
+                      - script.execute: on_voice_ptt
 
         # ── CARD 1: GROWSPACE MANAGER (560 x 160) ──────────────────────────
         - obj:
@@ -731,6 +739,9 @@ script:
               lv_obj_set_style_border_color(btns[i], lv_color_hex(0x30363D), 0);
             }
             if (icons[i] != nullptr) lv_obj_set_style_text_color(icons[i], lv_color_hex(fg), 0);
+          }
+          if (tab_idx >= 0 && tab_idx < 3) {
+            lv_obj_scroll_to_view(btns[tab_idx], LV_ANIM_ON);
           }
           if (tab_idx == 1) {
             // Keep Growspace auto-cycling paused while Music View is active
