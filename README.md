@@ -110,6 +110,10 @@ See [`claude_bridge/README.md`](claude_bridge/README.md) for full details. Quick
    ```
 4. Merge [`claude_bridge/hooks.example.json`](claude_bridge/hooks.example.json) into the `"hooks"` key of `~/.claude/settings.json`.
 
+### 5. Set Up the Codex Desktop Bridge *(optional)*
+
+The **Codex** Display View shows local Codex turn status, plan steps, and optional touchscreen decisions for eligible permission requests. See the [Codex bridge setup](codex_bridge/README.md) for Home Assistant helper setup, the desktop hooks, and the touchscreen test.
+
 ---
 
 ## Configuration Reference

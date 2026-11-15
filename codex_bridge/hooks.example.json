@@ -1,0 +1,83 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/absolute/path/to/codex_ha_bridge.py\" hook",
+            "timeout": 18
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^request_user_input$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/absolute/path/to/codex_ha_bridge.py\" hook",
+            "timeout": 18
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(update_plan|request_user_input|Bash)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/absolute/path/to/codex_ha_bridge.py\" hook",
+            "timeout": 18
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/absolute/path/to/codex_ha_bridge.py\" hook",
+            "timeout": 75
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/absolute/path/to/codex_ha_bridge.py\" hook",
+            "timeout": 18
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/absolute/path/to/codex_ha_bridge.py\" hook",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/absolute/path/to/codex_ha_bridge.py\" hook",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}
