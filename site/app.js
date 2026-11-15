@@ -25,7 +25,7 @@ const state = {
   packageSource: 'github',
   githubRepo: detectGithubRepo(),
   githubRef: 'main',
-  useImprov: true,
+  useImprov: false,
   gsCount: 7,
   cycleInterval: 15,
   pauseTimeout: 25,

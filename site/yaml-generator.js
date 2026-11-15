@@ -24,9 +24,9 @@ export function generateEsphomeYaml(state) {
   lines.push(`  device_name: ${quoteYaml(state.deviceName || device.defaultDeviceName)}`);
   lines.push(`  friendly_name: ${quoteYaml(state.friendlyName || device.defaultFriendlyName)}`);
 
-  if (!state.useImprov) {
-    lines.push(`  wifi_ssid: ${quoteYaml(state.wifiSsid || '!secret wifi_ssid')}`.replace('"!secret wifi_ssid"', '!secret wifi_ssid'));
-    lines.push(`  wifi_password: ${quoteYaml(state.wifiPassword || '!secret wifi_password')}`.replace('"!secret wifi_password"', '!secret wifi_password'));
+  if (!state.useImprov && (state.wifiSsid || state.wifiPassword)) {
+    lines.push(`  wifi_ssid: ${quoteYaml(state.wifiSsid || '')}`);
+    lines.push(`  wifi_password: ${quoteYaml(state.wifiPassword || '')}`);
   }
 
   if (has('grow')) {
@@ -88,7 +88,11 @@ export function generateEsphomeYaml(state) {
   lines.push('');
   lines.push('packages:');
 
-  const wifiPkg = state.useImprov ? 'packages/common/wifi_improv.yaml' : 'packages/common/wifi_static.yaml';
+  const wifiPkg = state.useImprov
+    ? 'packages/common/wifi_improv.yaml'
+    : state.wifiSsid || state.wifiPassword
+      ? 'packages/common/wifi_static.yaml'
+      : 'packages/common/wifi_secrets.yaml';
   const pkgFiles = [
     ['board', `${device.packageDir}/board.yaml`],
     ['wifi', wifiPkg],
