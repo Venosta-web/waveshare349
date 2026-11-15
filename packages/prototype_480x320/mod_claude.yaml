@@ -1,0 +1,111 @@
+# Feature Module: Claude Code Status & Approval Card (480x320 Prototype)
+# Requires substitutions: claude_variant ("stage" | "terminal"), claude_decision_timeout
+
+packages:
+  claude_variant: !include ../../prototype/esp32-s3-480-320-prototype/claude/${claude_variant}.yaml
+
+esphome:
+  includes:
+    - prototype/esp32-s3-480-320-prototype/claude/clawd.h
+  on_boot:
+    - priority: -44
+      then:
+        - lambda: "lv_obj_set_parent(id(nav_ai), id(nav_rail));"
+    - priority: -54
+      then:
+        - lambda: |-
+            if (id(active_tab) < 0) {
+              id(switch_tab).execute(2);
+            }
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - button:
+            id: nav_ai
+            width: 72
+            height: 84
+            styles: nav_btn
+            widgets:
+              - obj:
+                  id: nav_clawd_box
+                  width: 28
+                  height: 22
+                  align: TOP_MID
+                  y: 18
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  clickable: false
+                  scrollbar_mode: "off"
+              - label:
+                  id: nav_ai_lbl
+                  text: "AI"
+                  text_font: font_12
+                  text_color: 0x8B949E
+                  align: BOTTOM_MID
+                  y: -14
+              - obj:
+                  id: ai_alert_badge
+                  width: 10
+                  height: 10
+                  align: TOP_RIGHT
+                  x: -5
+                  y: 5
+                  radius: 5
+                  bg_color: 0xFF5252
+                  bg_opa: COVER
+                  border_width: 0
+                  hidden: true
+            on_press:
+              then:
+                - if:
+                    condition:
+                      lambda: "return !id(wake_lock);"
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 2
+
+        - obj: !include ../../prototype/esp32-s3-480-320-prototype/claude/${claude_variant}_card.yaml
+
+text_sensor:
+  - platform: homeassistant
+    id: claude_status
+    entity_id: input_text.claude_status
+    on_value:
+      - script.execute: update_ai_ui
+  - platform: homeassistant
+    id: claude_detail
+    entity_id: input_text.claude_detail
+    on_value:
+      - script.execute: update_ai_ui
+  - platform: homeassistant
+    id: claude_request
+    entity_id: input_text.claude_request
+  - platform: homeassistant
+    id: claude_steps
+    entity_id: input_text.claude_steps
+    on_value:
+      - script.execute: update_ai_ui
+
+script:
+  - id: !extend switch_tab
+    then:
+      - lambda: |-
+          const bool active = (tab_idx == 2);
+          if (active) {
+            lv_obj_clear_flag(id(ai_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_ai), lv_color_hex(0x1F6FEB), 0);
+            lv_obj_set_style_border_color(id(nav_ai), lv_color_hex(0x58A6FF), 0);
+            lv_obj_set_style_text_color(id(nav_ai_lbl), lv_color_hex(0xFFFFFF), 0);
+            lv_obj_add_flag(id(ai_alert_badge), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(id(ai_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_ai), lv_color_hex(0x161B22), 0);
+            lv_obj_set_style_border_color(id(nav_ai), lv_color_hex(0x30363D), 0);
+            lv_obj_set_style_text_color(id(nav_ai_lbl), lv_color_hex(0x8B949E), 0);
+          }
+          lv_obj_invalidate(lv_scr_act());

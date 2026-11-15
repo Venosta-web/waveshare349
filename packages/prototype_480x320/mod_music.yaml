@@ -1,0 +1,85 @@
+# Feature Module: Music Assistant (480x320 Prototype)
+# Requires substitutions: music_variant ("studio" | "deck"), music_player_entity
+
+packages:
+  music_common: !include ../../prototype/esp32-s3-480-320-prototype/music/common.yaml
+  music_variant: !include ../../prototype/esp32-s3-480-320-prototype/music/${music_variant}.yaml
+
+esphome:
+  on_boot:
+    - priority: -42
+      then:
+        - lambda: "lv_obj_set_parent(id(nav_music), id(nav_rail));"
+    - priority: -52
+      then:
+        - lambda: |-
+            if (id(active_tab) < 0) {
+              id(switch_tab).execute(1);
+            }
+    - priority: -100
+      then:
+        - delay: 5s
+        - script.execute: update_music_ui
+
+api:
+  on_client_connected:
+    - delay: 1s
+    - script.execute: update_music_ui
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - button:
+            id: nav_music
+            width: 72
+            height: 84
+            styles: nav_btn
+            widgets:
+              - label:
+                  id: nav_music_icon
+                  text: "\U000F0387"
+                  text_font: icons_20
+                  text_color: 0x8B949E
+                  align: TOP_MID
+                  y: 18
+              - label:
+                  id: nav_music_lbl
+                  text: "MUSIC"
+                  text_font: font_12
+                  text_color: 0x8B949E
+                  align: BOTTOM_MID
+                  y: -14
+            on_press:
+              then:
+                - if:
+                    condition:
+                      lambda: "return !id(wake_lock);"
+                    then:
+                      - script.execute:
+                          id: switch_tab
+                          tab_idx: 1
+
+        - obj: !include ../../prototype/esp32-s3-480-320-prototype/music/${music_variant}_card.yaml
+
+script:
+  - id: !extend switch_tab
+    then:
+      - lambda: |-
+          const bool active = (tab_idx == 1);
+          if (active) {
+            lv_obj_clear_flag(id(music_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_music), lv_color_hex(0x1F6FEB), 0);
+            lv_obj_set_style_border_color(id(nav_music), lv_color_hex(0x58A6FF), 0);
+            lv_obj_set_style_text_color(id(nav_music_icon), lv_color_hex(0xFFFFFF), 0);
+            lv_obj_set_style_text_color(id(nav_music_lbl), lv_color_hex(0xFFFFFF), 0);
+            id(cycle_paused) = true;
+            id(pause_timer) = 3600;
+          } else {
+            lv_obj_add_flag(id(music_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_music), lv_color_hex(0x161B22), 0);
+            lv_obj_set_style_border_color(id(nav_music), lv_color_hex(0x30363D), 0);
+            lv_obj_set_style_text_color(id(nav_music_icon), lv_color_hex(0x8B949E), 0);
+            lv_obj_set_style_text_color(id(nav_music_lbl), lv_color_hex(0x8B949E), 0);
+          }
+          lv_obj_invalidate(lv_scr_act());

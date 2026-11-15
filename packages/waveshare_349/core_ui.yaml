@@ -1,0 +1,215 @@
+# Core LVGL 640x172 shell, fonts, styles, Display View select, and adaptive nav rail.
+# Feature Modules extend home_page and switch_tab via !extend.
+
+globals:
+  - id: active_tab
+    type: int
+    initial_value: "-1"
+  - id: cycle_paused
+    type: bool
+    initial_value: "false"
+  - id: pause_timer
+    type: int
+    initial_value: "0"
+  - id: nav_direction
+    type: int
+    initial_value: "1"
+  - id: voice_muted
+    type: bool
+    initial_value: "false"
+
+esphome:
+  on_boot:
+    - priority: -90
+      then:
+        - lambda: |-
+            if (lv_obj_get_child_cnt(id(nav_rail)) <= 1) {
+              lv_obj_add_flag(id(nav_rail), LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_obj_clear_flag(id(nav_rail), LV_OBJ_FLAG_HIDDEN);
+            }
+            lv_obj_invalidate(lv_scr_act());
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: font_12
+    size: 12
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: font_14
+    size: 14
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: font_20
+    size: 20
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•"
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 800
+    id: font_32
+    size: 32
+    bpp: 4
+    glyphs: "0123456789:.% -°abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/"
+
+  - file: "../../fonts/materialdesignicons-webfont.ttf"
+    id: icons_20
+    size: 20
+    glyphs:
+      - "\U000F050F" # thermometer
+      - "\U000F058C" # water
+      - "\U000F012C" # check-circle
+      - "\U000F0029" # alert
+      - "\U000F0159" # close-circle
+      - "\U000F0210" # fan
+      - "\U000F06B5" # lightbulb (day)
+      - "\U000F06B8" # lightbulb-off (night)
+      - "\U000F03E4" # pause
+      - "\U000F036C" # microphone
+      - "\U000F036D" # microphone-off
+      - "\U000F040A" # play
+      - "\U000F04AE" # skip-next
+      - "\U000F04AD" # skip-previous
+      - "\U000F075A" # music
+      - "\U000F0387" # music-note
+      - "\U000F0E66" # sprout
+
+  - file: "../../fonts/materialdesignicons-webfont.ttf"
+    id: icons_24
+    size: 24
+    glyphs:
+      - "\U000F0141" # chevron-left
+      - "\U000F0142" # chevron-right
+      - "\U000F036C" # microphone
+      - "\U000F036D" # microphone-off
+      - "\U000F040A" # play
+      - "\U000F03E4" # pause
+
+select:
+  - platform: template
+    id: display_view
+    name: "Display View"
+    icon: "mdi:monitor-dashboard"
+    options:
+      - "Growspace"
+      - "Music"
+      - "AI"
+      - "Codex"
+    initial_option: "Growspace"
+    optimistic: true
+    set_action:
+      - lambda: |-
+          int target = 0;
+          if (x == "Music") target = 1;
+          else if (x == "AI") target = 2;
+          else if (x == "Codex") target = 3;
+          id(switch_tab).execute(target);
+
+lvgl:
+  log_level: INFO
+  buffer_size: 100%
+  full_refresh: true
+  disp_bg_color: 0x0A0C10
+  touchscreens:
+    - touchscreen_id: my_touchscreen
+
+  style_definitions:
+    - id: nav_btn
+      bg_color: 0x161B22
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+    - id: nav_btn_active
+      bg_color: 0x1F6FEB
+      bg_opa: COVER
+      border_color: 0x58A6FF
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+    - id: card_style
+      bg_color: 0x161B22
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 2
+      radius: 12
+      pad_all: 8
+
+    - id: phase_badge
+      bg_color: 0x333333
+      bg_opa: COVER
+      radius: 6
+      pad_left: 7
+      pad_right: 7
+      pad_top: 2
+      pad_bottom: 2
+      border_width: 0
+
+    - id: media_btn
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 8
+      pad_all: 0
+
+  pages:
+    - id: home_page
+      bg_color: 0x0A0C10
+      widgets:
+        - obj:
+            id: nav_rail
+            width: 64
+            height: 160
+            align: LEFT_MID
+            x: 4
+            y: 0
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            radius: 0
+            scrollable: true
+            scroll_dir: VER
+            scroll_snap_y: START
+            scrollbar_mode: "active"
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              pad_row: 5
+            widgets: []
+
+script:
+  - id: switch_tab
+    parameters:
+      tab_idx: int
+    then:
+      - lambda: |-
+          id(active_tab) = tab_idx;
+          const char* opts[] = { "Growspace", "Music", "AI", "Codex" };
+          if (tab_idx >= 0 && tab_idx < 4 && id(display_view).current_option() != opts[tab_idx]) {
+            id(display_view).publish_state(opts[tab_idx]);
+          }
+          lv_obj_invalidate(lv_scr_act());
+
+  # Extended by mod_voice.yaml on hardware (or simulator)
+  - id: on_voice_ptt
+    then:
+      - lambda: "return;"
