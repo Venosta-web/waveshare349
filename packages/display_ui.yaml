@@ -646,6 +646,11 @@ text_sensor:
   - platform: homeassistant
     id: claude_request
     entity_id: input_text.claude_request
+  - platform: homeassistant
+    id: claude_steps
+    entity_id: input_text.claude_steps
+    on_value:
+      - script.execute: update_ai_ui
 
   - { platform: homeassistant, id: gs0_phase, entity_id: "${gs_0_metrics}", attribute: granular_stage }
   - { platform: homeassistant, id: gs0_is_day, entity_id: "${gs_0_metrics}", attribute: is_day }
