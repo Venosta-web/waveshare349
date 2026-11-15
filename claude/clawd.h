@@ -54,6 +54,9 @@ inline uint32_t g_rl_set_ms = 0;
 inline bool g_rl_is_7d = false;
 inline std::string g_rl_reset_at;
 inline std::string g_project, g_text;
+inline int g_step_cur = 0;
+inline int g_step_total = 0;
+inline std::string g_step_now, g_step_next;
 
 inline Mode parse_status(const std::string &s) {
   if (s == "Working") return WORKING;
@@ -74,6 +77,29 @@ inline void split_detail(const std::string &d) {
     g_project = d.substr(0, bar);
     g_text = d.substr(bar + 3);
   }
+}
+
+// Parse "<cur>/<total>|<current>|<next>" into g_step_*; clears on empty/invalid.
+inline void parse_steps(const std::string &s) {
+  g_step_cur = 0;
+  g_step_total = 0;
+  g_step_now.clear();
+  g_step_next.clear();
+  if (s.empty() || s == "unknown" || s == "unavailable") return;
+  auto p1 = s.find('|');
+  auto p2 = p1 == std::string::npos ? std::string::npos : s.find('|', p1 + 1);
+  if (p1 == std::string::npos || p2 == std::string::npos) return;
+  std::string counts = s.substr(0, p1);
+  auto slash = counts.find('/');
+  if (slash == std::string::npos) return;
+  int cur = atoi(counts.substr(0, slash).c_str());
+  int total = atoi(counts.substr(slash + 1).c_str());
+  std::string now = s.substr(p1 + 1, p2 - p1 - 1);
+  if (cur <= 0 || total <= 0 || now.empty()) return;
+  g_step_cur = cur > total ? total : cur;
+  g_step_total = total;
+  g_step_now = now;
+  g_step_next = s.substr(p2 + 1);
 }
 
 // Switch mode, keeping the work timer running across approve/needs-input

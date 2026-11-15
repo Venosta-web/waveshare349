@@ -71,7 +71,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "AskUserQuestion",
+        "matcher": "AskUserQuestion|TodoWrite|TaskCreate|TaskUpdate",
         "hooks": [
           {
             "type": "command",

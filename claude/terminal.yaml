@@ -11,12 +11,12 @@ font:
     id: mono_14
     size: 14
     bpp: 4
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•…›"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•…›○✓"
   - file: "fonts/DejaVuSansMono.ttf"
     id: mono_12
     size: 12
     bpp: 4
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·…"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·…○✓"
 
 script:
   # Renders the AI card from the claude_* helpers. A pending request reveals
@@ -35,8 +35,10 @@ script:
           } else {
             clawd::split_detail(detail);
           }
+          clawd::parse_steps(id(claude_steps).state);
           const bool pending = clawd::g_mode == clawd::PENDING;
           const bool rate_limited = clawd::g_mode == clawd::RATE_LIMITED;
+          const bool show_steps = clawd::g_step_total > 0 && !pending && !rate_limited && clawd::g_mode != clawd::NEEDS_INPUT;
 
           if (rate_limited && !clawd::g_rl_reset_at.empty()) {
             char rbuf[48];
@@ -56,6 +58,53 @@ script:
             lv_obj_clear_flag(id(claude_rl_track), LV_OBJ_FLAG_HIDDEN);
           } else {
             lv_obj_add_flag(id(claude_rl_track), LV_OBJ_FLAG_HIDDEN);
+          }
+
+          lv_obj_t *step_objs[] = {
+              id(lbl_step_now_icon), id(lbl_step_now), id(lbl_step_count),
+              id(lbl_step_next_icon), id(lbl_step_next), id(step_progress_bg)
+          };
+          if (show_steps) {
+            const uint32_t acc = clawd::accent(clawd::g_mode);
+            const bool all_done = clawd::g_mode == clawd::DONE && clawd::g_step_cur == clawd::g_step_total;
+            lv_obj_add_flag(id(claude_caret), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(lbl_agent_detail), LV_OBJ_FLAG_HIDDEN);
+            for (auto *o : step_objs) lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+
+            char cbuf[24];
+            snprintf(cbuf, sizeof(cbuf), "%d/%d", clawd::g_step_cur, clawd::g_step_total);
+            lv_label_set_text(id(lbl_step_count), cbuf);
+            lv_obj_set_style_text_color(id(lbl_step_count), lv_color_hex(acc), 0);
+
+            lv_label_set_text(id(lbl_step_now_icon), all_done ? "✓" : "›");
+            lv_obj_set_style_text_color(id(lbl_step_now_icon), lv_color_hex(acc), 0);
+            lv_label_set_text(id(lbl_step_now), clawd::g_step_now.c_str());
+
+            if (!clawd::g_step_next.empty()) {
+              lv_label_set_text(id(lbl_step_next_icon), "○");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x6E7681), 0);
+              lv_label_set_text(id(lbl_step_next), clawd::g_step_next.c_str());
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x8B949E), 0);
+            } else if (all_done) {
+              char dbuf[48];
+              snprintf(dbuf, sizeof(dbuf), "All %d steps complete", clawd::g_step_total);
+              lv_label_set_text(id(lbl_step_next_icon), "✓");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x3FB950), 0);
+              lv_label_set_text(id(lbl_step_next), dbuf);
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x8B949E), 0);
+            } else {
+              lv_label_set_text(id(lbl_step_next_icon), "·");
+              lv_obj_set_style_text_color(id(lbl_step_next_icon), lv_color_hex(0x6E7681), 0);
+              lv_label_set_text(id(lbl_step_next), "Final step");
+              lv_obj_set_style_text_color(id(lbl_step_next), lv_color_hex(0x6E7681), 0);
+            }
+            int fill_w = (536 * clawd::g_step_cur) / clawd::g_step_total;
+            lv_obj_set_width(id(step_progress_fill), fill_w);
+            lv_obj_set_style_bg_color(id(step_progress_fill), lv_color_hex(acc), 0);
+          } else {
+            lv_obj_clear_flag(id(claude_caret), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(lbl_agent_detail), LV_OBJ_FLAG_HIDDEN);
+            for (auto *o : step_objs) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
           }
 
           if (pending) {

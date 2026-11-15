@@ -1,0 +1,134 @@
+# Variant B, "Studio" — state rendering & 10 Hz 12-band spectrum animation for music/studio_card.yaml.
+# Pulled in by waveshare_sim.yaml as packages: music: !include music/${music_variant}.yaml
+
+font:
+  - file: "fonts/DejaVuSansMono-Bold.ttf"
+    id: studio_mono_12
+    size: 12
+    bpp: 4
+    glyphs: " 0123456789:%ABCDEFGHIJKLMNOPQRSTUVWXYZ-"
+
+script:
+  - id: update_music_ui
+    mode: queued
+    then:
+      - lambda: |-
+          auto clean_str = [](const std::string &s, const char *fallback) -> std::string {
+            if (s.empty() || s == "unknown" || s == "unavailable" || s == "None" || s == "null") {
+              return fallback;
+            }
+            return s;
+          };
+
+          std::string st = id(ma_state)->has_state() ? id(ma_state)->state : "idle";
+          bool playing = (st == "playing");
+          bool paused  = (st == "paused");
+          id(ma_is_playing) = playing;
+
+          // Sync shuffle/repeat/mute from HA when available
+          if (id(ma_shuffle)->has_state()) {
+            const std::string &sh = id(ma_shuffle)->state;
+            if (sh == "true" || sh == "True" || sh == "on") id(ma_shuffle_on) = true;
+            else if (sh == "false" || sh == "False" || sh == "off") id(ma_shuffle_on) = false;
+          }
+          if (id(ma_repeat)->has_state()) {
+            const std::string &rp = id(ma_repeat)->state;
+            if (rp == "all") id(ma_repeat_mode) = 1;
+            else if (rp == "one") id(ma_repeat_mode) = 2;
+            else if (rp == "off") id(ma_repeat_mode) = 0;
+          }
+          if (id(ma_is_muted)->has_state()) {
+            const std::string &mt = id(ma_is_muted)->state;
+            if (mt == "true" || mt == "True" || mt == "on") id(ma_muted) = true;
+            else if (mt == "false" || mt == "False" || mt == "off") id(ma_muted) = false;
+          }
+
+          // State LED & label
+          uint32_t st_col = playing ? 0x3FB950 : (paused ? 0xD29922 : 0x6E7681);
+          lv_obj_set_style_bg_color(id(ma_state_dot), lv_color_hex(st_col), 0);
+          lv_label_set_text(id(ma_state_lbl), playing ? "PLAYING" : (paused ? "PAUSED" : "IDLE"));
+          lv_obj_set_style_text_color(id(ma_state_lbl), lv_color_hex(st_col), 0);
+
+          // Track metadata
+          std::string title  = clean_str(id(ma_title)->has_state() ? id(ma_title)->state : "", "Nothing Playing");
+          std::string artist = clean_str(id(ma_artist)->has_state() ? id(ma_artist)->state : "", "Music Assistant");
+          std::string album  = clean_str(id(ma_album)->has_state() ? id(ma_album)->state : "", "");
+          std::string player = clean_str(id(ma_friendly_name)->has_state() ? id(ma_friendly_name)->state : "", "Music Assistant");
+
+          lv_label_set_text(id(ma_title_lbl), title.c_str());
+          lv_label_set_text(id(ma_artist_lbl), artist.c_str());
+          lv_label_set_text(id(ma_album_lbl), album.c_str());
+          lv_label_set_text(id(ma_player_lbl), player.c_str());
+
+          // Hero Play/Pause
+          lv_label_set_text(id(lbl_ma_play), playing ? "\U000F03E4" : "\U000F040A");
+          lv_obj_set_style_bg_color(id(btn_ma_play), lv_color_hex(playing ? 0x1F6FEB : 0x238636), 0);
+          lv_obj_set_style_border_color(id(btn_ma_play), lv_color_hex(playing ? 0x58A6FF : 0x2EA043), 0);
+
+          // Shuffle & Repeat
+          bool shuf = id(ma_shuffle_on);
+          lv_obj_set_style_text_color(id(lbl_ma_shuffle), lv_color_hex(shuf ? 0x58A6FF : 0x6E7681), 0);
+          lv_obj_set_style_border_color(id(btn_ma_shuffle), lv_color_hex(shuf ? 0x58A6FF : 0x30363D), 0);
+
+          int rep = id(ma_repeat_mode);
+          lv_label_set_text(id(lbl_ma_repeat), rep == 2 ? "\U000F0458" : "\U000F0456");
+          lv_obj_set_style_text_color(id(lbl_ma_repeat), lv_color_hex(rep > 0 ? 0x58A6FF : 0x6E7681), 0);
+          lv_obj_set_style_border_color(id(btn_ma_repeat), lv_color_hex(rep > 0 ? 0x58A6FF : 0x30363D), 0);
+
+          // Volume & 5-segment LED meter
+          bool muted = id(ma_muted);
+          int vol = id(ma_vol_pct);
+          lv_label_set_text(id(lbl_ma_mute_icon), muted ? "\U000F0581" : (vol > 50 ? "\U000F057E" : "\U000F0580"));
+          lv_obj_set_style_text_color(id(lbl_ma_mute_icon), lv_color_hex(muted ? 0xF85149 : 0xC9D1D9), 0);
+          lv_obj_set_style_border_color(id(btn_ma_mute), lv_color_hex(muted ? 0xF85149 : 0x30363D), 0);
+
+          char vbuf[16];
+          snprintf(vbuf, sizeof(vbuf), muted ? "MUTED" : "VOL %d%%", vol);
+          lv_label_set_text(id(ma_vol_lbl), vbuf);
+          lv_obj_set_style_text_color(id(ma_vol_lbl), lv_color_hex(muted ? 0xF85149 : 0xC9D1D9), 0);
+
+          lv_obj_t *segs[] = { id(ma_vol_seg_0), id(ma_vol_seg_1), id(ma_vol_seg_2), id(ma_vol_seg_3), id(ma_vol_seg_4) };
+          int lit = muted ? 0 : (vol + 19) / 20;
+          for (int i = 0; i < 5; i++) {
+            uint32_t c = 0x21262D;
+            if (i < lit) {
+              c = (i == 4) ? 0xF85149 : (i == 3 ? 0xD29922 : 0x3FB950);
+            }
+            lv_obj_set_style_bg_color(segs[i], lv_color_hex(c), 0);
+          }
+
+          // Reset spectrum to baseline when not playing
+          if (!playing) {
+            lv_obj_t *bars[] = {
+              id(ma_eq_0), id(ma_eq_1), id(ma_eq_2), id(ma_eq_3),
+              id(ma_eq_4), id(ma_eq_5), id(ma_eq_6), id(ma_eq_7),
+              id(ma_eq_8), id(ma_eq_9), id(ma_eq_10), id(ma_eq_11)
+            };
+            int h = paused ? 6 : 3;
+            for (int i = 0; i < 12; i++) lv_obj_set_height(bars[i], h);
+          }
+      - script.execute: update_music_progress
+
+  - id: music_tick
+    then:
+      - lambda: |-
+          if (lv_obj_has_flag(id(music_card), LV_OBJ_FLAG_HIDDEN)) return;
+          if (!id(ma_is_playing)) return;
+
+          static uint32_t frame = 0;
+          frame++;
+          lv_obj_t *bars[] = {
+            id(ma_eq_0), id(ma_eq_1), id(ma_eq_2), id(ma_eq_3),
+            id(ma_eq_4), id(ma_eq_5), id(ma_eq_6), id(ma_eq_7),
+            id(ma_eq_8), id(ma_eq_9), id(ma_eq_10), id(ma_eq_11)
+          };
+          for (int i = 0; i < 12; i++) {
+            float wave = 0.5f + 0.5f * sinf(frame * 0.48f + i * 0.65f) * cosf(frame * 0.21f - i * 0.35f);
+            int h = 5 + (int)(wave * 24.0f);
+            lv_obj_set_height(bars[i], h);
+          }
+
+interval:
+  - interval: 100ms
+    then:
+      - script.execute: music_tick

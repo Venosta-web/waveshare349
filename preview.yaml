@@ -26,8 +26,10 @@ script:
     parameters:
       status: std::string
       detail: std::string
+      steps: std::string
     then:
       - lambda: |-
+          id(claude_steps).publish_state(steps);
           id(claude_detail).publish_state(detail);
           id(claude_status).publish_state(status);
 
@@ -35,28 +37,28 @@ script:
     then:
       - delay: 1s
       - script.execute: { id: switch_tab, tab_idx: 2 }
-      - script.execute: { id: demo_state, status: "", detail: "" }
+      - script.execute: { id: demo_state, status: "", detail: "", steps: "" }
       - delay: 300ms
       - snapshot.take: { id: my_display, filename: "${claude_variant}-1-idle", frames: 40, frame_rate: 10Hz }
       - delay: 4500ms
-      - script.execute: { id: demo_state, status: "Working", detail: "rootforge-game | Give the Clawd puppet a trot cycle and make the AI card show elapsed time while a prompt runs" }
+      - script.execute: { id: demo_state, status: "Working", detail: "rootforge-game | Give the Clawd puppet a trot cycle and make the AI card show elapsed time while a prompt runs", steps: "2/6|Explore relevant code|Implement with TDD" }
       - delay: 3s
       - snapshot.take: { id: my_display, filename: "${claude_variant}-2-working", frames: 60, frame_rate: 10Hz }
       - delay: 6500ms
-      - script.execute: { id: demo_state, status: "Pending Approval", detail: "rootforge-game | Bash: esphome run waveshare_sim.yaml --no-logs" }
+      - script.execute: { id: demo_state, status: "Pending Approval", detail: "rootforge-game | Bash: esphome run waveshare_sim.yaml --no-logs", steps: "2/6|Explore relevant code|Implement with TDD" }
       - delay: 100ms
       - snapshot.take: { id: my_display, filename: "${claude_variant}-3-pending", frames: 40, frame_rate: 10Hz }
       - delay: 4500ms
       - script.execute: { id: claude_sent, verdict: "Approved" }
       - snapshot.take: { id: my_display, filename: "${claude_variant}-4-approved", frames: 12, frame_rate: 10Hz }
       - delay: 1500ms
-      - script.execute: { id: demo_state, status: "Needs Input", detail: "rootforge-game | Which growspace should the new card read from?" }
+      - script.execute: { id: demo_state, status: "Needs Input", detail: "rootforge-game | Which growspace should the new card read from?", steps: "2/6|Explore relevant code|Implement with TDD" }
       - delay: 300ms
       - snapshot.take: { id: my_display, filename: "${claude_variant}-5-needs-input", frames: 40, frame_rate: 10Hz }
       - delay: 4500ms
-      - script.execute: { id: demo_state, status: "Working", detail: "rootforge-game | Give the Clawd puppet a trot cycle" }
+      - script.execute: { id: demo_state, status: "Working", detail: "rootforge-game | Give the Clawd puppet a trot cycle", steps: "" }
       - delay: 1s
-      - script.execute: { id: demo_state, status: "Ready", detail: "rootforge-game | Finished. Waiting for the next prompt." }
+      - script.execute: { id: demo_state, status: "Ready", detail: "rootforge-game | Finished. Waiting for the next prompt.", steps: "" }
       - snapshot.take: { id: my_display, filename: "${claude_variant}-6-ready", frames: 30, frame_rate: 10Hz }
       - delay: 3500ms
       - script.execute: { id: demo_state, status: "Rate Limited", detail: "5h|9840|4:31 PM|rootforge-game | 5-hour usage limit reached" }

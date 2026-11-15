@@ -74,7 +74,11 @@ def test_run_hook_stop_failure_rate_limit(monkeypatch, tmp_path):
     monkeypatch.setattr(bridge, "HA_TOKEN", "test-token")
     monkeypatch.setattr(bridge, "OWNER_FILE", tmp_path / "owner.json")
     monkeypatch.setattr(bridge, "request_pending", lambda: False)
-    monkeypatch.setattr(bridge, "set_display", lambda status=None, detail=None, request=None: calls.append((status, detail)))
+    monkeypatch.setattr(
+        bridge,
+        "set_display",
+        lambda status=None, detail=None, request=None, steps=None: calls.append((status, detail)),
+    )
 
     payload = {
         "hook_event_name": "StopFailure",

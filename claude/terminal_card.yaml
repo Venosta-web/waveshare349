@@ -50,7 +50,7 @@ widgets:
   - obj:
       id: claude_box
       width: 540
-      height: 54
+      height: 56
       align: TOP_LEFT
       x: 0
       y: 24
@@ -83,6 +83,92 @@ widgets:
             width: 502
             height: 40
             long_mode: DOT
+        - label:
+            id: lbl_step_now_icon
+            text: "›"
+            text_font: mono_14
+            text_color: 0xD97757
+            align: TOP_LEFT
+            x: 0
+            y: 0
+            hidden: true
+        - label:
+            id: lbl_step_now
+            text: ""
+            text_font: mono_14
+            text_color: 0xF0F6FC
+            align: TOP_LEFT
+            x: 16
+            y: 0
+            width: 446
+            height: 18
+            long_mode: DOT
+            hidden: true
+        - label:
+            id: lbl_step_count
+            text: ""
+            text_font: mono_12
+            text_color: 0xD97757
+            align: TOP_RIGHT
+            x: 0
+            y: 0
+            bg_color: 0x21262D
+            bg_opa: COVER
+            radius: 4
+            pad_left: 5
+            pad_right: 5
+            pad_top: 1
+            pad_bottom: 1
+            hidden: true
+        - label:
+            id: lbl_step_next_icon
+            text: "○"
+            text_font: mono_12
+            text_color: 0x6E7681
+            align: TOP_LEFT
+            x: 1
+            y: 23
+            hidden: true
+        - label:
+            id: lbl_step_next
+            text: ""
+            text_font: mono_12
+            text_color: 0x8B949E
+            align: TOP_LEFT
+            x: 16
+            y: 22
+            width: 502
+            height: 16
+            long_mode: DOT
+            hidden: true
+
+  # Subtle progress bar under the prompt box when a multi-step task is active.
+  - obj:
+      id: step_progress_bg
+      width: 536
+      height: 2
+      align: TOP_LEFT
+      x: 2
+      y: 81
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_width: 0
+      radius: 1
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: step_progress_fill
+            width: 0
+            height: 2
+            align: LEFT_MID
+            x: 0
+            bg_color: 0xD97757
+            bg_opa: COVER
+            border_width: 0
+            radius: 1
+            pad_all: 0
 
   # ── Rate-limit countdown bar (shown only when rate-limited) ─────────────
   - obj:
