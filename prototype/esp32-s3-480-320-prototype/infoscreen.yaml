@@ -200,7 +200,6 @@ display:
     dimensions:
       width: 320
       height: 480
-    rotation: 90
     model: AXS15231
     data_rate: 40MHz
     cs_pin: 45
@@ -368,6 +367,7 @@ lvgl:
   buffer_size: 100%
   full_refresh: true
   disp_bg_color: 0x0A0C10
+  rotation: 90
   touchscreens:
     - touchscreen_id: my_touchscreen
 
