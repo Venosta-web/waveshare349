@@ -19,11 +19,16 @@ import os
 import re
 import signal
 import sys
+import time
 import urllib.request
 import uuid
 from pathlib import Path
 
 CONFIG_FILE = Path.home() / ".config" / "claude-ha-bridge" / "config.env"
+# Which session's Needs Input is on the display (other sessions must not hide it).
+OWNER_FILE = Path.home() / ".cache" / "claude-ha-bridge" / "needs_input_owner.json"
+OWNER_MAX_AGE = 12 * 3600  # forget a Needs Input whose session never came back
+WRAP_UP_TOOL = "mcp__ccd_turn__wrap_up"  # desktop app's end-of-turn box
 EVENT_TYPE = "esphome.claude_command"
 ENT_STATUS = "input_text.claude_status"
 ENT_DETAIL = "input_text.claude_detail"
@@ -35,7 +40,7 @@ HELPERS = {  # name -> max length; entity id becomes input_text.<name>
 }
 DECISION_TIMEOUT = float(os.environ.get("CLAUDE_HA_DECISION_TIMEOUT", "110"))
 CONNECT_TIMEOUT = 3
-# Tools whose prompt needs more than yes/no; leave them to the normal dialog.
+# Tools whose prompt needs more than yes/no; shown as Needs Input instead (PreToolUse).
 SKIP_TOOLS = {"AskUserQuestion"}
 
 
@@ -101,9 +106,57 @@ def request_pending():
     return state not in ("", "unknown", "unavailable")
 
 
-def set_status(status, detail):
-    """Status-only update from other hooks; never clobbers a pending approval."""
-    if HA_TOKEN and not request_pending():
+# ---------------------------------------------------------------- Needs Input owner
+
+def load_owner():
+    try:
+        owner = json.loads(OWNER_FILE.read_text())
+    except (OSError, ValueError):
+        return None
+    if time.time() - owner.get("at", 0) > OWNER_MAX_AGE:
+        return None
+    return owner
+
+
+def save_owner(session, status, detail):
+    try:
+        OWNER_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = OWNER_FILE.with_suffix(f".{os.getpid()}.tmp")
+        tmp.write_text(json.dumps({"session": session, "status": status, "detail": detail, "at": time.time()}))
+        tmp.replace(OWNER_FILE)
+    except OSError:
+        pass
+
+
+def clear_owner():
+    try:
+        OWNER_FILE.unlink()
+    except OSError:
+        pass
+
+
+def show(session, status, detail, needs_input=False, after_request=False):
+    """Status update from a hook.
+
+    Needs Input belongs to the session that raised it: other sessions' Working
+    or Done don't replace it; only that session (or a newer Needs Input) does.
+    Never clobbers a pending approval, except when called by the hook that
+    just finished that approval (after_request), which also clears its id.
+    """
+    if not HA_TOKEN:
+        return
+    owner = load_owner()
+    if needs_input:
+        save_owner(session, status, detail)
+    elif owner and owner.get("session") != session:
+        if after_request:  # put the waiting session's question back
+            set_display(owner["status"], owner["detail"], "")
+        return
+    elif owner:
+        clear_owner()
+    if after_request:
+        set_display(status, detail, "")
+    elif not request_pending():
         set_display(status, detail)
 
 
@@ -222,6 +275,7 @@ def handle_permission_request(payload):
     tool, detail = describe(payload)
     if tool in SKIP_TOOLS or not display_ready():
         return
+    session = payload.get("session_id", "")
     decision = None
     try:
         decision = asyncio.run(ask_display(tool, detail))
@@ -230,11 +284,11 @@ def handle_permission_request(payload):
     finally:
         # Clear the request id so a late tap can't match anything.
         if decision == "approve":
-            set_display("Working", f"Approved: {detail}", "")
+            show(session, "Working", f"Approved: {detail}", after_request=True)
         elif decision == "reject":
-            set_display("Working", f"Rejected: {detail}", "")
+            show(session, "Working", f"Rejected: {detail}", after_request=True)
         else:
-            set_display("Needs Input", f"Answer at the computer: {detail}", "")
+            show(session, "Needs Input", f"Answer at the computer: {detail}", needs_input=True, after_request=True)
 
     if decision == "approve":
         out = {"behavior": "allow"}
@@ -245,6 +299,71 @@ def handle_permission_request(payload):
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": out}}))
 
 
+# ---------------------------------------------------------------- what Claude is waiting on
+
+def describe_questions(tool_input):
+    """AskUserQuestion input -> 'Question? [A] one / [B] two (+1 more)'."""
+    questions = (tool_input or {}).get("questions") or []
+    if not questions:
+        return "Claude has a question for you"
+    q = questions[0]
+    labels = [o.get("label", "") for o in q.get("options") or [] if isinstance(o, dict)]
+    text = q.get("question", "")
+    if labels:
+        text += " " + " / ".join(f"[{chr(65 + i)}] {label}" for i, label in enumerate(labels))
+    if len(questions) > 1:
+        text += f" (+{len(questions) - 1} more)"
+    return text
+
+
+def last_turn(transcript_path):
+    """(wrap_up ask or None, last assistant text) for the turn that just ended."""
+    try:
+        lines = Path(transcript_path).read_text(errors="replace").splitlines()
+    except (OSError, TypeError):
+        return None, ""
+    ask, text = None, ""
+    for line in reversed(lines[-2000:]):
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        content = (row.get("message") or {}).get("content")
+        if row.get("type") == "user":
+            # A real prompt (not a tool result) marks the start of the turn.
+            if isinstance(content, str) or any(isinstance(c, dict) and c.get("type") == "text" for c in content or []):
+                if not row.get("isMeta"):
+                    break
+            continue
+        if row.get("type") != "assistant" or not isinstance(content, list):
+            continue
+        for c in reversed(content):
+            if not isinstance(c, dict):
+                continue
+            if c.get("type") == "text" and not text and c.get("text", "").strip():
+                text = c["text"]
+            elif c.get("type") == "tool_use" and c.get("name") == WRAP_UP_TOOL and ask is None:
+                ask = ((c.get("input") or {}).get("ask") or "").strip() or None
+    return ask, text
+
+
+FENCE = re.compile(r"```(?:bash|sh|shell|zsh|console)?\n(.*?)```", re.S)
+
+
+def guess_waiting_on(text):
+    """A turn ending in a question, or handing over a command, is waiting on you."""
+    commands = [m.group(1).strip() for m in FENCE.finditer(text or "") if m.group(1).strip()]
+    prose = FENCE.sub(" ", text or "").strip()
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", prose) if p.strip()]
+    if paragraphs:
+        last = re.sub(r"\*\*|__|`", "", paragraphs[-1]).strip()
+        if last.endswith("?"):
+            return re.split(r"(?<=[.!?])\s+", last)[-1].strip()
+    if commands:
+        return "Run: " + commands[-1].splitlines()[0]
+    return None
+
+
 def run_hook():
     if not HA_TOKEN:
         return
@@ -253,16 +372,35 @@ def run_hook():
     except ValueError:
         return
     event = payload.get("hook_event_name", "")
+    session = payload.get("session_id", "")
     project = Path(payload.get("cwd") or os.getcwd()).name
+    tool = payload.get("tool_name", "")
 
     if event == "PermissionRequest":
         handle_permission_request(payload)
     elif event == "UserPromptSubmit":
-        set_status("Working", f"{project} | {payload.get('prompt', '')}")
+        show(session, "Working", f"{project} | {payload.get('prompt', '')}")
+    elif event == "PreToolUse" and tool == "AskUserQuestion":
+        show(session, "Needs Input", f"{project} | {describe_questions(payload.get('tool_input'))}", needs_input=True)
+    elif event == "PostToolUse" and tool == "AskUserQuestion":
+        show(session, "Working", f"{project} | Answered. Back to work.")
     elif event == "Stop":
-        set_status("Ready", f"{project} | Finished. Waiting for the next prompt.")
-    elif event == "Notification" and payload.get("notification_type") == "idle_prompt":
-        set_status("Needs Input", f"{project} | {payload.get('message', 'Claude is waiting for you')}")
+        ask, text = last_turn(payload.get("transcript_path"))
+        waiting_on = ask or guess_waiting_on(text or payload.get("last_assistant_message", ""))
+        if waiting_on:
+            show(session, "Needs Input", f"{project} | {waiting_on}", needs_input=True)
+        else:
+            show(session, "Done", f"{project} | Finished. Waiting for the next prompt.")
+    elif event == "Notification":
+        kind = payload.get("notification_type")
+        owner = load_owner()
+        if kind == "elicitation_dialog":
+            show(session, "Needs Input", f"{project} | {payload.get('message', 'An MCP server needs your input')}",
+                 needs_input=True)
+        elif kind == "idle_prompt" and not (owner and owner.get("session") == session):
+            # Don't replace this session's own, more specific question.
+            show(session, "Needs Input", f"{project} | {payload.get('message', 'Claude is waiting for you')}",
+                 needs_input=True)
 
 
 # ---------------------------------------------------------------- setup / check / test
@@ -295,7 +433,7 @@ def cmd_setup(create):
     except Exception as e:
         sys.exit(f"Failed: {e}")
     if create:
-        set_display("Ready", "Bridge connected. Waiting for Claude Code...", "")
+        set_display("Done", "Bridge connected. Waiting for Claude Code...", "")
 
 
 def cmd_test():
@@ -306,7 +444,7 @@ def cmd_test():
         result = asyncio.run(ask_display("Bash", "bridge test | Bash: echo hello from the display", timeout=60))
     except Exception as e:
         sys.exit(f"Failed: {e}")
-    set_display("Ready", f"Test finished: {result or 'no tap'}", "")
+    set_display("Done", f"Test finished: {result or 'no tap'}", "")
     print(f"Display answered: {result or 'nothing (timed out)'}")
 
 

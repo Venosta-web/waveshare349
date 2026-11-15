@@ -24,7 +24,7 @@ script:
           clawd::split_detail(detail);
           const bool pending = clawd::g_mode == clawd::PENDING;
 
-          static const char *const WORDS[] = {"Idle", "Working", "Needs approval", "Needs input", "Ready", "Approved", "Rejected"};
+          static const char *const WORDS[] = {"Idle", "Working", "Needs approval", "Needs input", "Done", "Approved", "Rejected"};
           lv_label_set_text(id(lbl_agent_status), WORDS[clawd::g_mode]);
           lv_obj_set_style_text_color(id(lbl_agent_status), lv_color_hex(clawd::accent(clawd::g_mode)), 0);
 
@@ -91,7 +91,7 @@ script:
           // Spinner: Claude Code's sparkle while working, a still mark otherwise.
           const char *spin = g_mode == WORKING ? spinner(f)
                            : g_mode == PENDING || g_mode == NEEDS_INPUT ? "✻"
-                           : g_mode == READY || g_mode == SENT_OK ? "✓"
+                           : g_mode == DONE || g_mode == SENT_OK ? "✓"
                            : g_mode == SENT_NO ? "✕" : "·";
           lv_label_set_text(id(claude_spin), spin);
           lv_obj_set_style_text_color(id(claude_spin), lv_color_hex(acc), 0);
@@ -112,7 +112,7 @@ script:
             }
             case PENDING:
             case NEEDS_INPUT:
-            case READY:
+            case DONE:
             case SENT_OK:
             case SENT_NO: {
               lv_label_set_text(b, g_mode == PENDING ? "!" : g_mode == NEEDS_INPUT ? "?" : g_mode == SENT_NO ? "✕" : "✓");
@@ -121,8 +121,8 @@ script:
               lv_obj_set_style_text_color(b, lv_color_hex(0x0A0C10), 0);
               lv_obj_set_style_text_opa(b, LV_OPA_COVER, 0);
               by = 12 - ((f / 5) % 2);  // 2-frame bob
-              // Ready's check pops in after the hop, then retires after 8 s.
-              bool show = !(g_mode == READY && (t < 6 || t > 80));
+              // Done's check pops in after the hop, then retires after 8 s.
+              bool show = !(g_mode == DONE && (t < 6 || t > 80));
               if (show) lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
               break;
             }
@@ -139,7 +139,7 @@ script:
             uint32_t gone = now - g_pending_start, total = ${claude_decision_timeout} * 1000;
             uint32_t left = gone < total ? total - gone : 0;
             snprintf(buf, sizeof(buf), "%us left", (unsigned) ((left + 999) / 1000));
-          } else if (g_mode == READY && g_last_run > 0) {
+          } else if (g_mode == DONE && g_last_run > 0) {
             char d[16];
             fmt_elapsed(d, sizeof(d), g_last_run);
             snprintf(buf, sizeof(buf), "took %s", d);

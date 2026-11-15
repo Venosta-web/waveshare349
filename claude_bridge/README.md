@@ -4,12 +4,26 @@ Claude Code hooks → Home Assistant `input_text` helpers → the **AI** card on
 display. Tapping **APPROVE** / **REJECT** fires `esphome.claude_command` back
 through Home Assistant to the waiting hook.
 
-| Claude Code event  | Display shows                                        |
-|--------------------|------------------------------------------------------|
-| UserPromptSubmit   | `Working` + project and prompt                       |
-| PermissionRequest  | `Pending Approval` + tool/command, amber border, buttons |
-| Notification (idle)| `Needs Input`                                        |
-| Stop               | `Ready`                                              |
+| Claude Code event                         | Display shows                                            |
+|-------------------------------------------|----------------------------------------------------------|
+| UserPromptSubmit                          | `Working` + project and prompt                           |
+| PermissionRequest                         | `Pending Approval` + tool/command, amber border, buttons |
+| PreToolUse `AskUserQuestion`              | `Needs Input` + the question and its options             |
+| PostToolUse `AskUserQuestion`             | `Working`                                                |
+| Notification `elicitation_dialog`         | `Needs Input` + what the MCP server asks                 |
+| Notification `idle_prompt`                | `Needs Input`                                            |
+| Stop, turn ends with a question           | `Needs Input` + the question                             |
+| Stop, turn hands you a command to run     | `Needs Input` + `Run: <command>`                         |
+| Stop, otherwise                           | `Done`                                                   |
+
+At Stop the bridge reads the turn's transcript: the desktop app's end-of-turn
+question box is used when there is one; otherwise it guesses from the last
+message (last paragraph ends in `?`, or a shell code block).
+
+A `Needs Input` belongs to the session that raised it. Other sessions'
+`Working` / `Done` don't hide it until that session moves on (new prompt,
+answered question, or 12 h). The owner is kept in
+`~/.cache/claude-ha-bridge/needs_input_owner.json`.
 
 If you don't tap within ~110 s, Home Assistant is unreachable, or anything
 fails, the hook stays silent and Claude Code shows its normal prompt. It never
