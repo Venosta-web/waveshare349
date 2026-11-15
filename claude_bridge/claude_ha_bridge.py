@@ -530,12 +530,37 @@ def parse_rate_limit_info(text, payload=None, now_dt=None):
     return window, remaining_secs, reset_clock_str, summary
 
 
-def show_rate_limit(project, window, remaining_secs, reset_clock_str, summary):
+def extract_seven_day_remaining(payload=None, now_dt=None):
+    """Return (left_pct, reset_str) if seven_day quota still has room, else None."""
+    now_dt = now_dt or datetime.now()
+    now_ts = now_dt.timestamp()
+    payload = payload or {}
+    rl = payload.get("rate_limits") or _load_cached_rate_limits()
+    sd = rl.get("seven_day") if isinstance(rl, dict) else None
+    if not isinstance(sd, dict) or sd.get("used_percentage") is None:
+        return None
+    used_pct = float(sd["used_percentage"])
+    if used_pct >= 99.9:
+        return None
+    left_pct = max(1, min(100, int(round(100.0 - used_pct))))
+    reset_str = ""
+    ra = sd.get("resets_at")
+    if ra and float(ra) > now_ts:
+        rdt = datetime.fromtimestamp(float(ra))
+        if (rdt.date() - now_dt.date()).days < 7:
+            reset_str = rdt.strftime("%a %-I:%M %p")
+        else:
+            reset_str = rdt.strftime("%b %-d, %-I:%M %p")
+    return left_pct, reset_str
+
+
+def show_rate_limit(project, window, remaining_secs, reset_clock_str, summary, seven_day=None):
     if not HA_TOKEN:
         return
     clear_owner()
     body = f"{project} | {summary}" if project else summary
-    detail = f"{window}|{int(remaining_secs)}|{reset_clock_str}|{body}"
+    sd_part = f"7d={seven_day[0]};{seven_day[1]}|" if (window == "5h" and seven_day) else ""
+    detail = f"{window}|{int(remaining_secs)}|{reset_clock_str}|{sd_part}{body}"
     if not request_pending():
         set_display("Rate Limited", detail, steps="")
 
@@ -684,7 +709,8 @@ def run_hook():
         combined = text or payload.get("last_assistant_message", "")
         if payload.get("error") == "rate_limit" or is_rate_limit_text(combined):
             w, rem, rstr, summary = parse_rate_limit_info(combined, payload)
-            show_rate_limit(project, w, rem, rstr, summary)
+            sd = extract_seven_day_remaining(payload) if w == "5h" else None
+            show_rate_limit(project, w, rem, rstr, summary, seven_day=sd)
             return
         steps = extract_steps(transcript)
         waiting_on = ask or guess_waiting_on(combined)
@@ -699,7 +725,8 @@ def run_hook():
             _, err_msg = last_turn(transcript)
         if err_type == "rate_limit" or is_rate_limit_text(err_msg):
             w, rem, rstr, summary = parse_rate_limit_info(err_msg, payload)
-            show_rate_limit(project, w, rem, rstr, summary)
+            sd = extract_seven_day_remaining(payload) if w == "5h" else None
+            show_rate_limit(project, w, rem, rstr, summary, seven_day=sd)
         else:
             label = err_msg or err_type or "API error"
             show(session, "Needs Input", f"{project} | {label}", needs_input=True)
@@ -709,7 +736,8 @@ def run_hook():
         owner = load_owner()
         if kind == "rate_limit" or is_rate_limit_text(msg):
             w, rem, rstr, summary = parse_rate_limit_info(msg, payload)
-            show_rate_limit(project, w, rem, rstr, summary)
+            sd = extract_seven_day_remaining(payload) if w == "5h" else None
+            show_rate_limit(project, w, rem, rstr, summary, seven_day=sd)
         elif kind == "elicitation_dialog":
             show(session, "Needs Input", f"{project} | {msg or 'An MCP server needs your input'}",
                  needs_input=True)
