@@ -1,0 +1,129 @@
+# Headless preview: plays Music Assistant states on the Music tab and records GIFs.
+#   ESPHOME_SNAPSHOT_DIR=out esphome run music_preview.yaml -s music_variant deck
+#   ESPHOME_SNAPSHOT_DIR=out esphome run music_preview.yaml -s music_variant studio
+substitutions:
+  device_name: "music-preview"
+
+packages:
+  base: !include waveshare_sim.yaml
+
+api:
+  port: 6064
+
+display:
+  - id: !extend my_display
+    headless: true
+    snapshot_key: !remove
+    window_options: !remove
+
+touchscreen: !remove
+
+lvgl:
+  touchscreens: !remove
+
+script:
+  - id: demo_music_state
+    parameters:
+      state: std::string
+      title: std::string
+      artist: std::string
+      album: std::string
+      player: std::string
+      dur: int
+      pos: int
+      vol: float
+      shuf: std::string
+      rep: std::string
+      muted: std::string
+    then:
+      - lambda: |-
+          id(ma_dur_sec) = dur;
+          id(ma_pos_sec) = pos;
+          id(ma_vol_pct) = (int)(vol * 100.0f + 0.5f);
+          id(ma_friendly_name).publish_state(player);
+          id(ma_album).publish_state(album);
+          id(ma_artist).publish_state(artist);
+          id(ma_title).publish_state(title);
+          id(ma_shuffle).publish_state(shuf);
+          id(ma_repeat).publish_state(rep);
+          id(ma_is_muted).publish_state(muted);
+          id(ma_state).publish_state(state);
+
+  - id: music_demo
+    then:
+      - delay: 1s
+      - script.execute: { id: switch_tab, tab_idx: 1 }
+      - script.execute:
+          id: demo_music_state
+          state: "idle"
+          title: ""
+          artist: ""
+          album: ""
+          player: "Studio Speakers"
+          dur: 0
+          pos: 0
+          vol: 0.45
+          shuf: "false"
+          rep: "off"
+          muted: "false"
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "${music_variant}-1-idle", frames: 12, frame_rate: 10Hz }
+      - delay: 1500ms
+      - script.execute:
+          id: demo_music_state
+          state: "playing"
+          title: "Everything In Its Right Place"
+          artist: "Radiohead"
+          album: "Kid A"
+          player: "Studio Speakers"
+          dur: 251
+          pos: 94
+          vol: 0.65
+          shuf: "true"
+          rep: "all"
+          muted: "false"
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "${music_variant}-2-playing", frames: 40, frame_rate: 10Hz }
+      - delay: 4500ms
+      - script.execute:
+          id: demo_music_state
+          state: "paused"
+          title: "Everything In Its Right Place"
+          artist: "Radiohead"
+          album: "Kid A"
+          player: "Studio Speakers"
+          dur: 251
+          pos: 98
+          vol: 0.65
+          shuf: "true"
+          rep: "one"
+          muted: "false"
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "${music_variant}-3-paused", frames: 12, frame_rate: 10Hz }
+      - delay: 1500ms
+      - script.execute:
+          id: demo_music_state
+          state: "playing"
+          title: "Midnight City"
+          artist: "M83"
+          album: "Hurry Up, We're Dreaming"
+          player: "Living Room"
+          dur: 243
+          pos: 185
+          vol: 0.30
+          shuf: "false"
+          rep: "off"
+          muted: "true"
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "${music_variant}-4-muted", frames: 20, frame_rate: 10Hz }
+      - delay: 2500ms
+      - lambda: "exit(0);"
+
+interval:
+  - interval: 2s
+    then:
+      - if:
+          condition:
+            lambda: "static bool once = false; if (once) return false; once = true; return true;"
+          then:
+            - script.execute: music_demo
