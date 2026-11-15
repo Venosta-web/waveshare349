@@ -334,7 +334,7 @@ inline Pose animate(Mode m, uint32_t f, uint32_t t, int u) {
 // Update the sidebar nav Clawd icon so it always mirrors Clawd's current state.
 inline void tick_nav(lv_obj_t *box) {
   static Puppet np;
-  if (np.root == nullptr) build(np, box, 3);
+  if (np.root == nullptr) build(np, box, 2);
   apply(np, animate(g_mode, g_frame, g_frame - g_mode_frame, np.u));
 }
 

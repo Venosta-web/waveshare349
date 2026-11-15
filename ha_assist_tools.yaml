@@ -1,0 +1,51 @@
+# Home Assistant Assist Tools & Local LLM Pipeline Reference
+#
+# Paste or !include the `script:` block below into your Home Assistant
+# `configuration.yaml` (or `scripts.yaml`), then expose these scripts to Assist
+# under Settings -> Voice assistants -> Expose.
+#
+# Recommended Local Assist Pipeline (100% local, no cloud):
+#   1. STT: Wyoming Protocol -> faster-whisper (e.g., base.en or small)
+#   2. Conversation Agent: Ollama -> tool-calling model (e.g., qwen2.5:7b or qwen3:8b)
+#      - Enable "Control Home Assistant" so Ollama can invoke exposed entities/scripts.
+#   3. TTS: Wyoming Protocol -> piper (e.g., en_US-lessac-medium)
+#
+# Expose these ESPHome entities to Assist:
+#   - select.waveshare_349_voice_display_view   (Options: Growspace, Music, AI)
+#   - media_player.music_assistant_player       (or your configured media_player)
+#   - script.open_music_view_and_play
+#   - script.switch_display_view
+
+script:
+  switch_display_view:
+    alias: "Switch ESP32 Display View"
+    description: "Switch the Waveshare 3.49 screen to Growspace, Music, or AI view."
+    fields:
+      view:
+        description: "Target view: Growspace, Music, or AI"
+        required: true
+        selector:
+          select:
+            options:
+              - Growspace
+              - Music
+              - AI
+    sequence:
+      - service: select.select_option
+        target:
+          entity_id: select.waveshare_349_voice_display_view
+        data:
+          option: "{{ view }}"
+
+  open_music_view_and_play:
+    alias: "Open Music View and Play"
+    description: "Switch the Waveshare 3.49 display to Music view and start/resume playing music."
+    sequence:
+      - service: select.select_option
+        target:
+          entity_id: select.waveshare_349_voice_display_view
+        data:
+          option: "Music"
+      - service: media_player.media_play
+        target:
+          entity_id: media_player.music_assistant_player
