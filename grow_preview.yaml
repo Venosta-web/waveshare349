@@ -1,0 +1,116 @@
+# Headless preview: populates realistic Growspace Manager states and records GIFs.
+#   ESPHOME_SNAPSHOT_DIR=out esphome run grow_preview.yaml
+substitutions:
+  device_name: "grow-preview"
+  cycle_interval: "60"
+
+packages:
+  base: !include waveshare_sim.yaml
+
+api:
+  port: 6065
+
+display:
+  - id: !extend my_display
+    headless: true
+    snapshot_key: !remove
+    window_options: !remove
+
+touchscreen: !remove
+
+lvgl:
+  touchscreens: !remove
+
+script:
+  - id: grow_demo
+    then:
+      - delay: 1s
+      - script.execute: { id: switch_tab, tab_idx: 0 }
+      - lambda: |-
+          // Space 0: 4x4 (Flower Week 5, Day, Optimal VPD)
+          id(gs0_phase).publish_state("flower");
+          id(gs0_is_day).publish_state("on");
+          id(gs0_flower_week).publish_state("5");
+          id(gs0_veg_week).publish_state("0");
+          id(gs0_vpd_tgt_min).publish_state(1.1f);
+          id(gs0_vpd_tgt_max).publish_state(1.4f);
+          id(gs0_vpd_dng_min).publish_state(0.8f);
+          id(gs0_vpd_dng_max).publish_state(1.6f);
+          id(gs0_vpd).publish_state(1.26f);
+          id(gs0_temp).publish_state(25.4f);
+          id(gs0_hum).publish_state(54.0f);
+          id(gs0_exhaust).publish_state(65.0f);
+          id(gs0_circ).publish_state(50.0f);
+          id(gs0_humid).publish_state("off");
+
+          // Space 1: SOG 2x5 (Late Veg Week 3, Day, Optimal VPD)
+          id(gs1_phase).publish_state("veg");
+          id(gs1_is_day).publish_state("on");
+          id(gs1_flower_week).publish_state("0");
+          id(gs1_veg_week).publish_state("3");
+          id(gs1_vpd_tgt_min).publish_state(0.8f);
+          id(gs1_vpd_tgt_max).publish_state(1.1f);
+          id(gs1_vpd_dng_min).publish_state(0.5f);
+          id(gs1_vpd_dng_max).publish_state(1.4f);
+          id(gs1_vpd).publish_state(0.96f);
+          id(gs1_temp).publish_state(24.8f);
+          id(gs1_hum).publish_state(64.0f);
+          id(gs1_exhaust).publish_state(45.0f);
+          id(gs1_circ).publish_state(40.0f);
+          id(gs1_humid).publish_state("on");
+
+          // Space 2: Nursery Dome (Seedling, Day, Warning VPD)
+          id(gs2_phase).publish_state("seedling");
+          id(gs2_is_day).publish_state("on");
+          id(gs2_flower_week).publish_state("0");
+          id(gs2_veg_week).publish_state("0");
+          id(gs2_vpd_tgt_min).publish_state(0.4f);
+          id(gs2_vpd_tgt_max).publish_state(0.8f);
+          id(gs2_vpd_dng_min).publish_state(0.3f);
+          id(gs2_vpd_dng_max).publish_state(1.0f);
+          id(gs2_vpd).publish_state(0.92f);
+          id(gs2_temp).publish_state(25.0f);
+          id(gs2_hum).publish_state(71.0f);
+          id(gs2_exhaust).publish_state(20.0f);
+          id(gs2_circ).publish_state(0.0f);
+          id(gs2_humid).publish_state("on");
+
+          // Space 5: Dry (Dry, Night, Optimal VPD)
+          id(gs5_phase).publish_state("dry");
+          id(gs5_is_day).publish_state("off");
+          id(gs5_flower_week).publish_state("0");
+          id(gs5_veg_week).publish_state("0");
+          id(gs5_vpd_tgt_min).publish_state(0.8f);
+          id(gs5_vpd_tgt_max).publish_state(1.0f);
+          id(gs5_vpd_dng_min).publish_state(0.6f);
+          id(gs5_vpd_dng_max).publish_state(1.2f);
+          id(gs5_vpd).publish_state(0.88f);
+          id(gs5_temp).publish_state(18.5f);
+          id(gs5_hum).publish_state(59.0f);
+          id(gs5_exhaust).publish_state(35.0f);
+          id(gs5_circ).publish_state(25.0f);
+          id(gs5_humid).publish_state("off");
+      - script.execute: update_grow_ui
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "grow-1-flower", frames: 25, frame_rate: 10Hz }
+      - delay: 2800ms
+      - lambda: "id(nav_direction) = 1;"
+      - script.execute: navigate_space
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "grow-2-veg", frames: 25, frame_rate: 10Hz }
+      - delay: 2800ms
+      - lambda: "id(nav_direction) = 1;"
+      - script.execute: navigate_space
+      - delay: 300ms
+      - snapshot.take: { id: my_display, filename: "grow-3-seedling-warn", frames: 25, frame_rate: 10Hz }
+      - delay: 2800ms
+      - lambda: "exit(0);"
+
+interval:
+  - interval: 2s
+    then:
+      - if:
+          condition:
+            lambda: "static bool once = false; if (once) return false; once = true; return true;"
+          then:
+            - script.execute: grow_demo

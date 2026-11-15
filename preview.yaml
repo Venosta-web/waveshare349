@@ -61,7 +61,7 @@ script:
       - script.execute: { id: demo_state, status: "Ready", detail: "rootforge-game | Finished. Waiting for the next prompt.", steps: "" }
       - snapshot.take: { id: my_display, filename: "${claude_variant}-6-ready", frames: 30, frame_rate: 10Hz }
       - delay: 3500ms
-      - script.execute: { id: demo_state, status: "Rate Limited", detail: "5h|9840|4:31 PM|7d=58;Thu 2:00 PM|rootforge-game | 5-hour usage limit reached" }
+      - script.execute: { id: demo_state, status: "Rate Limited", detail: "5h|9840|4:31 PM|7d=58;Thu 2:00 PM|rootforge-game | 5-hour usage limit reached", steps: "" }
       - delay: 300ms
       - snapshot.take: { id: my_display, filename: "${claude_variant}-7-rate-limited-5h", frames: 40, frame_rate: 10Hz }
       - delay: 4500ms
