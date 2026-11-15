@@ -124,6 +124,13 @@ export function generateEsphomeYaml(state) {
     }
   }
 
+  if (state.useApiSecret) {
+    lines.push('');
+    lines.push('api:');
+    lines.push('  encryption:');
+    lines.push('    key: !secret api_encryption_key');
+  }
+
   lines.push('');
   return lines.join('\n');
 }

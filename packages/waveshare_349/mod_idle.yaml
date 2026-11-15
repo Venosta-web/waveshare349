@@ -7,7 +7,7 @@ packages:
 
 esphome:
   on_boot:
-    - priority: -49
+    - priority: -149
       then:
         - lambda: "lv_obj_set_parent(id(nav_lock), id(nav_rail));"
 

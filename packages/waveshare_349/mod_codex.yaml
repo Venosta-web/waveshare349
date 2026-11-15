@@ -9,10 +9,10 @@ esphome:
     - ../../codex/codex_pet.h
     - ../../pet_scenes.h
   on_boot:
-    - priority: -46
+    - priority: -146
       then:
         - lambda: "lv_obj_set_parent(id(nav_codex), id(nav_rail));"
-    - priority: -56
+    - priority: -156
       then:
         - lambda: |-
             if (id(active_tab) < 0) {

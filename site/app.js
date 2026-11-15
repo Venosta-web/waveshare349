@@ -26,6 +26,7 @@ const state = {
   githubRepo: detectGithubRepo(),
   githubRef: 'main',
   useImprov: false,
+  useApiSecret: false,
   gsCount: 7,
   cycleInterval: 15,
   pauseTimeout: 25,
@@ -49,6 +50,7 @@ const els = {
   githubRepo: document.getElementById('github-repo'),
   githubRepoField: document.getElementById('github-repo-field'),
   useImprov: document.getElementById('use-improv'),
+  useApiSecret: document.getElementById('use-api-secret'),
   moduleOptions: document.getElementById('module-options'),
   flashPanel: document.getElementById('flash-panel'),
   yamlOutput: document.getElementById('yaml-output'),
@@ -99,7 +101,7 @@ function selectDevice(deviceId) {
   }
   if (dev.id === 'prototype-480x320') {
     state.claudeVariant = 'terminal';
-    state.musicPlayerEntity = 'media_player.music_assistant_player';
+    state.musicPlayerEntity = 'sensor.music_assistant_bridge';
   } else {
     state.claudeVariant = 'terminal';
     state.musicPlayerEntity = 'sensor.music_assistant_bridge';
@@ -413,6 +415,7 @@ function syncStaticInputs() {
   els.githubRepo.value = state.githubRepo;
   els.githubRepoField.style.display = state.packageSource === 'github' ? 'flex' : 'none';
   els.useImprov.checked = state.useImprov;
+  els.useApiSecret.checked = state.useApiSecret;
 }
 
 function renderAll() {
@@ -450,6 +453,11 @@ els.githubRepo.addEventListener('input', (e) => {
 
 els.useImprov.addEventListener('change', (e) => {
   state.useImprov = e.target.checked;
+  renderOutputAndSummary();
+});
+
+els.useApiSecret.addEventListener('change', (e) => {
+  state.useApiSecret = e.target.checked;
   renderOutputAndSummary();
 });
 

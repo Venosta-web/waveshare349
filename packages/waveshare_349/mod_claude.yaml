@@ -9,10 +9,10 @@ esphome:
     - ../../claude/clawd.h
     - ../../pet_scenes.h
   on_boot:
-    - priority: -44
+    - priority: -144
       then:
         - lambda: "lv_obj_set_parent(id(nav_ai), id(nav_rail));"
-    - priority: -54
+    - priority: -154
       then:
         - lambda: |-
             if (id(active_tab) < 0) {

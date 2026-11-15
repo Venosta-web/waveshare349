@@ -4,7 +4,7 @@ esphome:
   includes:
     - ../../voice/voice_icon.h
   on_boot:
-    - priority: -48
+    - priority: -148
       then:
         - lambda: |-
             // Pin AI Voice Activation at the bottom of the 64px sidebar and
