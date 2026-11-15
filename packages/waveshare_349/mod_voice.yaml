@@ -1,10 +1,18 @@
 # Feature Module: Voice Satellite (ES8311 + I2S + micro_wake_word + voice_assistant + UI overlay)
 
 esphome:
+  includes:
+    - ../../voice/voice_icon.h
   on_boot:
     - priority: -48
       then:
-        - lambda: "lv_obj_set_parent(id(nav_mic), id(nav_rail));"
+        - lambda: |-
+            // Pin AI Voice Activation at the bottom of the 64px sidebar and
+            // reserve the upper 108px for the scrollable Display View rail.
+            lv_obj_set_align(id(nav_rail), LV_ALIGN_TOP_LEFT);
+            lv_obj_set_pos(id(nav_rail), 4, 6);
+            lv_obj_set_height(id(nav_rail), 108);
+            voice_icon::tick_nav(id(nav_voice_box), id(nav_mic));
 
 i2s_audio:
   - id: i2s_audio_bus
@@ -60,9 +68,8 @@ voice_assistant:
   volume_multiplier: 2.0
   on_listening:
     - script.execute: unlock_idle_screen
-    - lvgl.widget.update:
-        id: nav_mic_icon
-        text_color: 0x58A6FF
+    - lambda: "voice_icon::set_mode(voice_icon::LISTENING);"
+    - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
         visible: true
@@ -70,9 +77,8 @@ voice_assistant:
         accent_hex: 0x58A6FF
   on_stt_vad_end:
     - script.execute: unlock_idle_screen
-    - lvgl.widget.update:
-        id: nav_mic_icon
-        text_color: 0xFFC107
+    - lambda: "voice_icon::set_mode(voice_icon::THINKING);"
+    - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
         visible: true
@@ -80,9 +86,8 @@ voice_assistant:
         accent_hex: 0xFFC107
   on_tts_start:
     - script.execute: unlock_idle_screen
-    - lvgl.widget.update:
-        id: nav_mic_icon
-        text_color: 0x1DB954
+    - lambda: "voice_icon::set_mode(voice_icon::SPEAKING);"
+    - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
         visible: true
@@ -90,9 +95,9 @@ voice_assistant:
         accent_hex: 0x1DB954
   on_end:
     - delay: 2s
-    - lvgl.widget.update:
-        id: nav_mic_icon
-        text_color: !lambda "return id(voice_muted) ? lv_color_hex(0xFF5252) : lv_color_hex(0x8B949E);"
+    - lambda: |-
+        voice_icon::set_mode(id(voice_muted) ? voice_icon::MUTED : voice_icon::IDLE);
+    - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
         visible: false
@@ -100,15 +105,17 @@ voice_assistant:
         accent_hex: 0x58A6FF
   on_error:
     - script.execute: unlock_idle_screen
+    - lambda: "voice_icon::set_mode(voice_icon::ERROR);"
+    - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
         visible: true
         status_text: !lambda "return message;"
         accent_hex: 0xFF5252
     - delay: 3s
-    - lvgl.widget.update:
-        id: nav_mic_icon
-        text_color: !lambda "return id(voice_muted) ? lv_color_hex(0xFF5252) : lv_color_hex(0x8B949E);"
+    - lambda: |-
+        voice_icon::set_mode(id(voice_muted) ? voice_icon::MUTED : voice_icon::IDLE);
+    - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
         visible: false
@@ -122,19 +129,17 @@ switch:
     icon: "mdi:microphone-off"
     optimistic: true
     turn_on_action:
-      - lambda: "id(voice_muted) = true;"
+      - lambda: |-
+          id(voice_muted) = true;
+          voice_icon::set_mode(voice_icon::MUTED);
       - micro_wake_word.stop:
-      - lvgl.label.update:
-          id: nav_mic_icon
-          text: "\U000F036D"
-          text_color: 0xFF5252
+      - script.execute: voice_tick
     turn_off_action:
-      - lambda: "id(voice_muted) = false;"
+      - lambda: |-
+          id(voice_muted) = false;
+          voice_icon::set_mode(voice_icon::IDLE);
       - micro_wake_word.start:
-      - lvgl.label.update:
-          id: nav_mic_icon
-          text: "\U000F036C"
-          text_color: 0x8B949E
+      - script.execute: voice_tick
 
 lvgl:
   pages:
@@ -143,15 +148,28 @@ lvgl:
         - button:
             id: nav_mic
             width: 64
-            height: 50
-            styles: nav_btn
+            height: 46
+            align: BOTTOM_LEFT
+            x: 4
+            y: -6
+            bg_color: 0x101926
+            bg_opa: COVER
+            border_color: 0x26466D
+            border_width: 1
+            radius: 10
+            pad_all: 0
             widgets:
-              - label:
-                  id: nav_mic_icon
-                  text: "\U000F036C"
-                  text_font: icons_20
-                  text_color: 0x8B949E
+              - obj:
+                  id: nav_voice_box
+                  width: 42
+                  height: 28
                   align: CENTER
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  clickable: false
+                  scrollbar_mode: "off"
             on_click:
               then:
                 - script.execute: on_voice_ptt
@@ -225,3 +243,12 @@ script:
                   lambda: "return !id(voice_muted);"
                 then:
                   - voice_assistant.start:
+
+  - id: voice_tick
+    then:
+      - lambda: "voice_icon::tick_nav(id(nav_voice_box), id(nav_mic));"
+
+interval:
+  - interval: 100ms
+    then:
+      - script.execute: voice_tick
