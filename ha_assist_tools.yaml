@@ -12,9 +12,18 @@
 #
 # Expose these ESPHome entities to Assist:
 #   - select.waveshare_349_voice_display_view   (Options: Growspace, Music, AI, Codex)
-#   - media_player.music_assistant_player       (or your configured media_player)
+#   - select.waveshare_349_voice_output_mode    (Options: Onboard + HA Speakers, Onboard Only, HA Speakers Only, Display Only)
+#   - media_player.music_assistant_player       (or your configured media_player for tts.speak)
 #   - script.open_music_view_and_play
 #   - script.switch_display_view
+#
+# Dual Output (Display Text + Speakers):
+#   In `mod_voice.yaml`, `on_tts_start` displays the answer on the scrollable
+#   voice overlay (held for `voice_answer_hold`, default 10s, or until tapped)
+#   and routes TTS to:
+#     - Onboard ES8311 speaker (`spk_i2s`) via the Assist Pipeline TTS stream
+#     - Home Assistant / local AI TTS (`voice_tts_entity`, e.g. `tts.piper`) on
+#       `voice_tts_speaker` (e.g. `media_player.music_assistant_player`) via `tts.speak`
 
 script:
   switch_display_view:

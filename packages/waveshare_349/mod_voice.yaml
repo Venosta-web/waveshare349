@@ -1,5 +1,16 @@
 # Feature Module: Voice Satellite (ES8311 + I2S + micro_wake_word + voice_assistant + UI overlay)
 
+substitutions:
+  voice_tts_entity: "tts.piper"
+  voice_tts_speaker: "media_player.music_assistant_player"
+  voice_output_mode: "Onboard + HA Speakers"
+  voice_answer_hold: "10s"
+
+globals:
+  - id: voice_has_answer
+    type: bool
+    initial_value: "false"
+
 esphome:
   includes:
     - ../../voice/voice_icon.h
@@ -13,6 +24,7 @@ esphome:
             lv_obj_set_pos(id(nav_rail), 4, 6);
             lv_obj_set_height(id(nav_rail), 108);
             voice_icon::tick_nav(id(nav_voice_box), id(nav_mic));
+        - script.execute: apply_voice_output_mode
 
 i2s_audio:
   - id: i2s_audio_bus
@@ -67,8 +79,11 @@ voice_assistant:
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   on_listening:
+    - script.stop: voice_overlay_auto_hide
     - script.execute: unlock_idle_screen
-    - lambda: "voice_icon::set_mode(voice_icon::LISTENING);"
+    - lambda: |-
+        id(voice_has_answer) = false;
+        voice_icon::set_mode(voice_icon::LISTENING);
     - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
@@ -82,6 +97,7 @@ voice_assistant:
         tint_hex: 0x79C0FF
         bg_hex: 0x0B1524
   on_stt_vad_end:
+    - script.stop: voice_overlay_auto_hide
     - script.execute: unlock_idle_screen
     - lambda: "voice_icon::set_mode(voice_icon::THINKING);"
     - script.execute: voice_tick
@@ -97,39 +113,57 @@ voice_assistant:
         tint_hex: 0xFFD166
         bg_hex: 0x1A1408
   on_tts_start:
+    - script.stop: voice_overlay_auto_hide
     - script.execute: unlock_idle_screen
-    - lambda: "voice_icon::set_mode(voice_icon::SPEAKING);"
+    - lambda: |-
+        id(voice_has_answer) = true;
+        voice_icon::set_mode(voice_icon::SPEAKING);
     - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
         visible: true
-        title_text: "Speaking"
+        title_text: "Assistant"
         body_text: !lambda "return x;"
-        hint_text: "Tap anywhere to stop"
-        badge_text: "TTS"
+        hint_text: "Tap to dismiss"
+        badge_text: "SPEAKING"
         icon_glyph: "\U000F040A"
         accent_hex: 0x3FB950
         tint_hex: 0x56D364
         bg_hex: 0x091A12
+    - if:
+        condition:
+          lambda: |-
+            auto mode = id(voice_output_select).current_option();
+            return (mode == "Onboard + HA Speakers" || mode == "HA Speakers Only")
+              && std::string("${voice_tts_entity}").length() > 0
+              && std::string("${voice_tts_speaker}").length() > 0;
+        then:
+          - homeassistant.action:
+              action: tts.speak
+              data:
+                entity_id: "${voice_tts_entity}"
+                media_player_entity_id: "${voice_tts_speaker}"
+                message: !lambda "return x;"
   on_end:
-    - delay: 2s
     - lambda: |-
         voice_icon::set_mode(id(voice_muted) ? voice_icon::MUTED : voice_icon::IDLE);
     - script.execute: voice_tick
-    - script.execute:
-        id: set_voice_overlay
-        visible: false
-        title_text: ""
-        body_text: ""
-        hint_text: ""
-        badge_text: ""
-        icon_glyph: "\U000F036C"
-        accent_hex: 0x58A6FF
-        tint_hex: 0x79C0FF
-        bg_hex: 0x0B1524
+    - if:
+        condition:
+          lambda: "return id(voice_has_answer);"
+        then:
+          - lambda: |-
+              lv_label_set_text(id(voice_overlay_badge), "ANSWER");
+              lv_obj_invalidate(lv_scr_act());
+          - script.execute: voice_overlay_auto_hide
+        else:
+          - script.execute: dismiss_voice_overlay
   on_error:
+    - script.stop: voice_overlay_auto_hide
     - script.execute: unlock_idle_screen
-    - lambda: "voice_icon::set_mode(voice_icon::ERROR);"
+    - lambda: |-
+        id(voice_has_answer) = false;
+        voice_icon::set_mode(voice_icon::ERROR);
     - script.execute: voice_tick
     - script.execute:
         id: set_voice_overlay
@@ -143,20 +177,27 @@ voice_assistant:
         tint_hex: 0xFF7B72
         bg_hex: 0x1C0D10
     - delay: 3s
-    - lambda: |-
-        voice_icon::set_mode(id(voice_muted) ? voice_icon::MUTED : voice_icon::IDLE);
-    - script.execute: voice_tick
-    - script.execute:
-        id: set_voice_overlay
-        visible: false
-        title_text: ""
-        body_text: ""
-        hint_text: ""
-        badge_text: ""
-        icon_glyph: "\U000F036C"
-        accent_hex: 0x58A6FF
-        tint_hex: 0x79C0FF
-        bg_hex: 0x0B1524
+    - if:
+        condition:
+          lambda: "return !id(va).is_running() && !id(voice_has_answer);"
+        then:
+          - script.execute: dismiss_voice_overlay
+
+select:
+  - platform: template
+    id: voice_output_select
+    name: "Voice Output Mode"
+    icon: "mdi:speaker-multiple"
+    options:
+      - "Onboard + HA Speakers"
+      - "Onboard Only"
+      - "HA Speakers Only"
+      - "Display Only"
+    initial_option: "${voice_output_mode}"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - script.execute: apply_voice_output_mode
 
 switch:
   - platform: template
@@ -228,26 +269,7 @@ lvgl:
             hidden: true
             on_click:
               then:
-                - script.execute: reset_idle_timer
-                - if:
-                    condition:
-                      lambda: "return id(va).is_running();"
-                    then:
-                      - voice_assistant.stop:
-                    else:
-                      - lambda: "voice_icon::set_mode(id(voice_muted) ? voice_icon::MUTED : voice_icon::IDLE);"
-                      - script.execute: voice_tick
-                      - script.execute:
-                          id: set_voice_overlay
-                          visible: false
-                          title_text: ""
-                          body_text: ""
-                          hint_text: ""
-                          badge_text: ""
-                          icon_glyph: "\U000F036C"
-                          accent_hex: 0x58A6FF
-                          tint_hex: 0x79C0FF
-                          bg_hex: 0x0B1524
+                - script.execute: dismiss_voice_overlay
             widgets:
               - obj:
                   id: voice_stage_box
@@ -303,17 +325,35 @@ lvgl:
                   x: -16
                   y: 18
 
-              - label:
-                  id: voice_overlay_text
-                  text: "Speak now — Assist Pipeline is ready."
-                  text_font: font_14
-                  text_color: 0xE6EDF3
-                  width: 372
-                  height: 74
-                  long_mode: WRAP
+              - obj:
+                  id: voice_overlay_text_box
+                  width: 376
+                  height: 82
                   align: TOP_LEFT
                   x: 168
-                  y: 46
+                  y: 44
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  scrollable: true
+                  scroll_dir: VER
+                  scrollbar_mode: "auto"
+                  on_click:
+                    then:
+                      - script.execute: dismiss_voice_overlay
+                  widgets:
+                    - label:
+                        id: voice_overlay_text
+                        text: "Speak now — Assist Pipeline is ready."
+                        text_font: font_14
+                        text_color: 0xE6EDF3
+                        width: 368
+                        height: SIZE_CONTENT
+                        long_mode: WRAP
+                        align: TOP_LEFT
+                        x: 0
+                        y: 0
 
               - label:
                   id: voice_overlay_hint
@@ -322,7 +362,7 @@ lvgl:
                   text_color: 0x79C0FF
                   align: BOTTOM_LEFT
                   x: 168
-                  y: -14
+                  y: -12
 
 script:
   - id: set_voice_overlay
@@ -351,6 +391,7 @@ script:
             lv_label_set_text(id(voice_overlay_badge), badge_text.c_str());
             lv_obj_set_style_text_color(id(voice_overlay_badge), lv_color_hex(tint_hex), 0);
             lv_label_set_text(id(voice_overlay_text), body_text.c_str());
+            lv_obj_scroll_to_y(id(voice_overlay_text_box), 0, LV_ANIM_OFF);
             lv_label_set_text(id(voice_overlay_hint), hint_text.c_str());
             lv_obj_set_style_text_color(id(voice_overlay_hint), lv_color_hex(tint_hex), 0);
             lv_obj_clear_flag(id(voice_overlay), LV_OBJ_FLAG_HIDDEN);
@@ -361,8 +402,57 @@ script:
           }
           lv_obj_invalidate(lv_scr_act());
 
+  - id: apply_voice_output_mode
+    then:
+      - if:
+          condition:
+            lambda: |-
+              auto mode = id(voice_output_select).current_option();
+              return mode == "Onboard + HA Speakers" || mode == "Onboard Only";
+          then:
+            - speaker.mute_off: spk_i2s
+          else:
+            - speaker.mute_on: spk_i2s
+
+  - id: dismiss_voice_overlay
+    then:
+      - script.stop: voice_overlay_auto_hide
+      - script.execute: reset_idle_timer
+      - if:
+          condition:
+            lambda: "return id(va).is_running();"
+          then:
+            - voice_assistant.stop:
+          else:
+            - lambda: |-
+                id(voice_has_answer) = false;
+                voice_icon::set_mode(id(voice_muted) ? voice_icon::MUTED : voice_icon::IDLE);
+            - script.execute: voice_tick
+            - script.execute:
+                id: set_voice_overlay
+                visible: false
+                title_text: ""
+                body_text: ""
+                hint_text: ""
+                badge_text: ""
+                icon_glyph: "\U000F036C"
+                accent_hex: 0x58A6FF
+                tint_hex: 0x79C0FF
+                bg_hex: 0x0B1524
+
+  - id: voice_overlay_auto_hide
+    mode: restart
+    then:
+      - delay: ${voice_answer_hold}
+      - if:
+          condition:
+            lambda: "return !id(va).is_running();"
+          then:
+            - script.execute: dismiss_voice_overlay
+
   - id: !extend on_voice_ptt
     then:
+      - script.stop: voice_overlay_auto_hide
       - script.execute: unlock_idle_screen
       - script.execute: reset_idle_timer
       - if:
