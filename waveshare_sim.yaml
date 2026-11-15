@@ -108,17 +108,17 @@ esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
   on_boot:
-    priority: -100
-    then:
-      - delay: 3s
-      - lambda: |-
-          // Realistic defaults for standalone SDL simulator
-          if (id(idle_battery_pct) < 0) id(idle_battery_pct) = 84;
-          if (!id(idle_wifi_connected)) {
-            id(idle_wifi_connected) = true;
-            id(idle_wifi_rssi) = -54;
-            id(idle_wifi_ssid) = "GrowLab-5G";
-          }
+    - priority: -100
+      then:
+        - delay: 3s
+        - lambda: |-
+            // Realistic defaults for standalone SDL simulator
+            if (id(idle_battery_pct) < 0) id(idle_battery_pct) = 84;
+            if (!id(idle_wifi_connected)) {
+              id(idle_wifi_connected) = true;
+              id(idle_wifi_rssi) = -54;
+              id(idle_wifi_ssid) = "GrowLab-5G";
+            }
 
 packages:
   core_ui: !include packages/waveshare_349/core_ui.yaml
