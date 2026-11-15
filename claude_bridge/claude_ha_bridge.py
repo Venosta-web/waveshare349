@@ -674,6 +674,87 @@ def extract_steps(transcript_path, tool_name=None, tool_input=None, only_if_acti
     return format_steps(tasks, only_if_active=only_if_active)
 
 
+_INTERNAL_TAG_RE = re.compile(
+    r"<(?:system-reminder|ide_opened_file|ide_selection|local-command-caveat|"
+    r"local-command-stdout|local-command-stderr|user-prompt-submit-hook|"
+    r"command-message)\b[^>]*>.*?</(?:system-reminder|ide_opened_file|"
+    r"ide_selection|local-command-caveat|local-command-stdout|"
+    r"local-command-stderr|user-prompt-submit-hook|command-message)>",
+    re.S | re.I,
+)
+_TASK_NOTIF_RE = re.compile(r"<task-notification\b[^>]*>(.*?)(?:</task-notification>|$)", re.S | re.I)
+_TEAMMATE_MSG_RE = re.compile(r"<teammate-message\b([^>]*)>(.*?)(?:</teammate-message>|$)", re.S | re.I)
+
+
+def _xml_tag(text, tag):
+    m = re.search(rf"<{tag}\b[^>]*>(.*?)</{tag}>", text, re.S | re.I)
+    return " ".join(m.group(1).split()) if m else ""
+
+
+def _xml_attr(attrs, name):
+    m = re.search(rf'\b{name}\s*=\s*"([^"]*)"', attrs, re.I)
+    return " ".join(m.group(1).split()) if m else ""
+
+
+def format_prompt_detail(prompt):
+    """Turn raw UserPromptSubmit text (including Claude Code XML wrappers) into readable copy."""
+    raw = str(prompt or "").strip()
+    if not raw:
+        return "Working on task"
+
+    cleaned = _INTERNAL_TAG_RE.sub(" ", raw)
+
+    # Slash command invocations: <command-name>/review</command-name> [<command-args>...</command-args>]
+    cmd_name = _xml_tag(cleaned, "command-name")
+    if cmd_name:
+        cmd_args = _xml_tag(cleaned, "command-args")
+        without_cmd = re.sub(r"<command-(?:name|args)\b[^>]*>.*?</command-(?:name|args)>", " ", cleaned, flags=re.S | re.I)
+        rest = " ".join(without_cmd.split())
+        if rest:
+            return rest
+        return f"{cmd_name} {cmd_args}".strip()
+
+    # Background task / subagent completion notifications
+    notif_match = _TASK_NOTIF_RE.search(cleaned)
+    if notif_match:
+        without_notif = _TASK_NOTIF_RE.sub(" ", cleaned)
+        rest = " ".join(without_notif.split())
+        if rest:
+            return rest
+        body = notif_match.group(1)
+        summary = _xml_tag(body, "summary")
+        if summary:
+            return summary
+        status = _xml_tag(body, "status").lower()
+        if status in ("killed", "stopped", "cancelled", "canceled"):
+            return "Background task stopped"
+        if status:
+            return f"Background task {status}"
+        return "Continuing after background task"
+
+    # Agent team teammate messages
+    tm_match = _TEAMMATE_MSG_RE.search(cleaned)
+    if tm_match:
+        without_tm = _TEAMMATE_MSG_RE.sub(" ", cleaned)
+        rest = " ".join(without_tm.split())
+        if rest:
+            return rest
+        attrs, body = tm_match.group(1), tm_match.group(2)
+        teammate = _xml_attr(attrs, "teammate_id")
+        summary = _xml_attr(attrs, "summary")
+        if teammate and summary:
+            return f"From {teammate}: {summary}"
+        if summary:
+            return summary
+        if teammate:
+            return f"Message from {teammate}"
+        body_text = " ".join(body.split())
+        return body_text or "Teammate message"
+
+    text = " ".join(cleaned.split())
+    return text or "Working on task"
+
+
 def run_hook():
     if not HA_TOKEN:
         return
@@ -691,7 +772,8 @@ def run_hook():
         handle_permission_request(payload)
     elif event == "UserPromptSubmit":
         steps = extract_steps(transcript, only_if_active=True)
-        show(session, "Working", f"{project} | {payload.get('prompt', '')}", steps=steps)
+        detail_text = format_prompt_detail(payload.get("prompt", ""))
+        show(session, "Working", f"{project} | {detail_text}", steps=steps)
     elif event == "PreToolUse" and tool == "AskUserQuestion":
         steps = extract_steps(transcript)
         show(session, "Needs Input", f"{project} | {describe_questions(payload.get('tool_input'))}",

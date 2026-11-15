@@ -144,3 +144,71 @@ def test_run_hook_includes_7d_when_5h_limited(monkeypatch, tmp_path):
     assert status == "Rate Limited"
     assert "|7d=58;" in detail
     assert detail.endswith("|myproj | 5-hour usage limit reached")
+
+
+def test_format_prompt_detail_task_notification():
+    raw = (
+        "<task-notification>\n"
+        "<task-id>b6v0t0h1t</task-id>\n"
+        "<tool-use-id>toolu_015Ea2yseSVkdLY6vp1YGVpZ</tool-use-id>\n"
+        "<output-file>/tmp/claude/tasks/b6v0t0h1t.output</output-file>\n"
+        "<status>completed</status>\n"
+        '<summary>Background command "pytest" completed (exit code 0)</summary>\n'
+        "<result>16 passed</result>\n"
+        "</task-notification>"
+    )
+    assert bridge.format_prompt_detail(raw) == 'Background command "pytest" completed (exit code 0)'
+
+    no_summary = "<task-notification><task-id>abc</task-id><status>failed</status></task-notification>"
+    assert bridge.format_prompt_detail(no_summary) == "Background task failed"
+
+    killed = "<task-notification><task-id>abc</task-id><status>killed</status></task-notification>"
+    assert bridge.format_prompt_detail(killed) == "Background task stopped"
+
+    truncated = "<task-notification> <task-id>b6v0t0h1t</task-id> <tool-use-id>toolu_015Ea"
+    assert bridge.format_prompt_detail(truncated) == "Continuing after background task"
+
+
+def test_format_prompt_detail_internal_tags_and_commands():
+    ide_wrapped = (
+        "<ide_opened_file>The user opened /tmp/foo.py</ide_opened_file>\n"
+        "<system-reminder>Ignore this</system-reminder>\n"
+        "Fix the login bug"
+    )
+    assert bridge.format_prompt_detail(ide_wrapped) == "Fix the login bug"
+
+    slash_cmd = "<command-name>/review</command-name>\n<command-message>review</command-message>\n<command-args>src/app.py</command-args>"
+    assert bridge.format_prompt_detail(slash_cmd) == "/review src/app.py"
+
+    teammate = '<teammate-message teammate_id="researcher" summary="Found root cause">Details here</teammate-message>'
+    assert bridge.format_prompt_detail(teammate) == "From researcher: Found root cause"
+
+    assert bridge.format_prompt_detail("") == "Working on task"
+    assert bridge.format_prompt_detail("   \n  ") == "Working on task"
+
+
+def test_run_hook_user_prompt_submit_cleans_task_notification(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr(bridge, "HA_TOKEN", "test-token")
+    monkeypatch.setattr(bridge, "OWNER_FILE", tmp_path / "owner.json")
+    monkeypatch.setattr(bridge, "request_pending", lambda: False)
+    monkeypatch.setattr(
+        bridge,
+        "set_display",
+        lambda status=None, detail=None, request=None, steps=None: calls.append((status, detail)),
+    )
+
+    payload = {
+        "hook_event_name": "UserPromptSubmit",
+        "session_id": "s1",
+        "cwd": "/tmp/farm-town-map-rework-8cea43",
+        "prompt": (
+            "<task-notification><task-id>b6v0t0h1t</task-id>"
+            "<status>completed</status>"
+            '<summary>Agent "Explore map" completed</summary></task-notification>'
+        ),
+    }
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
+    bridge.run_hook()
+
+    assert calls == [("Working", 'farm-town-map-rework-8cea43 | Agent "Explore map" completed')]
