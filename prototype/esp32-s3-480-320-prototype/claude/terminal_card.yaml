@@ -12,23 +12,23 @@ bg_color: 0x0D1117
 hidden: true
 scrollbar_mode: "off"
 widgets:
-  # ── Status line:  ✻ Working… (1m 05s)                 ~/project ──────────
+  # ── Status line: "✳ Pondering…  (12s)                         project" ──
   - label:
       id: claude_spin
       text: "·"
-      text_font: mono_16b
+      text_font: mono_14
       text_color: 0x8B949E
       align: TOP_LEFT
-      x: 2
-      y: 0
+      x: 0
+      y: 2
   - label:
       id: lbl_agent_status
       text: "Idle"
-      text_font: mono_16b
+      text_font: mono_14
       text_color: 0x8B949E
       align: TOP_LEFT
-      x: 22
-      y: 0
+      x: 18
+      y: 2
   - label:
       id: lbl_claude_time
       text: ""
@@ -41,7 +41,7 @@ widgets:
       id: lbl_claude_project
       text: ""
       text_font: mono_12
-      text_color: 0x8B949E
+      text_color: 0x6E7681
       align: TOP_RIGHT
       x: 0
       y: 3
@@ -76,13 +76,128 @@ widgets:
             id: lbl_agent_detail
             text: "Waiting for Claude Code"
             text_font: mono_14
-            text_color: 0xC9D1D9
+            text_color: 0xF0F6FC
             align: TOP_LEFT
             x: 16
             y: 0
             width: 328
             height: 74
             long_mode: DOT
+        - label:
+            id: lbl_step_now_icon
+            text: "›"
+            text_font: mono_14
+            text_color: 0xD97757
+            align: TOP_LEFT
+            x: 0
+            y: 0
+            hidden: true
+        - label:
+            id: lbl_step_now
+            text: ""
+            text_font: mono_14
+            text_color: 0xF0F6FC
+            align: TOP_LEFT
+            x: 16
+            y: 0
+            width: 274
+            height: 36
+            long_mode: DOT
+            hidden: true
+        - label:
+            id: lbl_step_count
+            text: ""
+            text_font: mono_12
+            text_color: 0xD97757
+            align: TOP_RIGHT
+            x: 0
+            y: 0
+            bg_color: 0x21262D
+            bg_opa: COVER
+            radius: 4
+            pad_left: 5
+            pad_right: 5
+            pad_top: 1
+            pad_bottom: 1
+            hidden: true
+        - label:
+            id: lbl_step_next_icon
+            text: "○"
+            text_font: mono_12
+            text_color: 0x6E7681
+            align: TOP_LEFT
+            x: 1
+            y: 44
+            hidden: true
+        - label:
+            id: lbl_step_next
+            text: ""
+            text_font: mono_12
+            text_color: 0x8B949E
+            align: TOP_LEFT
+            x: 16
+            y: 43
+            width: 328
+            height: 30
+            long_mode: DOT
+            hidden: true
+
+  # Subtle progress bar under the prompt box when a multi-step task is active.
+  - obj:
+      id: step_progress_bg
+      width: 362
+      height: 2
+      align: TOP_LEFT
+      x: 2
+      y: 120
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_width: 0
+      radius: 1
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: step_progress_fill
+            width: 0
+            height: 2
+            align: LEFT_MID
+            x: 0
+            bg_color: 0xD97757
+            bg_opa: COVER
+            border_width: 0
+            radius: 1
+            pad_all: 0
+
+  # ── Rate-limit countdown bar (shown only when rate-limited) ─────────────
+  - obj:
+      id: claude_rl_track
+      width: 366
+      height: 8
+      align: TOP_LEFT
+      x: 0
+      y: 124
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_color: 0x30363D
+      border_width: 1
+      radius: 4
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: claude_rl_fill
+            width: 364
+            height: 6
+            align: LEFT_MID
+            x: 0
+            bg_color: 0xF85149
+            bg_opa: COVER
+            border_width: 0
+            radius: 3
+            pad_all: 0
 
   # ── Floor at y = 178; Clawd's feet land on it ───────────────────────────
   - obj:
@@ -108,7 +223,7 @@ widgets:
       bg_color: 0xD97757
       bg_opa: 60%
       border_width: 0
-      radius: 0
+      radius: 1
       pad_all: 0
   - obj:
       id: clawd_box
@@ -120,11 +235,9 @@ widgets:
       bg_opa: TRANSP
       border_width: 0
       pad_all: 0
-      radius: 0
-      scrollbar_mode: "off"
   - label:
       id: claude_bubble
-      text: "z"
+      text: ""
       text_font: mono_14
       text_color: 0x6E7681
       align: TOP_LEFT
@@ -146,8 +259,8 @@ widgets:
       radius: 8
       widgets:
         - label:
-            text: "APPROVE"
-            text_font: mono_16b
+            text: "Approve"
+            text_font: font_16
             text_color: 0xFFFFFF
             align: CENTER
       on_click:
@@ -179,8 +292,8 @@ widgets:
       radius: 8
       widgets:
         - label:
-            text: "REJECT"
-            text_font: mono_16b
+            text: "Reject"
+            text_font: font_16
             text_color: 0xFF7B72
             align: CENTER
       on_click:

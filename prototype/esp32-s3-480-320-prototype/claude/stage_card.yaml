@@ -43,12 +43,10 @@ widgets:
             bg_opa: TRANSP
             border_width: 0
             pad_all: 0
-            radius: 0
-            scrollbar_mode: "off"
-        # Thought bubble above Clawd's head: z / ! / ? / check.
+        # Status bubble over Clawd's head (z/Z, !, ?, ✓, ✕).
         - label:
             id: claude_bubble
-            text: "z"
+            text: ""
             text_font: claude_glyph_20
             text_color: 0x0A0C10
             align: TOP_LEFT
@@ -59,13 +57,14 @@ widgets:
             radius: 6
             pad_left: 6
             pad_right: 6
-            pad_top: 1
-            pad_bottom: 1
+            pad_top: 2
+            pad_bottom: 2
+            hidden: true
 
-  # ── Run column ───────────────────────────────────────────────────────────
+  # ── Right column ─────────────────────────────────────────────────────────
   - label:
       id: claude_spin
-      text: "✻"
+      text: "·"
       text_font: claude_glyph_20
       text_color: 0x8B949E
       align: TOP_LEFT
@@ -82,7 +81,7 @@ widgets:
   - label:
       id: lbl_claude_time
       text: ""
-      text_font: font_14
+      text_font: font_12
       text_color: 0x8B949E
       align: TOP_RIGHT
       x: 0
@@ -94,7 +93,23 @@ widgets:
       text_color: 0xC9D1D9
       align: TOP_LEFT
       x: 152
-      y: 30
+      y: 32
+      bg_color: 0x21262D
+      bg_opa: COVER
+      radius: 4
+      pad_left: 6
+      pad_right: 6
+      pad_top: 2
+      pad_bottom: 2
+      hidden: true
+  - label:
+      id: lbl_step_count
+      text: ""
+      text_font: font_12
+      text_color: 0xD97757
+      align: TOP_RIGHT
+      x: 0
+      y: 32
       bg_color: 0x21262D
       bg_opa: COVER
       radius: 4
@@ -110,10 +125,109 @@ widgets:
       text_color: 0xC9D1D9
       align: TOP_LEFT
       x: 152
-      y: 56
+      y: 58
       width: 214
       height: 100
       long_mode: DOT
+  - label:
+      id: lbl_step_now_icon
+      text: "›"
+      text_font: claude_glyph_14
+      text_color: 0xD97757
+      align: TOP_LEFT
+      x: 152
+      y: 58
+      hidden: true
+  - label:
+      id: lbl_step_now
+      text: ""
+      text_font: font_14
+      text_color: 0xF0F6FC
+      align: TOP_LEFT
+      x: 168
+      y: 58
+      width: 198
+      height: 36
+      long_mode: DOT
+      hidden: true
+  - label:
+      id: lbl_step_next_icon
+      text: "○"
+      text_font: claude_glyph_14
+      text_color: 0x6E7681
+      align: TOP_LEFT
+      x: 152
+      y: 102
+      hidden: true
+  - label:
+      id: lbl_step_next
+      text: ""
+      text_font: font_12
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 168
+      y: 103
+      width: 198
+      height: 32
+      long_mode: DOT
+      hidden: true
+
+  # Rate-limit cooldown block: live countdown, reset clock, and draining bar.
+  - obj:
+      id: claude_rl_box
+      width: 214
+      height: 46
+      align: TOP_LEFT
+      x: 152
+      y: 56
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: lbl_rl_countdown
+            text: ""
+            text_font: font_20
+            text_color: 0xF0F6FC
+            align: TOP_LEFT
+            x: 0
+            y: 0
+        - label:
+            id: lbl_rl_reset
+            text: ""
+            text_font: font_12
+            text_color: 0x8B949E
+            align: TOP_RIGHT
+            x: 0
+            y: 6
+        - obj:
+            id: claude_rl_track
+            width: 214
+            height: 10
+            align: TOP_LEFT
+            x: 0
+            y: 28
+            bg_color: 0x21262D
+            bg_opa: COVER
+            border_color: 0x30363D
+            border_width: 1
+            radius: 5
+            pad_all: 0
+            scrollbar_mode: "off"
+            widgets:
+              - obj:
+                  id: claude_rl_fill
+                  width: 212
+                  height: 8
+                  align: LEFT_MID
+                  x: 0
+                  bg_color: 0xF85149
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 4
+                  pad_all: 0
 
   # Activity line: a comet sliding while working, a draining fuse while a
   # permission request waits for you.
@@ -144,7 +258,7 @@ widgets:
             radius: 2
             pad_all: 0
 
-  # Approve / Reject only appear while a permission request is pending.
+  # ── Approve / Reject, only visible while a permission request is pending ─
   # The request id is echoed back so a stale tap can't approve a newer request.
   - button:
       id: btn_claude_approve
@@ -160,8 +274,8 @@ widgets:
       radius: 8
       widgets:
         - label:
-            text: "APPROVE"
-            text_font: font_20
+            text: "Approve"
+            text_font: font_16
             text_color: 0xFFFFFF
             align: CENTER
       on_click:
@@ -193,8 +307,8 @@ widgets:
       radius: 8
       widgets:
         - label:
-            text: "REJECT"
-            text_font: font_20
+            text: "Reject"
+            text_font: font_16
             text_color: 0xFF7B72
             align: CENTER
       on_click:
