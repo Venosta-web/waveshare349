@@ -2,6 +2,8 @@
 
 substitutions:
   pause_timeout: "25"
+  cycle_interval: "15"
+  idle_timeout: "300"
   dim_timeout: "5"
   sleep_timeout: "15"
 
@@ -27,6 +29,33 @@ globals:
   - id: wake_lock
     type: bool
     initial_value: "false"
+  - id: settings_brightness
+    type: int
+    initial_value: "100"
+  - id: settings_cycle_interval
+    type: int
+    initial_value: "${cycle_interval}"
+  - id: settings_cycle_enabled
+    type: bool
+    initial_value: "true"
+  - id: settings_idle_timeout
+    type: int
+    initial_value: "${idle_timeout}"
+  - id: idle_battery_pct
+    type: int
+    initial_value: "-1"
+  - id: idle_battery_charging
+    type: bool
+    initial_value: "false"
+  - id: idle_wifi_connected
+    type: bool
+    initial_value: "false"
+  - id: idle_wifi_rssi
+    type: int
+    initial_value: "0"
+  - id: idle_wifi_ssid
+    type: std::string
+    initial_value: '""'
 
 esphome:
   on_boot:
@@ -112,6 +141,11 @@ font:
       - "\U000F0083" # battery-alert
       - "\U000F0084" # battery-charging
       - "\U000F0091" # battery-unknown
+      - "\U000F0493" # cog (settings)
+      - "\U000F00E0" # brightness-6 (display)
+      - "\U000F05A9" # wifi
+      - "\U000F0450" # restart
+      - "\U000F062E" # tune (system)
 
   - file: "../../fonts/materialdesignicons-webfont.ttf"
     id: icons_24
@@ -145,6 +179,7 @@ select:
       - "Music"
       - "AI"
       - "Codex"
+      - "Settings"
     initial_option: "Growspace"
     optimistic: true
     set_action:
@@ -153,6 +188,7 @@ select:
           if (x == "Music") target = 1;
           else if (x == "AI") target = 2;
           else if (x == "Codex") target = 3;
+          else if (x == "Settings") target = 4;
           id(switch_tab).execute(target);
 
 lvgl:
@@ -401,8 +437,8 @@ script:
     then:
       - lambda: |-
           id(active_tab) = tab_idx;
-          const char* opts[] = { "Growspace", "Music", "AI", "Codex" };
-          if (tab_idx >= 0 && tab_idx < 4 && id(display_view).current_option() != opts[tab_idx]) {
+          const char* opts[] = { "Growspace", "Music", "AI", "Codex", "Settings" };
+          if (tab_idx >= 0 && tab_idx < 5 && id(display_view).current_option() != opts[tab_idx]) {
             id(display_view).publish_state(opts[tab_idx]);
           }
           lv_obj_invalidate(lv_scr_act());
@@ -442,6 +478,15 @@ script:
     then:
       - lambda: "return;"
 
+  - id: lock_screen_now
+    then:
+      - lambda: "return;"
+
+  # Extended by mod_settings.yaml when the settings module is enabled
+  - id: sync_settings_ui
+    then:
+      - lambda: "return;"
+
 interval:
   - interval: 100ms
     then:
@@ -463,7 +508,7 @@ interval:
             id(dim_state) = new_state;
             auto call = id(display_backlight).make_call();
             if (new_state == 2) call.set_brightness(0.05f);
-            else if (new_state == 1) call.set_brightness(0.3f);
-            else call.set_brightness(1.0f);
+            else if (new_state == 1) call.set_brightness(std::min(0.3f, id(settings_brightness) / 100.0f));
+            else call.set_brightness(id(settings_brightness) / 100.0f);
             call.perform();
           }

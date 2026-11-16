@@ -141,6 +141,18 @@ widgets:
             height: 30
             long_mode: DOT
             hidden: true
+        - label:
+            id: lbl_rl_sub
+            text: ""
+            text_font: mono_12
+            text_color: 0x8B949E
+            align: TOP_LEFT
+            x: 16
+            y: 43
+            width: 328
+            height: 30
+            long_mode: DOT
+            hidden: true
 
   # Subtle progress bar under the prompt box when a multi-step task is active.
   - obj:
@@ -199,50 +211,157 @@ widgets:
             radius: 3
             pad_all: 0
 
-  # ── Floor at y = 178; Clawd's feet land on it ───────────────────────────
+  # ── Floor-flanking 5h / 7d telemetry (shown when 5h-limited with 7d quota left)
   - obj:
-      id: claude_floor
-      width: 366
-      height: 1
+      id: claude_rl_5h_wing
+      width: 148
+      height: 36
       align: TOP_LEFT
       x: 0
-      y: 178
-      bg_color: 0x21262D
-      bg_opa: COVER
-      border_width: 0
-      radius: 0
-      pad_all: 0
-  # Trail of footprints Clawd leaves behind on a long run.
-  - obj:
-      id: claude_trail
-      width: 0
-      height: 2
-      align: TOP_LEFT
-      x: 0
-      y: 177
-      bg_color: 0xD97757
-      bg_opa: 60%
-      border_width: 0
-      radius: 1
-      pad_all: 0
-  - obj:
-      id: clawd_box
-      align: TOP_LEFT
-      x: 0
-      y: 142
-      width: 56
-      height: 41
+      y: 138
       bg_opa: TRANSP
       border_width: 0
       pad_all: 0
-  - label:
-      id: claude_bubble
-      text: ""
-      text_font: mono_14
-      text_color: 0x6E7681
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: lbl_rl_5h_title
+            text: "5h cooldown"
+            text_font: mono_12
+            text_color: 0x8B949E
+            align: TOP_LEFT
+            x: 2
+            y: 2
+        - label:
+            id: lbl_rl_5h_pct
+            text: ""
+            text_font: mono_12
+            text_color: 0xF85149
+            align: TOP_LEFT
+            x: 2
+            y: 18
+
+  - obj:
+      id: claude_rl_7d_wing
+      width: 148
+      height: 38
       align: TOP_LEFT
-      x: 50
-      y: 124
+      x: 218
+      y: 138
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: lbl_rl_7d_title
+            text: "7d limit"
+            text_font: mono_12
+            text_color: 0x8B949E
+            align: TOP_LEFT
+            x: 0
+            y: 0
+        - label:
+            id: lbl_rl_7d_pct
+            text: ""
+            text_font: mono_12
+            text_color: 0x3FB950
+            align: TOP_RIGHT
+            x: 0
+            y: 0
+        - obj:
+            id: claude_rl_7d_track
+            width: 148
+            height: 7
+            align: TOP_LEFT
+            x: 0
+            y: 15
+            bg_color: 0x21262D
+            bg_opa: COVER
+            border_color: 0x30363D
+            border_width: 1
+            radius: 3
+            pad_all: 0
+            scrollbar_mode: "off"
+            widgets:
+              - obj:
+                  id: claude_rl_7d_fill
+                  width: 0
+                  height: 5
+                  align: LEFT_MID
+                  x: 0
+                  bg_color: 0x3FB950
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 2
+                  pad_all: 0
+        - label:
+            id: lbl_rl_7d_reset
+            text: ""
+            text_font: mono_12
+            text_color: 0x6E7681
+            align: TOP_RIGHT
+            x: 0
+            y: 23
+
+  # ── Diorama / floor container (y = 41..181; floor at y = 137 -> 178 on card)
+  - obj:
+      id: claude_scene_box
+      width: 366
+      height: 140
+      align: TOP_LEFT
+      x: 0
+      y: 41
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: claude_floor
+            width: 366
+            height: 1
+            align: TOP_LEFT
+            x: 0
+            y: 137
+            bg_color: 0x21262D
+            bg_opa: COVER
+            border_width: 0
+            radius: 0
+            pad_all: 0
+        - obj:
+            id: claude_trail
+            width: 0
+            height: 2
+            align: TOP_LEFT
+            x: 0
+            y: 136
+            bg_color: 0xD97757
+            bg_opa: 60%
+            border_width: 0
+            radius: 1
+            pad_all: 0
+        - obj:
+            id: clawd_box
+            align: TOP_LEFT
+            x: 0
+            y: 101
+            width: 56
+            height: 41
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+        - label:
+            id: claude_bubble
+            text: ""
+            text_font: mono_14
+            text_color: 0x6E7681
+            align: TOP_LEFT
+            x: 50
+            y: 84
 
   # Approve / Reject only appear while a permission request is pending.
   - button:

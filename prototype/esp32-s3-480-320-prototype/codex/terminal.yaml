@@ -139,79 +139,91 @@ script:
           static const char *verb = "Working";
           static const char *const VERBS[] = {"Working", "Reasoning", "Editing", "Testing", "Indexing",
                                               "Analyzing", "Patching", "Building", "Checking", "Synthesizing"};
+          static pet_scenes::TerminalSceneMux scene_mux;
+          const bool card_hidden = lv_obj_has_flag(id(codex_card), LV_OBJ_FLAG_HIDDEN);
           if (p.root == nullptr) {
             build(p, id(codex_pet_box), 4);
             lv_label_set_recolor(id(lbl_codex_status), true);
             lv_obj_remove_flag(id(codex_bubble), LV_OBJ_FLAG_CLICKABLE);
             lv_obj_set_style_bg_color(id(codex_trail), lv_color_hex(BODY), 0);
             lv_obj_set_style_border_width(id(codex_trail), 0, 0);
+            scene_mux.init(id(codex_scene_box), id(codex_pet_box), id(codex_bubble), true, 366);
           }
+          scene_mux.maybe_reroll(static_cast<pet_scenes::PetMode>(g_mode), g_work_start, millis(), g_frame, card_hidden);
           if (g_work_start != verb_for) {
             verb_for = g_work_start;
             verb = VERBS[(g_work_start / 7 + g_frame) % (sizeof(VERBS) / sizeof(VERBS[0]))];
           }
-          if (lv_obj_has_flag(id(codex_card), LV_OBJ_FLAG_HIDDEN)) return;
+          if (card_hidden) return;
 
           const uint32_t f = g_frame, t = g_frame - g_mode_frame, now = millis();
           const uint32_t acc = accent(g_mode);
           const int max_x = 366 - p.w();
           const int center = max_x / 2;
 
-          // ── Where Byte stands ──
-          int target = walk_x;
-          if (g_mode == WORKING) {
-            walk_x += 4 * walk_dir;
-            if (walk_x >= max_x) { walk_x = max_x; walk_dir = -1; }
-            if (walk_x <= 0) { walk_x = 0; walk_dir = 1; }
+          bool travelling = false;
+          Pose s;
+          lv_obj_t *trail = id(codex_trail);
+          if (scene_mux.has_scene()) {
+            s = animate(g_mode, f, t, p.u);
+            pet_scenes::merge_pose(s, scene_mux.tick(static_cast<pet_scenes::PetMode>(g_mode), f, t, walk_x));
+            lv_obj_set_width(trail, 0);
           } else {
-            target = (g_mode == IDLE) ? 0 : center;
-            if (g_mode == codex_pet::PENDING) walk_x = target;
-            if (walk_x != target) {
-              int step = walk_x < target ? 12 : -12;
-              walk_dir = step > 0 ? 1 : -1;
-              walk_x = abs(target - walk_x) <= 12 ? target : walk_x + step;
+            // ── Where Byte stands ──
+            int target = walk_x;
+            if (g_mode == WORKING) {
+              walk_x += 4 * walk_dir;
+              if (walk_x >= max_x) { walk_x = max_x; walk_dir = -1; }
+              if (walk_x <= 0) { walk_x = 0; walk_dir = 1; }
+            } else {
+              target = (g_mode == IDLE) ? 0 : center;
+              if (g_mode == codex_pet::PENDING) walk_x = target;
+              if (walk_x != target) {
+                int step = walk_x < target ? 12 : -12;
+                walk_dir = step > 0 ? 1 : -1;
+                walk_x = abs(target - walk_x) <= 12 ? target : walk_x + step;
+              }
+            }
+            travelling = g_mode != WORKING && walk_x != target;
+            s = animate(travelling ? WORKING : g_mode, f, travelling ? 0 : t, p.u);
+            if (g_mode == WORKING || travelling) s.eye_dx = walk_dir * (p.u / 2);
+
+            // Motion trail on the floor behind Byte.
+            if (g_mode == WORKING || travelling) {
+              const int len = 44, feet = walk_x + p.w() / 2;
+              int x0 = walk_dir > 0 ? feet - p.w() / 2 - len : feet + p.w() / 2;
+              if (x0 < 0) x0 = 0;
+              lv_obj_set_x(trail, x0);
+              lv_obj_set_width(trail, len);
+              lv_obj_set_style_bg_opa(trail, LV_OPA_70, 0);
+            } else {
+              lv_obj_set_width(trail, 0);
             }
           }
-          const bool travelling = g_mode != WORKING && walk_x != target;
-          Pose s = animate(travelling ? WORKING : g_mode, f, travelling ? 0 : t, p.u);
-          if (g_mode == WORKING || travelling) s.eye_dx = walk_dir * (p.u / 2);
           apply(p, s, g_mode, f);
           lv_obj_set_x(id(codex_pet_box), walk_x);
 
-          // Motion trail on the floor behind Byte.
-          lv_obj_t *trail = id(codex_trail);
-          if (g_mode == WORKING || travelling) {
-            const int len = 44, feet = walk_x + p.w() / 2;
-            int x0 = walk_dir > 0 ? feet - p.w() / 2 - len : feet + p.w() / 2;
-            if (x0 < 0) x0 = 0;
-            lv_obj_set_x(trail, x0);
-            lv_obj_set_width(trail, len);
-            lv_obj_set_style_bg_opa(trail, LV_OPA_70, 0);
-          } else {
-            lv_obj_set_style_bg_opa(trail, LV_OPA_0, 0);
-          }
-
           // Floating glyph over Byte's head.
           lv_obj_t *b = id(codex_bubble);
-          int by = 124;
-          lv_obj_set_x(b, walk_x + p.w() / 2 - 4);
-          if (g_mode == IDLE) {
+          int bx = walk_x + p.w() - 6, by = 86;
+          if (g_mode == IDLE && !travelling) {
             uint32_t k = f % 30;
             lv_label_set_text(b, k < 15 ? "z" : "Z");
-            by = 136 - (int) k / 2;
+            bx += (int) (k / 6);
+            by = 92 - (int) (k / 2);
             lv_obj_set_style_text_color(b, lv_color_hex(0x6E7681), 0);
-            lv_obj_set_style_text_opa(b, k < 22 ? LV_OPA_COVER : (lv_opa_t) (255 - (k - 22) * 30), 0);
+            lv_obj_set_style_text_opa(b, k < 20 ? LV_OPA_COVER : (lv_opa_t) (255 - (k - 20) * 25), 0);
             lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN);
-          } else if (g_mode == codex_pet::PENDING || g_mode == NEEDS_INPUT) {
+          } else if ((g_mode == NEEDS_INPUT || g_mode == codex_pet::PENDING) && !travelling) {
             lv_label_set_text(b, g_mode == codex_pet::PENDING ? "!" : "?");
-            by = 122 - (int) ((f / 5) % 2);
+            by = 82 - (int) ((f / 5) % 2);
             lv_obj_set_style_text_color(b, lv_color_hex(acc), 0);
             lv_obj_set_style_text_opa(b, LV_OPA_COVER, 0);
             lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN);
           } else {
             lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
           }
-          lv_obj_set_y(b, by);
+          lv_obj_set_pos(b, bx, by);
 
           // ── Status line ──
           lv_label_set_text(id(codex_spin), g_mode == WORKING ? spinner(f)

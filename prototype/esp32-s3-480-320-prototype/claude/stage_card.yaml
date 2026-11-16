@@ -13,8 +13,8 @@ widgets:
   # ── Stage ────────────────────────────────────────────────────────────────
   - obj:
       id: claude_stage
-      width: 140
-      height: 176
+      width: 150
+      height: 140
       align: TOP_LEFT
       bg_color: 0x0D1117
       bg_opa: COVER
@@ -23,10 +23,10 @@ widgets:
       pad_all: 0
       scrollbar_mode: "off"
       widgets:
-        # Floor: Clawd's feet meet it at y = 152.
+        # Floor: Clawd's feet meet it at y = 118.
         - obj:
-            width: 140
-            height: 24
+            width: 150
+            height: 22
             align: BOTTOM_MID
             bg_color: 0x131922
             bg_opa: COVER
@@ -36,8 +36,8 @@ widgets:
         - obj:
             id: clawd_box
             align: TOP_LEFT
-            x: 21
-            y: 89
+            x: 26
+            y: 55
             width: 98
             height: 69
             bg_opa: TRANSP
@@ -50,8 +50,8 @@ widgets:
             text_font: claude_glyph_20
             text_color: 0x0A0C10
             align: TOP_LEFT
-            x: 96
-            y: 36
+            x: 104
+            y: 12
             bg_color: 0x8B949E
             bg_opa: COVER
             radius: 6
@@ -68,7 +68,7 @@ widgets:
       text_font: claude_glyph_20
       text_color: 0x8B949E
       align: TOP_LEFT
-      x: 152
+      x: 160
       y: 0
   - label:
       id: lbl_agent_status
@@ -76,7 +76,7 @@ widgets:
       text_font: font_20
       text_color: 0x8B949E
       align: TOP_LEFT
-      x: 176
+      x: 184
       y: 0
   - label:
       id: lbl_claude_time
@@ -92,7 +92,7 @@ widgets:
       text_font: font_12
       text_color: 0xC9D1D9
       align: TOP_LEFT
-      x: 152
+      x: 160
       y: 32
       bg_color: 0x21262D
       bg_opa: COVER
@@ -124,9 +124,9 @@ widgets:
       text_font: font_14
       text_color: 0xC9D1D9
       align: TOP_LEFT
-      x: 152
+      x: 160
       y: 58
-      width: 214
+      width: 206
       height: 100
       long_mode: DOT
   - label:
@@ -135,7 +135,7 @@ widgets:
       text_font: claude_glyph_14
       text_color: 0xD97757
       align: TOP_LEFT
-      x: 152
+      x: 160
       y: 58
       hidden: true
   - label:
@@ -144,9 +144,9 @@ widgets:
       text_font: font_14
       text_color: 0xF0F6FC
       align: TOP_LEFT
-      x: 168
+      x: 176
       y: 58
-      width: 198
+      width: 190
       height: 36
       long_mode: DOT
       hidden: true
@@ -156,7 +156,7 @@ widgets:
       text_font: claude_glyph_14
       text_color: 0x6E7681
       align: TOP_LEFT
-      x: 152
+      x: 160
       y: 102
       hidden: true
   - label:
@@ -165,9 +165,9 @@ widgets:
       text_font: font_12
       text_color: 0x8B949E
       align: TOP_LEFT
-      x: 168
+      x: 176
       y: 103
-      width: 198
+      width: 190
       height: 32
       long_mode: DOT
       hidden: true
@@ -175,10 +175,10 @@ widgets:
   # Rate-limit cooldown block: live countdown, reset clock, and draining bar.
   - obj:
       id: claude_rl_box
-      width: 214
+      width: 206
       height: 46
       align: TOP_LEFT
-      x: 152
+      x: 160
       y: 56
       bg_opa: TRANSP
       border_width: 0
@@ -204,7 +204,7 @@ widgets:
             y: 6
         - obj:
             id: claude_rl_track
-            width: 214
+            width: 206
             height: 10
             align: TOP_LEFT
             x: 0
@@ -219,7 +219,7 @@ widgets:
             widgets:
               - obj:
                   id: claude_rl_fill
-                  width: 212
+                  width: 204
                   height: 8
                   align: LEFT_MID
                   x: 0
@@ -233,10 +233,10 @@ widgets:
   # permission request waits for you.
   - obj:
       id: claude_track
-      width: 214
+      width: 206
       height: 4
       align: TOP_LEFT
-      x: 152
+      x: 160
       y: 168
       bg_color: 0x21262D
       bg_opa: COVER

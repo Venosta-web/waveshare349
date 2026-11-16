@@ -1,0 +1,317 @@
+# Variant A, "Stage": Clawd on a lit stage at the left, the run on the right.
+# Content box is 366 x 242 (390 x 266 card, 2 px border, 10 px padding).
+id: ai_card
+width: 390
+height: 266
+align: TOP_RIGHT
+x: -6
+y: 48
+styles: card_style
+hidden: true
+scrollbar_mode: "off"
+widgets:
+  # ── Stage ────────────────────────────────────────────────────────────────
+  - obj:
+      id: claude_stage
+      width: 150
+      height: 140
+      align: TOP_LEFT
+      bg_color: 0x0D1117
+      bg_opa: COVER
+      border_width: 0
+      radius: 10
+      pad_all: 0
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: clawd_box
+            align: TOP_LEFT
+            x: 26
+            y: 55
+            width: 98
+            height: 69
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+        # Status bubble over Clawd's head (z/Z, !, ?, ✓, ✕).
+        - label:
+            id: claude_bubble
+            text: ""
+            text_font: claude_glyph_20
+            text_color: 0x0A0C10
+            align: TOP_LEFT
+            x: 104
+            y: 12
+            bg_color: 0x8B949E
+            bg_opa: COVER
+            radius: 6
+            pad_left: 6
+            pad_right: 6
+            pad_top: 2
+            pad_bottom: 2
+            hidden: true
+
+  # ── Right column ─────────────────────────────────────────────────────────
+  - label:
+      id: claude_spin
+      text: "·"
+      text_font: claude_glyph_20
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 160
+      y: 0
+  - label:
+      id: lbl_agent_status
+      text: "Idle"
+      text_font: font_20
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 184
+      y: 0
+  - label:
+      id: lbl_claude_time
+      text: ""
+      text_font: font_12
+      text_color: 0x8B949E
+      align: TOP_RIGHT
+      x: 0
+      y: 4
+  - label:
+      id: lbl_claude_project
+      text: ""
+      text_font: font_12
+      text_color: 0xC9D1D9
+      align: TOP_LEFT
+      x: 160
+      y: 32
+      bg_color: 0x21262D
+      bg_opa: COVER
+      radius: 4
+      pad_left: 6
+      pad_right: 6
+      pad_top: 2
+      pad_bottom: 2
+      hidden: true
+  - label:
+      id: lbl_step_count
+      text: ""
+      text_font: font_12
+      text_color: 0xD97757
+      align: TOP_RIGHT
+      x: 0
+      y: 32
+      bg_color: 0x21262D
+      bg_opa: COVER
+      radius: 4
+      pad_left: 6
+      pad_right: 6
+      pad_top: 2
+      pad_bottom: 2
+      hidden: true
+  - label:
+      id: lbl_agent_detail
+      text: "Waiting for Claude Code"
+      text_font: font_14
+      text_color: 0xC9D1D9
+      align: TOP_LEFT
+      x: 160
+      y: 58
+      width: 206
+      height: 100
+      long_mode: DOT
+  - label:
+      id: lbl_step_now_icon
+      text: "›"
+      text_font: claude_glyph_14
+      text_color: 0xD97757
+      align: TOP_LEFT
+      x: 160
+      y: 58
+      hidden: true
+  - label:
+      id: lbl_step_now
+      text: ""
+      text_font: font_14
+      text_color: 0xF0F6FC
+      align: TOP_LEFT
+      x: 176
+      y: 58
+      width: 190
+      height: 36
+      long_mode: DOT
+      hidden: true
+  - label:
+      id: lbl_step_next_icon
+      text: "○"
+      text_font: claude_glyph_14
+      text_color: 0x6E7681
+      align: TOP_LEFT
+      x: 160
+      y: 102
+      hidden: true
+  - label:
+      id: lbl_step_next
+      text: ""
+      text_font: font_12
+      text_color: 0x8B949E
+      align: TOP_LEFT
+      x: 176
+      y: 103
+      width: 190
+      height: 32
+      long_mode: DOT
+      hidden: true
+
+  # Rate-limit cooldown block: live countdown, reset clock, and draining bar.
+  - obj:
+      id: claude_rl_box
+      width: 206
+      height: 46
+      align: TOP_LEFT
+      x: 160
+      y: 56
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - label:
+            id: lbl_rl_countdown
+            text: ""
+            text_font: font_20
+            text_color: 0xF0F6FC
+            align: TOP_LEFT
+            x: 0
+            y: 0
+        - label:
+            id: lbl_rl_reset
+            text: ""
+            text_font: font_12
+            text_color: 0x8B949E
+            align: TOP_RIGHT
+            x: 0
+            y: 6
+        - obj:
+            id: claude_rl_track
+            width: 206
+            height: 10
+            align: TOP_LEFT
+            x: 0
+            y: 28
+            bg_color: 0x21262D
+            bg_opa: COVER
+            border_color: 0x30363D
+            border_width: 1
+            radius: 5
+            pad_all: 0
+            scrollbar_mode: "off"
+            widgets:
+              - obj:
+                  id: claude_rl_fill
+                  width: 204
+                  height: 8
+                  align: LEFT_MID
+                  x: 0
+                  bg_color: 0xF85149
+                  bg_opa: COVER
+                  border_width: 0
+                  radius: 4
+                  pad_all: 0
+
+  # Activity line: a comet sliding while working, a draining fuse while a
+  # permission request waits for you.
+  - obj:
+      id: claude_track
+      width: 206
+      height: 4
+      align: TOP_LEFT
+      x: 160
+      y: 168
+      bg_color: 0x21262D
+      bg_opa: COVER
+      border_width: 0
+      radius: 2
+      pad_all: 0
+      hidden: true
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: claude_track_fill
+            width: 64
+            height: 4
+            align: LEFT_MID
+            x: 0
+            bg_color: 0xD97757
+            bg_opa: COVER
+            border_width: 0
+            radius: 2
+            pad_all: 0
+
+  # ── Approve / Reject, only visible while a permission request is pending ─
+  # The request id is echoed back so a stale tap can't approve a newer request.
+  - button:
+      id: btn_claude_approve
+      width: 178
+      height: 48
+      align: BOTTOM_LEFT
+      x: 0
+      y: 0
+      hidden: true
+      bg_color: 0x238636
+      border_color: 0x2EA043
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "Approve"
+            text_font: font_16
+            text_color: 0xFFFFFF
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - homeassistant.event:
+                    event: esphome.claude_command
+                    data:
+                      action: approve
+                      request_id: !lambda "return id(claude_request).state;"
+                - script.execute:
+                    id: claude_sent
+                    verdict: "Approved"
+
+  - button:
+      id: btn_claude_reject
+      width: 178
+      height: 48
+      align: BOTTOM_RIGHT
+      x: 0
+      y: 0
+      hidden: true
+      bg_color: 0x21262D
+      border_color: 0xF85149
+      border_width: 1
+      radius: 8
+      widgets:
+        - label:
+            text: "Reject"
+            text_font: font_16
+            text_color: 0xFF7B72
+            align: CENTER
+      on_click:
+        then:
+          - if:
+              condition:
+                lambda: "return !id(wake_lock);"
+              then:
+                - homeassistant.event:
+                    event: esphome.claude_command
+                    data:
+                      action: reject
+                      request_id: !lambda "return id(claude_request).state;"
+                - script.execute:
+                    id: claude_sent
+                    verdict: "Rejected"

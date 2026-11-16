@@ -85,6 +85,13 @@ export function generateEsphomeYaml(state) {
     lines.push('  codex_decision_timeout: "110"');
   }
 
+  if (has('idle')) {
+    lines.push('');
+    lines.push('  # Idle / Lock Clock Screen');
+    lines.push('  idle_variant: "aurora"');
+    lines.push(`  idle_timeout: ${quoteYaml(state.idleTimeout || 300)}`);
+  }
+
   lines.push('');
   lines.push('packages:');
 
@@ -106,6 +113,8 @@ export function generateEsphomeYaml(state) {
   if (has('voice') && device.id === 'waveshare-349') {
     pkgFiles.push(['mod_voice', `${device.packageDir}/mod_voice.yaml`]);
   }
+  if (has('idle')) pkgFiles.push(['mod_idle', `${device.packageDir}/mod_idle.yaml`]);
+  if (has('settings')) pkgFiles.push(['mod_settings', `${device.packageDir}/mod_settings.yaml`]);
 
   if (state.packageSource === 'github') {
     const repo = (state.githubRepo || 'OWNER/Waveshare349').trim().replace(/^\/+|\/+$/g, '');

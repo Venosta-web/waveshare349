@@ -505,7 +505,7 @@ script:
             if (phase_s[idx] != nullptr && phase_s[idx]->has_state() && phase_s[idx]->state != "empty") break;
           }
           id(vpd_sensor_index) = idx;
-          id(cycle_timer) = ${cycle_interval};
+          id(cycle_timer) = id(settings_cycle_interval);
           id(cycle_paused) = true;
           id(pause_timer) = ${pause_timeout};
       - script.execute: update_pause_indicator
@@ -729,10 +729,14 @@ interval:
   - interval: 1s
     then:
       - lambda: |-
-          if (!id(cycle_paused)) {
+          if (!id(settings_cycle_enabled)) {
+            lv_obj_clear_flag(id(icon_paused), LV_OBJ_FLAG_HIDDEN);
+          } else if (!id(cycle_paused)) {
             if (id(cycle_timer) > 0) {
               id(cycle_timer)--;
-              int bw = (id(cycle_timer) * 256) / ${cycle_interval};
+              int cyc_int = id(settings_cycle_interval) > 0 ? id(settings_cycle_interval) : 15;
+              int bw = (id(cycle_timer) * 256) / cyc_int;
+              if (bw > 256) bw = 256;
               lv_obj_set_width(id(grow_countdown_bar), bw > 0 ? bw : 1);
               lv_obj_set_style_bg_color(id(grow_countdown_bar), lv_color_hex(0x00D1FF), 0);
             }
@@ -745,18 +749,18 @@ interval:
               lv_obj_set_style_bg_color(id(grow_countdown_bar), lv_color_hex(0xFFC107), 0);
             } else {
               id(cycle_paused) = false;
-              id(cycle_timer) = ${cycle_interval};
+              id(cycle_timer) = id(settings_cycle_interval);
               lv_obj_set_style_bg_color(id(grow_countdown_bar), lv_color_hex(0x00D1FF), 0);
             }
           }
       - if:
           condition:
-            lambda: "return !id(cycle_paused) && id(cycle_timer) == ${cycle_interval};"
+            lambda: "return id(settings_cycle_enabled) && !id(cycle_paused) && id(cycle_timer) == id(settings_cycle_interval);"
           then:
             - script.execute: update_pause_indicator
       - if:
           condition:
-            lambda: "return id(cycle_timer) == 0 && !id(cycle_paused);"
+            lambda: "return id(settings_cycle_enabled) && id(cycle_timer) == 0 && !id(cycle_paused);"
           then:
             - lambda: "id(nav_direction) = 1;"
             - script.execute: navigate_space
