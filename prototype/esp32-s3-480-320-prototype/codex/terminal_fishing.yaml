@@ -33,12 +33,13 @@ script:
           codex_pet::parse_steps(id(codex_steps).state);
           const bool pending = codex_pet::g_mode == codex_pet::PENDING;
           const bool rate_limited = codex_pet::g_mode == codex_pet::RATE_LIMITED;
-          const bool show_steps = codex_pet::g_step_total > 0 && !pending && !rate_limited && codex_pet::g_mode != codex_pet::NEEDS_INPUT;
+          const bool show_steps = codex_pet::g_step_total > 0 && !pending && !rate_limited && codex_pet::g_mode != codex_pet::NEEDS_INPUT &&
+                                  codex_pet::g_mode != codex_pet::TURN_FAILED;
 
           lv_label_set_text(id(lbl_codex_project), codex_pet::g_project.c_str());
           const char *text = codex_pet::g_text.empty()
               ? (codex_pet::g_mode == codex_pet::IDLE ? "Waiting for Codex"
-                 : rate_limited ? (codex_pet::g_rl_is_7d ? "7-day usage limit reached" : "5-hour usage limit reached")
+                 : rate_limited ? "Usage limit reached"
                  : "")
               : codex_pet::g_text.c_str();
           lv_label_set_text(id(lbl_codex_detail), text);
@@ -135,10 +136,6 @@ script:
           tick_nav(id(nav_codex_box));
           static Puppet p;
           static int walk_x = 0, walk_dir = 1;
-          static uint32_t verb_for = UINT32_MAX;
-          static const char *verb = "Working";
-          static const char *const VERBS[] = {"Working", "Reasoning", "Editing", "Testing", "Indexing",
-                                              "Analyzing", "Patching", "Building", "Checking", "Synthesizing"};
           static pet_scenes::TerminalFishingScene scene;
           const bool card_hidden = lv_obj_has_flag(id(codex_card), LV_OBJ_FLAG_HIDDEN);
           if (p.root == nullptr) {
@@ -148,10 +145,6 @@ script:
             lv_obj_set_style_bg_color(id(codex_trail), lv_color_hex(BODY), 0);
             lv_obj_set_style_border_width(id(codex_trail), 0, 0);
             scene.build(id(codex_scene_box), id(codex_pet_box), id(codex_bubble), true, 366);
-          }
-                    if (g_work_start != verb_for) {
-            verb_for = g_work_start;
-            verb = VERBS[(g_work_start / 7 + g_frame) % (sizeof(VERBS) / sizeof(VERBS[0]))];
           }
           if (card_hidden) return;
 
@@ -165,7 +158,7 @@ script:
           lv_obj_t *trail = id(codex_trail);
           if (true) {
             s = animate(g_mode, f, t, p.u);
-            pet_scenes::merge_pose(s, scene.tick(static_cast<pet_scenes::PetMode>(g_mode), f, t, walk_x));
+            pet_scenes::merge_pose(s, scene.tick(static_cast<pet_scenes::PetMode>(g_mode == TURN_FAILED ? SENT_NO : g_mode), f, t, walk_x));
             lv_obj_set_width(trail, 0);
           } else {
             // ── Where Byte stands ──
@@ -228,12 +221,13 @@ script:
           lv_label_set_text(id(codex_spin), g_mode == WORKING ? spinner(f)
                             : g_mode == DONE || g_mode == SENT_OK ? "✓"
                             : g_mode == SENT_NO ? "✕"
-                            : g_mode == RATE_LIMITED ? "!"
+                            : (g_mode == RATE_LIMITED || g_mode == TURN_FAILED) ? "!"
                             : g_mode == IDLE ? "·" : "✻");
           lv_obj_set_style_text_color(id(codex_spin), lv_color_hex(acc), 0);
 
           char line[160];
           if (g_mode == WORKING) {
+            const char *verb = working_label();
             const int n = strlen(verb), pos = (int) (f % (n + 8)) - 3;
             int o = 0;
             for (int i = 0; i < n && o < 140; i++) {
@@ -244,7 +238,7 @@ script:
             line[o] = 0;
             strncat(line, "…", sizeof(line) - strlen(line) - 1);
           } else {
-            static const char *const WORDS[] = {"Idle", "", "Waiting for approval", "Needs your input", "Done", "Approved", "Rejected", "Rate limited"};
+            static const char *const WORDS[] = {"Idle", "", "Waiting for approval", "Needs your input", "Done", "Approved", "Rejected", "Rate limited", "Turn failed"};
             snprintf(line, sizeof(line), "%s", WORDS[g_mode]);
           }
           lv_label_set_text(id(lbl_codex_status), line);
@@ -261,11 +255,11 @@ script:
             char d[16];
             fmt_elapsed(d, sizeof(d), g_last_run);
             snprintf(tbuf, sizeof(tbuf), "(%s)", d);
-          } else if (g_mode == RATE_LIMITED) {
+          } else if (g_mode == RATE_LIMITED && g_rl_has_reset) {
             uint64_t rl_left = rl_left_ms(now);
             char cbuf[24];
             fmt_countdown(cbuf, sizeof(cbuf), rl_left);
-            if (rl_left == 0) snprintf(tbuf, sizeof(tbuf), "Ready!");
+            if (rl_left == 0) lv_label_set_text(id(lbl_codex_detail), "You can try again");
             else if (!g_rl_reset_at.empty()) snprintf(tbuf, sizeof(tbuf), "%s · %s", cbuf, g_rl_reset_at.c_str());
             else snprintf(tbuf, sizeof(tbuf), "%s", cbuf);
           }
@@ -273,7 +267,7 @@ script:
           lv_obj_set_style_text_color(id(lbl_codex_time), lv_color_hex(g_mode == RATE_LIMITED ? 0xFF7B72 : 0x6E7681), 0);
 
           uint64_t rl_left = 0;
-          if (g_mode == RATE_LIMITED) {
+          if (g_mode == RATE_LIMITED && g_rl_has_reset) {
             rl_left = rl_left_ms(now);
             lv_obj_clear_flag(id(codex_rl_track), LV_OBJ_FLAG_HIDDEN);
             if (rl_left == 0) {
@@ -293,13 +287,13 @@ script:
           lv_obj_set_style_border_color(id(codex_box), lv_color_hex(
               g_mode == codex_pet::PENDING ? ((f / 5) % 2 ? 0xFFB020 : 0x8A5D12)
               : g_mode == NEEDS_INPUT ? 0xA371F7
-              : g_mode == RATE_LIMITED ? (rl_left == 0 ? 0x2EA043 : 0x9E3632)
+              : g_mode == RATE_LIMITED ? (g_rl_has_reset && rl_left == 0 ? 0x2EA043 : 0x9E3632)
               : 0x30363D), 0);
           lv_obj_set_style_border_color(id(codex_card), lv_color_hex(
               g_mode == codex_pet::PENDING ? ((f / 5) % 2 ? 0xFFB020 : 0x8A5D12)
               : g_mode == SENT_OK ? 0x2EA043
               : g_mode == SENT_NO ? 0xF85149
-              : g_mode == RATE_LIMITED ? (rl_left == 0 ? 0x2EA043 : 0x9E3632)
+              : g_mode == RATE_LIMITED ? (g_rl_has_reset && rl_left == 0 ? 0x2EA043 : 0x9E3632)
               : 0x30363D), 0);
 
 interval:

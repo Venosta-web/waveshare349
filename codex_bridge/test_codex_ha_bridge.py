@@ -1,10 +1,14 @@
+import argparse
 import contextlib
 import io
 import json
 import os
 import tempfile
+import time
 import unittest
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from unittest.mock import patch
 
 import codex_ha_bridge as bridge
@@ -14,6 +18,7 @@ class HomeAssistant:
     def __init__(self):
         self.helpers = {}
         self.tap = None
+        self.failed_values = deque()
 
     def connect(self, url, **kwargs):
         assert url == "ws://localhost:8123/api/websocket"
@@ -63,7 +68,11 @@ class Connection:
         elif kind == "call_service":
             assert (msg["domain"], msg["service"]) == ("input_text", "set_value")
             entity = msg["target"]["entity_id"]
-            self.ha.helpers[entity]["state"] = msg["service_data"]["value"]
+            value = msg["service_data"]["value"]
+            if self.ha.failed_values and value == self.ha.failed_values[0]:
+                self.ha.failed_values.popleft()
+                raise TimeoutError
+            self.ha.helpers[entity]["state"] = value
             if (entity == "input_text.codex_status" and self.ha.value("status") == "Pending Approval"
                     and self.ha.tap):
                 assert self.subscription is not None
@@ -103,6 +112,13 @@ class BridgeTest(unittest.TestCase):
             "cwd": "/projects/Waveshare349", **fields,
         }))
 
+    def transcript(self):
+        return Path(self.enterContext(tempfile.TemporaryDirectory())) / "turn.jsonl"
+
+    def append_record(self, path, kind="event_msg", **payload):
+        with path.open("a") as stream:
+            stream.write(json.dumps({"type": kind, "payload": payload}) + "\n")
+
     def test_start_updates_all_four_display_helpers(self):
         self.ha.helpers["input_text.codex_request"]["state"] = "old-request"
         self.ha.helpers["input_text.codex_steps"]["state"] = "1/2|Old plan|Old next"
@@ -128,6 +144,100 @@ class BridgeTest(unittest.TestCase):
                          ("Done", "Waveshare349 | Turn complete"))
         self.hook("SessionEnd")
         self.assertEqual(self.ha.value("status"), "")
+
+    def test_usage_limit_without_stop_shows_only_the_retry_time(self):
+        self.hook("UserPromptSubmit")
+        transcript = self.transcript()
+        self.append_record(transcript, type="task_started", turn_id="turn-a")
+        self.append_record(transcript, type="task_complete", turn_id="turn-a", error={
+            "codex_error_info": "usage_limit_exceeded",
+            "message": "Private account detail. Try again at Nov 16th, 2026 4:30 PM.",
+        })
+        self.invoke("observe", "session-a", "turn-a", str(transcript), "Waveshare349")
+        self.hook("Stop")
+        self.assertEqual((self.ha.value("status"), self.ha.value("detail")),
+                         ("Rate Limited", "Waveshare349 | Try again at Nov 16, 2026 4:30 PM"))
+
+    def test_only_an_unambiguous_same_turn_reset_supplies_a_countdown(self):
+        reset = int(time.time()) + 1800
+        for secondary_percent, has_countdown in ((45, True), (100, False)):
+            with self.subTest(secondary_percent=secondary_percent):
+                self.hook("UserPromptSubmit")
+                transcript = self.transcript()
+                self.append_record(transcript, type="task_started", turn_id="turn-a")
+                self.append_record(transcript, type="token_count", rate_limits={
+                    "primary": {"used_percent": 100, "resets_at": reset},
+                    "secondary": {"used_percent": secondary_percent, "resets_at": reset + 1000},
+                })
+                self.append_record(transcript, type="task_complete", turn_id="turn-a", error={
+                    "codex_error_info": "usage_limit_exceeded",
+                })
+                self.invoke("observe", "session-a", "turn-a", str(transcript), "Waveshare349")
+                self.assertEqual(self.ha.value("status"), "Rate Limited")
+                if has_countdown:
+                    prefix, epoch, seconds, clock, detail = self.ha.value("detail").split("|", 4)
+                    self.assertEqual((prefix, int(epoch), detail), ("reset", reset, "Waveshare349 | Usage limit reached"))
+                    self.assertTrue(1790 <= int(seconds) <= 1800)
+                    self.assertTrue(clock)
+                else:
+                    self.assertEqual(self.ha.value("detail"), "Waveshare349 | Usage limit reached")
+
+    def test_retries_stay_working_and_late_transcript_updates_leave_the_new_chat_in_control(self):
+        self.hook("UserPromptSubmit")
+        transcript = self.transcript()
+        self.append_record(transcript, type="task_started", turn_id="turn-a")
+        self.append_record(transcript, type="error", will_retry=True, message="Private error")
+        with ThreadPoolExecutor(max_workers=1) as runner:
+            observer = runner.submit(bridge.main, ["observe", "session-a", "turn-a", str(transcript), "Waveshare349"])
+            try:
+                deadline = time.monotonic() + 2
+                while self.ha.value("detail") != "Waveshare349 | Retrying" and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertEqual((self.ha.value("status"), self.ha.value("detail")),
+                                 ("Working", "Waveshare349 | Retrying"))
+            finally:
+                self.hook("UserPromptSubmit", session="session-b", turn="turn-b", cwd="/projects/Other")
+                self.append_record(transcript, type="task_complete", turn_id="turn-a", error={
+                    "codex_error_info": "usage_limit_exceeded",
+                })
+            self.assertEqual(observer.result(timeout=2), 0)
+        self.assertEqual((self.ha.value("status"), self.ha.value("detail")),
+                         ("Working", "Other | Turn in progress"))
+
+    def test_other_terminal_errors_have_a_distinct_state_and_keep_error_text_local(self):
+        self.hook("UserPromptSubmit")
+        transcript = self.transcript()
+        self.append_record(transcript, type="task_complete", turn_id="turn-a", error={
+            "codex_error_info": "response_stream_disconnected", "message": "Private network details",
+        })
+        self.invoke("observe", "session-a", "turn-a", str(transcript), "Waveshare349")
+        self.assertEqual((self.ha.value("status"), self.ha.value("detail")),
+                         ("Turn Failed", "Waveshare349 | See Codex"))
+
+    def test_stop_waits_for_transcript_and_observer_retries_after_ha_timeout(self):
+        transcript = self.transcript()
+        # Stand in for the separately launched process while running its CLI below.
+        with patch("subprocess.Popen", return_value=argparse.Namespace(pid=os.getpid())):
+            self.hook("UserPromptSubmit", transcript_path=str(transcript))
+        self.hook("Stop")
+        self.assertEqual(self.ha.value("status"), "Working")
+        self.append_record(transcript, type="task_complete", turn_id="turn-a", error={
+            "codex_error_info": "rate_limit_exceeded",
+        })
+        self.ha.failed_values.append("Rate Limited")
+        self.invoke("observe", "session-a", "turn-a", str(transcript), "Waveshare349")
+        self.assertEqual((self.ha.value("status"), self.ha.value("detail")),
+                         ("Rate Limited", "Waveshare349 | Request rate limit reached"))
+
+    def test_running_tests_preserves_plan_and_keeps_command_arguments_local(self):
+        self.hook("UserPromptSubmit")
+        self.hook("PostToolUse", tool_name="update_plan", tool_input={"plan": [
+            {"step": "Verify bridge", "status": "in_progress"},
+            {"step": "Review", "status": "pending"},
+        ]})
+        self.hook("PreToolUse", tool_name="Bash", tool_input={"command": "python3 -m pytest private-path"})
+        self.assertEqual((self.ha.value("status"), self.ha.value("detail"), self.ha.value("steps")),
+                         ("Working", "Waveshare349 | Running tests", "1/2|Verify bridge|Review"))
 
     def test_touch_approval_and_rejection_return_codex_hook_decisions(self):
         self.hook("UserPromptSubmit")

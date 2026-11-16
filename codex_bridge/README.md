@@ -1,6 +1,6 @@
 # Codex Desktop display bridge
 
-The bridge runs on the Linux desktop that hosts Codex. It uses [Codex lifecycle hooks](https://learn.chatgpt.com/docs/hooks) to update the **Codex** Display View through Home Assistant. There is no background service. User-level hooks also apply to local Codex CLI sessions.
+The bridge runs on the Linux desktop that hosts Codex. It uses [Codex lifecycle hooks](https://learn.chatgpt.com/docs/hooks) and a per-turn local transcript reader to update the **Codex** Display View through Home Assistant. There is no service to install. User-level hooks also apply to local Codex CLI sessions.
 
 ## Set up Home Assistant
 
@@ -30,7 +30,13 @@ The bridge runs on the Linux desktop that hosts Codex. It uses [Codex lifecycle 
 2. Replace the script path and, if needed, the Python interpreter in [hooks.example.json](hooks.example.json). Merge its handler entries into `~/.codex/hooks.json`, or add equivalent handlers to the existing inline hook tables in `~/.codex/config.toml`. Preserve existing handlers.
 3. In Codex Desktop, open **Settings → Hooks** or choose **Review hooks** in the composer. Review and trust the bridge hooks. Then send a prompt and check for **Working** followed by **Done** on the display.
 
-The latest submitted turn owns the display. It starts with empty request and step helpers. An `update_plan` hook publishes the current and next steps. Tool requests that need a native answer can show **Needs Input** when Codex emits the corresponding hook. A finished turn shows **Done**, and interrupting or ending the displayed session clears the status. The bridge publishes the project directory name and plan labels. Prompt and reply bodies stay local. Quota countdowns require structured reset data that the installed hooks do not provide.
+The latest submitted turn owns the display. Its card shows the current activity, plus the current and next steps when Codex supplies a plan. Tool requests that need a native answer can show **Needs Input** when Codex emits the corresponding hook. A completed turn shows **Done**, and interrupting or ending the displayed session clears the status.
+
+A blocking limit shows **Rate Limited**. When Codex supplies a retry time in its error text, the card shows that time. An unambiguous reset timestamp enables a countdown, followed by **You can try again**. Temporary retries can show **Retrying** while the turn stays **Working**. Other confirmed failures show **Turn failed** with **See Codex**.
+
+The bridge publishes the project directory name, short activity and plan labels, and any extracted retry time. Transcript content, tool arguments and results, and raw errors stay local. The opt-in touchscreen approval path below sends eligible Bash commands for review. If the transcript is missing or its format changes, status updates fall back to lifecycle hooks.
+
+For an existing installation, replace the installed copy of `codex_ha_bridge.py`, add the background `PreToolUse` handler from the example, and build the new display firmware to get the updated card rendering. The existing Home Assistant helpers support the new status values.
 
 ## Enable touchscreen decisions
 
