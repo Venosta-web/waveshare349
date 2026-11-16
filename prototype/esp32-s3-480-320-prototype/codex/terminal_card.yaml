@@ -199,50 +199,62 @@ widgets:
             radius: 3
             pad_all: 0
 
-  # ── Floor at y = 178; Byte's boots land on it ───────────────────────────
+  # ── Diorama / floor container (y = 41..181; floor at y = 137 -> 178 on card)
   - obj:
-      id: codex_floor
+      id: codex_scene_box
       width: 366
-      height: 1
+      height: 140
       align: TOP_LEFT
       x: 0
-      y: 178
-      bg_color: 0x21262D
-      bg_opa: COVER
-      border_width: 0
-      radius: 0
-      pad_all: 0
-  # Trail of footprints Byte leaves behind on a long run.
-  - obj:
-      id: codex_trail
-      width: 0
-      height: 2
-      align: TOP_LEFT
-      x: 0
-      y: 177
-      bg_color: 0x3FB950
-      bg_opa: 60%
-      border_width: 0
-      radius: 1
-      pad_all: 0
-  - obj:
-      id: codex_pet_box
-      align: TOP_LEFT
-      x: 0
-      y: 142
-      width: 56
-      height: 41
+      y: 41
       bg_opa: TRANSP
       border_width: 0
       pad_all: 0
-  - label:
-      id: codex_bubble
-      text: ""
-      text_font: codex_mono_14
-      text_color: 0x6E7681
-      align: TOP_LEFT
-      x: 50
-      y: 124
+      radius: 0
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: codex_floor
+            width: 366
+            height: 1
+            align: TOP_LEFT
+            x: 0
+            y: 137
+            bg_color: 0x21262D
+            bg_opa: COVER
+            border_width: 0
+            radius: 0
+            pad_all: 0
+        - obj:
+            id: codex_trail
+            width: 0
+            height: 2
+            align: TOP_LEFT
+            x: 0
+            y: 136
+            bg_color: 0x3FB950
+            bg_opa: 60%
+            border_width: 0
+            radius: 1
+            pad_all: 0
+        - obj:
+            id: codex_pet_box
+            align: TOP_LEFT
+            x: 0
+            y: 101
+            width: 56
+            height: 41
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+        - label:
+            id: codex_bubble
+            text: ""
+            text_font: codex_mono_14
+            text_color: 0x6E7681
+            align: TOP_LEFT
+            x: 50
+            y: 84
 
   # Approve / Reject only appear while a permission request is pending.
   - button:

@@ -121,14 +121,14 @@ script:
           id(codex_tick).execute();
       - if:
           condition:
-            lambda: "return codex_pet::g_mode == codex_pet::PENDING;"
+            lambda: "return codex_pet::g_mode == codex_pet::PENDING || codex_pet::g_mode == codex_pet::NEEDS_INPUT;"
           then:
             - lvgl.widget.update:
                 id: codex_alert_badge
                 hidden: false
             - if:
                 condition:
-                  lambda: "return id(active_tab) != 1;"
+                  lambda: "return id(active_tab) != 3;"
                 then:
                   - script.execute:
                       id: switch_tab

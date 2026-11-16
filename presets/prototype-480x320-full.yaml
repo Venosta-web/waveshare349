@@ -83,3 +83,4 @@ packages:
   mod_claude: !include ../packages/prototype_480x320/mod_claude.yaml
   mod_codex: !include ../packages/prototype_480x320/mod_codex.yaml
   mod_idle: !include ../packages/prototype_480x320/mod_idle.yaml
+  mod_settings: !include ../packages/prototype_480x320/mod_settings.yaml

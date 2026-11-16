@@ -628,13 +628,15 @@ struct TerminalFishingScene {
   lv_obj_t *rod[3] = {}, *line = nullptr, *bob_top = nullptr, *bob_bot = nullptr;
   lv_obj_t *splash[3] = {}, *fish_body = nullptr, *fish_tail = nullptr;
   bool is_codex = false;
+  int w = 540;
 
-  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex, int width = 540) {
     is_codex = codex;
+    w = width;
     water = blk(card, 0x0E2A47);
-    place(water, 118, 134, 422, 6);
+    place(water, 118, 134, w - 118, 6);
     surf = blk(card, 0x1F5685);
-    place(surf, 118, 134, 422, 2);
+    place(surf, 118, 134, w - 118, 2);
     for (int i = 0; i < 4; i++) {
       waves[i] = blk(card, 0x388BFD, LV_OPA_70, 1);
       place(waves[i], 140 + i * 95, 136 + (i % 2) * 2, 26, 2);
@@ -669,7 +671,7 @@ struct TerminalFishingScene {
     set_vis(bob_bot, !obstructed);
 
     if (obstructed) {
-      pet_x = 242;
+      pet_x = w / 2 - 28;
       for (auto *sp : splash) set_vis(sp, false);
       set_vis(fish_body, false);
       set_vis(fish_tail, false);
@@ -678,8 +680,10 @@ struct TerminalFishingScene {
 
     pet_x = 58;
     int spd = (m == PM_WORKING) ? 3 : 1;
+    int span = w - 150;
+    if (span < 80) span = 80;
     for (int i = 0; i < 4; i++) {
-      int wx = 122 + (int) ((f * spd * (i % 2 ? 2 : 3) + i * 95) % 390);
+      int wx = 122 + (int) ((f * spd * (i % 2 ? 2 : 3) + i * 95) % span);
       lv_obj_set_x(waves[i], wx);
     }
 
@@ -743,23 +747,28 @@ struct TerminalMiningScene {
   lv_obj_t *helmet = nullptr, *headlamp = nullptr;
   lv_obj_t *pick_h = nullptr, *pick_head = nullptr;
   bool is_codex = false;
+  int w = 540;
 
-  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex, int width = 540) {
     is_codex = codex;
-    rail = blk(card, 0x30363D); place(rail, 0, 137, 540, 2);
+    w = width;
+    rail = blk(card, 0x30363D); place(rail, 0, 137, w, 2);
     for (int i = 0; i < 10; i++) {
       ties[i] = blk(card, 0x4A311D);
-      place(ties[i], 16 + i * 48, 138, 10, 2);
+      int tx = 16 + i * 48;
+      if (tx + 10 <= w) place(ties[i], tx, 138, 10, 2);
+      else set_vis(ties[i], false);
     }
     lantern_glow = blk(card, 0xFFB020, LV_OPA_20, LV_RADIUS_CIRCLE);
     place(lantern_glow, 10, 108, 22, 22);
     lantern_core = blk(card, 0xFFB020, LV_OPA_COVER, 1);
     place(lantern_core, 19, 116, 4, 6);
 
-    rock = blk(card, 0x21262D); place(rock, 478, 96, 62, 42);
-    ore[0] = blk(card, codex ? 0x10B981 : 0xFFB020, LV_OPA_COVER, 1); place(ore[0], 486, 104, 10, 5);
-    ore[1] = blk(card, codex ? 0xA7F3D0 : 0xD97757, LV_OPA_COVER, 1); place(ore[1], 504, 116, 12, 6);
-    ore[2] = blk(card, 0x58A6FF, LV_OPA_COVER, 1); place(ore[2], 490, 126, 8, 5);
+    int rx = w - 62;
+    rock = blk(card, 0x21262D); place(rock, rx, 96, 62, 42);
+    ore[0] = blk(card, codex ? 0x10B981 : 0xFFB020, LV_OPA_COVER, 1); place(ore[0], rx + 8, 104, 10, 5);
+    ore[1] = blk(card, codex ? 0xA7F3D0 : 0xD97757, LV_OPA_COVER, 1); place(ore[1], rx + 26, 116, 12, 6);
+    ore[2] = blk(card, 0x58A6FF, LV_OPA_COVER, 1); place(ore[2], rx + 12, 126, 8, 5);
 
     lv_obj_move_foreground(pet_box);
     lv_obj_move_foreground(bubble);
@@ -779,10 +788,12 @@ struct TerminalMiningScene {
     set_vis(lantern_core, !obstructed);
     set_vis(rock, !obstructed);
     for (auto *o : ore) set_vis(o, !obstructed);
-    for (auto *ti : ties) set_vis(ti, !obstructed);
+    for (int i = 0; i < 10; i++) {
+      set_vis(ties[i], !obstructed && (16 + i * 48 + 10 <= w));
+    }
 
     if (obstructed) {
-      pet_x = 242;
+      pet_x = w / 2 - 28;
       set_vis(helmet, false); set_vis(headlamp, false);
       set_vis(pick_h, false); set_vis(pick_head, false);
       for (auto *sp : sparks) set_vis(sp, false);
@@ -795,17 +806,18 @@ struct TerminalMiningScene {
 
     bool impact = false;
     int swing = 0;
+    int mine_x = w - 126;
     if (m == PM_WORKING) {
-      pet_x = 414;
+      pet_x = mine_x;
       int k = (int) (f % 8);
       if (k < 3) { swing = 1; po.arm_r = -10; po.override_arms = true; }
       else if (k <= 5) { swing = 2; po.dx = 3; po.arm_r = 2; po.override_arms = true; impact = (k == 3 || k == 4); }
       po.eye_dx = 2; po.override_eye_dx = true;
     } else if (m == PM_DONE || m == PM_SENT_OK) {
-      pet_x = 414;
+      pet_x = mine_x;
       swing = 1;
     } else {
-      pet_x = (m == PM_IDLE) ? 28 : 242;
+      pet_x = (m == PM_IDLE) ? 28 : (w / 2 - 28);
     }
 
     int hy = 104 + po.dy;
@@ -833,12 +845,12 @@ struct TerminalMiningScene {
       set_vis(sparks[i], impact);
       if (impact) {
         int age = (int) (f % 2);
-        place(sparks[i], 474 - (i + 1) * 4 - age * 4, 116 + (i - 1) * 4 + age * 2, 3, 3);
+        place(sparks[i], (w - 66) - (i + 1) * 4 - age * 4, 116 + (i - 1) * 4 + age * 2, 3, 3);
       }
     }
     bool show_gem = (m == PM_DONE || m == PM_SENT_OK) && t < 24;
     set_vis(gem, show_gem);
-    if (show_gem) place(gem, 492, 92 - (t < 8 ? (int) t * 2 : 16), 10, 10);
+    if (show_gem) place(gem, w - 48, 92 - (t < 8 ? (int) t * 2 : 16), 10, 10);
     return po;
   }
 };
@@ -848,14 +860,18 @@ struct TerminalPingPongScene {
   lv_obj_t *pad_h = nullptr, *pad_f = nullptr;
   lv_obj_t *rival_b = nullptr, *rival_f = nullptr, *ball = nullptr, *bshad = nullptr;
   bool is_codex = false;
+  int w = 540;
+  int ox = 0;
 
-  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex) {
+  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool codex, int width = 540) {
     is_codex = codex;
-    legs[0] = blk(card, 0x30363D); place(legs[0], 204, 125, 4, 12);
-    legs[1] = blk(card, 0x30363D); place(legs[1], 334, 125, 4, 12);
-    table_top = blk(card, 0x1F6FEB); place(table_top, 192, 121, 156, 5);
-    table_line = blk(card, 0xF0F6FC); place(table_line, 192, 121, 156, 2);
-    net = blk(card, 0xC9D1D9); place(net, 269, 112, 2, 9);
+    w = width;
+    ox = (w < 440) ? -72 : 0;
+    legs[0] = blk(card, 0x30363D); place(legs[0], 204 + ox, 125, 4, 12);
+    legs[1] = blk(card, 0x30363D); place(legs[1], 334 + ox, 125, 4, 12);
+    table_top = blk(card, 0x1F6FEB); place(table_top, 192 + ox, 121, 156, 5);
+    table_line = blk(card, 0xF0F6FC); place(table_line, 192 + ox, 121, 156, 2);
+    net = blk(card, 0xC9D1D9); place(net, 269 + ox, 112, 2, 9);
 
     lv_obj_move_foreground(pet_box);
     lv_obj_move_foreground(bubble);
@@ -878,28 +894,28 @@ struct TerminalPingPongScene {
     set_vis(ball, !obstructed);
 
     if (obstructed) {
-      pet_x = 242;
+      pet_x = w / 2 - 28;
       set_vis(bshad, false);
       return po;
     }
 
-    pet_x = 132;
-    int bx = 268, by = 116, ry = 108, rx = 356, py = 114;
+    pet_x = 132 + ox;
+    int bx = 268 + ox, by = 116, ry = 108, rx = 356 + ox, py = 114;
     if (m == PM_WORKING) {
       static const int BX[16] = {192, 212, 234, 256, 280, 304, 326, 348, 344, 322, 298, 274, 250, 226, 204, 190};
       static const int BY[16] = {108, 102, 99, 101, 107, 117, 110, 106, 105, 100, 98, 101, 108, 117, 111, 109};
       int k = (int) (f % 16);
-      bx = BX[k]; by = BY[k];
+      bx = BX[k] + ox; by = BY[k];
       ry = by - 5;
-      if (k >= 6 && k <= 9) rx = 352;
+      if (k >= 6 && k <= 9) rx = 352 + ox;
       if (k == 15 || k <= 1) { po.dx = 3; po.arm_r = -6; po.override_arms = true; py = 107; }
-      po.eye_dx = (bx > 270) ? 2 : 0;
+      po.eye_dx = (bx > 270 + ox) ? 2 : 0;
       po.override_eye_dx = true;
     } else if (m == PM_NEEDS_INPUT) {
       static const int JUG[6] = {0, -6, -10, -11, -7, -2};
-      bx = 186; by = 106 + JUG[f % 6];
+      bx = 186 + ox; by = 106 + JUG[f % 6];
     } else if (m == PM_DONE || m == PM_SENT_OK) {
-      bx = (t < 10) ? 196 + (int) t * 17 : 368;
+      bx = ((t < 10) ? 196 + (int) t * 17 : 368) + ox;
       by = (t < 10) ? 108 - (int) (t < 5 ? t * 2 : (10 - t)) : 133;
       py = 98;
     }
@@ -908,7 +924,7 @@ struct TerminalPingPongScene {
     place(pad_f, pet_x + 50 + po.dx, py, 7, 10);
     place(rival_b, rx, ry, 9, 16);
     place(rival_f, rx - 2, ry + 2, 3, 12);
-    bool on_tbl = (bx >= 192 && bx <= 346 && by <= 122);
+    bool on_tbl = (bx >= 192 + ox && bx <= 346 + ox && by <= 122);
     set_vis(bshad, on_tbl);
     if (on_tbl) place(bshad, bx, 120, 5, 2);
     place(ball, bx, by, 5, 5);
@@ -921,16 +937,20 @@ struct TerminalCampfireScene {
   lv_obj_t *glow = nullptr, *logs[2] = {};
   lv_obj_t *f_out = nullptr, *f_mid = nullptr, *f_core = nullptr;
   lv_obj_t *embers[3] = {}, *stick = nullptr, *mallow = nullptr;
+  int w = 540;
+  int fx = 0;
 
-  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool /*codex*/) {
+  void build(lv_obj_t *card, lv_obj_t *pet_box, lv_obj_t *bubble, bool /*codex*/, int width = 540) {
+    w = width;
+    fx = (w < 440) ? -100 : 0;
     static const int SX[4] = {44, 152, 396, 488}, SY[4] = {98, 104, 96, 102};
     for (int i = 0; i < 4; i++) {
       stars[i] = blk(card, 0x8B949E);
-      place(stars[i], SX[i], SY[i], 2, 2);
+      place(stars[i], (SX[i] * w) / 540, SY[i], 2, 2);
     }
-    glow = blk(card, 0x4A2612, LV_OPA_70, LV_RADIUS_CIRCLE); place(glow, 314, 132, 52, 8);
-    logs[0] = blk(card, 0x5A3E28); place(logs[0], 326, 133, 28, 4);
-    logs[1] = blk(card, 0x3D291A); place(logs[1], 330, 131, 20, 4);
+    glow = blk(card, 0x4A2612, LV_OPA_70, LV_RADIUS_CIRCLE); place(glow, 314 + fx, 132, 52, 8);
+    logs[0] = blk(card, 0x5A3E28); place(logs[0], 326 + fx, 133, 28, 4);
+    logs[1] = blk(card, 0x3D291A); place(logs[1], 330 + fx, 131, 20, 4);
 
     lv_obj_move_foreground(pet_box);
     lv_obj_move_foreground(bubble);
@@ -952,12 +972,12 @@ struct TerminalCampfireScene {
     set_vis(stick, !obstructed); set_vis(mallow, !obstructed);
 
     if (obstructed) {
-      pet_x = 242;
+      pet_x = w / 2 - 28;
       for (auto *e : embers) set_vis(e, false);
       return po;
     }
 
-    pet_x = 236;
+    pet_x = 236 + fx;
     for (int i = 0; i < 4; i++) {
       bool br = ((f / 6 + i * 2) % 5) == 0;
       lv_obj_set_style_bg_color(stars[i], lv_color_hex(br ? 0xF0F6FC : 0x6E7681), 0);
@@ -968,15 +988,15 @@ struct TerminalCampfireScene {
     int oh = low ? 6 + (fl % 2) : 18 + (fl == 1 ? 4 : fl == 3 ? -2 : 0);
     int mh = low ? 4 : 12 + ((fl + 1) % 3) * 2;
     int ch = low ? 2 : 6 + (fl % 2) * 2;
-    place(f_out, 331 + (low ? 0 : fl % 2), 133 - oh, 16, oh);
-    place(f_mid, 334, 133 - mh, 10, mh);
-    place(f_core, 336, 133 - ch, 6, ch);
+    place(f_out, 331 + fx + (low ? 0 : fl % 2), 133 - oh, 16, oh);
+    place(f_mid, 334 + fx, 133 - mh, 10, mh);
+    place(f_core, 336 + fx, 133 - ch, 6, ch);
 
     for (int i = 0; i < 3; i++) {
       set_vis(embers[i], !low);
       if (!low) {
         int age = (int) ((f + i * 6) % 14);
-        place(embers[i], 335 + i * 3 + ((age / 3) % 2 ? 2 : -2), 116 - age * 2, 2, 2);
+        place(embers[i], 335 + fx + i * 3 + ((age / 3) % 2 ? 2 : -2), 116 - age * 2, 2, 2);
       }
     }
 
@@ -1114,17 +1134,19 @@ struct StageSceneMux {
 struct TerminalSceneMux {
   lv_obj_t *card = nullptr, *pet_box = nullptr, *bubble = nullptr, *layer = nullptr;
   bool is_codex = false;
+  int scene_w = 540;
   SceneSelector sel;
   TerminalFishingScene fishing;
   TerminalMiningScene mining;
   TerminalPingPongScene pingpong;
   TerminalCampfireScene campfire;
 
-  void init(lv_obj_t *c, lv_obj_t *pb, lv_obj_t *bub, bool codex) {
+  void init(lv_obj_t *c, lv_obj_t *pb, lv_obj_t *bub, bool codex, int width = 540) {
     card = c;
     pet_box = pb;
     bubble = bub;
     is_codex = codex;
+    scene_w = width;
   }
 
   bool has_scene() const { return sel.current > 0; }
@@ -1142,16 +1164,16 @@ struct TerminalSceneMux {
       return;
     }
     layer = blk(card, 0x0D1117, LV_OPA_TRANSP);
-    place(layer, 0, 0, 540, 140);
+    place(layer, 0, 0, scene_w, 140);
     lv_obj_add_flag(layer, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_move_background(layer);
     lv_obj_set_parent(pet_box, layer);
     lv_obj_set_parent(bubble, layer);
     switch (idx) {
-      case 1: fishing = TerminalFishingScene{}; fishing.build(layer, pet_box, bubble, is_codex); break;
-      case 2: mining = TerminalMiningScene{}; mining.build(layer, pet_box, bubble, is_codex); break;
-      case 3: pingpong = TerminalPingPongScene{}; pingpong.build(layer, pet_box, bubble, is_codex); break;
-      case 4: campfire = TerminalCampfireScene{}; campfire.build(layer, pet_box, bubble, is_codex); break;
+      case 1: fishing = TerminalFishingScene{}; fishing.build(layer, pet_box, bubble, is_codex, scene_w); break;
+      case 2: mining = TerminalMiningScene{}; mining.build(layer, pet_box, bubble, is_codex, scene_w); break;
+      case 3: pingpong = TerminalPingPongScene{}; pingpong.build(layer, pet_box, bubble, is_codex, scene_w); break;
+      case 4: campfire = TerminalCampfireScene{}; campfire.build(layer, pet_box, bubble, is_codex, scene_w); break;
     }
   }
 

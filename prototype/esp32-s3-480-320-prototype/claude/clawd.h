@@ -53,6 +53,8 @@ inline uint64_t g_rl_remaining_ms = 0;
 inline uint32_t g_rl_set_ms = 0;
 inline bool g_rl_is_7d = false;
 inline std::string g_rl_reset_at;
+inline int g_rl_7d_left_pct = -1;
+inline std::string g_rl_7d_reset_at;
 inline std::string g_project, g_text;
 inline int g_step_cur = 0;
 inline int g_step_total = 0;
@@ -121,9 +123,11 @@ inline void fmt_elapsed(char *buf, size_t n, uint32_t ms) {
   else snprintf(buf, n, "%uh %02um", (unsigned) (s / 3600), (unsigned) ((s / 60) % 60));
 }
 
-// Parse "<window>|<remaining_sec>|<reset_str>|<rest>" or fall back to plain text.
+// Parse "<window>|<remaining_sec>|<reset_str>|[7d=<left_pct>;<7d_reset>|]<rest>" or fall back to plain text.
 inline void parse_rate_limit_detail(const std::string &d, uint32_t now_ms) {
   g_rl_set_ms = now_ms;
+  g_rl_7d_left_pct = -1;
+  g_rl_7d_reset_at.clear();
   if (d.rfind("5h|", 0) == 0 || d.rfind("7d|", 0) == 0) {
     g_rl_is_7d = (d[0] == '7');
     g_rl_total_ms = (g_rl_is_7d ? 7ULL * 86400ULL : 5ULL * 3600ULL) * 1000ULL;
@@ -136,7 +140,21 @@ inline void parse_rate_limit_detail(const std::string &d, uint32_t now_ms) {
       size_t p3 = d.find('|', p2 + 1);
       if (p3 != std::string::npos) {
         g_rl_reset_at = d.substr(p2 + 1, p3 - p2 - 1);
-        split_detail(d.substr(p3 + 1));
+        size_t rest_pos = p3 + 1;
+        if (d.compare(rest_pos, 3, "7d=") == 0) {
+          size_t p4 = d.find('|', rest_pos);
+          if (p4 != std::string::npos) {
+            std::string sd = d.substr(rest_pos + 3, p4 - (rest_pos + 3));
+            size_t semi = sd.find(';');
+            int pct = atoi((semi == std::string::npos ? sd : sd.substr(0, semi)).c_str());
+            if (pct >= 0 && pct <= 100) {
+              g_rl_7d_left_pct = pct;
+              if (semi != std::string::npos) g_rl_7d_reset_at = sd.substr(semi + 1);
+            }
+            rest_pos = p4 + 1;
+          }
+        }
+        split_detail(d.substr(rest_pos));
         return;
       }
     }

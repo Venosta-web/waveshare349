@@ -1,0 +1,303 @@
+# Variant B, "Terminal" — logic for codex/terminal_card.yaml (480x320 Prototype).
+# Pulled in by packages/prototype_480x320/mod_codex.yaml.
+
+font:
+  - file: "../fonts/DejaVuSansMono-Bold.ttf"
+    id: codex_mono_14
+    size: 14
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°•…›○✓"
+  - file: "../fonts/DejaVuSansMono.ttf"
+    id: codex_mono_12
+    size: 12
+    bpp: 4
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·…○✓"
+
+script:
+  # Renders the Codex card from the codex_* helpers. A pending request reveals
+  # Approve/Reject, wakes the backlight, jumps to the Codex tab and pauses the growspace cycle.
+  - id: update_codex_ui
+    mode: queued
+    then:
+      - lambda: |-
+          std::string status = id(codex_status).state;
+          std::string detail = id(codex_detail).state;
+          if (status == "unknown" || status == "unavailable") status = "";
+          if (detail == "unknown" || detail == "unavailable") detail = "";
+          codex_pet::set_mode(codex_pet::parse_status(status), millis());
+          if (codex_pet::g_mode == codex_pet::RATE_LIMITED) {
+            codex_pet::parse_rate_limit_detail(detail, millis());
+          } else {
+            codex_pet::split_detail(detail);
+          }
+          codex_pet::parse_steps(id(codex_steps).state);
+          const bool pending = codex_pet::g_mode == codex_pet::PENDING;
+          const bool rate_limited = codex_pet::g_mode == codex_pet::RATE_LIMITED;
+          const bool show_steps = codex_pet::g_step_total > 0 && !pending && !rate_limited && codex_pet::g_mode != codex_pet::NEEDS_INPUT &&
+                                  codex_pet::g_mode != codex_pet::TURN_FAILED;
+
+          lv_label_set_text(id(lbl_codex_project), codex_pet::g_project.c_str());
+          const char *text = codex_pet::g_text.empty()
+              ? (codex_pet::g_mode == codex_pet::IDLE ? "Waiting for Codex"
+                 : rate_limited ? "Usage limit reached"
+                 : "")
+              : codex_pet::g_text.c_str();
+          lv_label_set_text(id(lbl_codex_detail), text);
+          lv_label_set_text(id(codex_caret), pending ? "!" : codex_pet::g_mode == codex_pet::NEEDS_INPUT ? "?" : rate_limited ? "!" : ">");
+          lv_obj_set_style_text_color(id(codex_caret), lv_color_hex(codex_pet::accent(codex_pet::g_mode)), 0);
+
+          lv_obj_t *step_objs[] = {
+              id(lbl_codex_step_count), id(lbl_codex_step_now_icon), id(lbl_codex_step_now),
+              id(lbl_codex_step_next_icon), id(lbl_codex_step_next), id(codex_step_progress_bg)
+          };
+          if (show_steps) {
+            const uint32_t acc = codex_pet::accent(codex_pet::g_mode);
+            const bool all_done = codex_pet::g_mode == codex_pet::DONE && codex_pet::g_step_cur == codex_pet::g_step_total;
+            lv_obj_add_flag(id(codex_caret), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(lbl_codex_detail), LV_OBJ_FLAG_HIDDEN);
+            for (auto *o : step_objs) lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+
+            char cbuf[24];
+            snprintf(cbuf, sizeof(cbuf), "%d/%d", codex_pet::g_step_cur, codex_pet::g_step_total);
+            lv_label_set_text(id(lbl_codex_step_count), cbuf);
+            lv_obj_set_style_text_color(id(lbl_codex_step_count), lv_color_hex(acc), 0);
+
+            lv_label_set_text(id(lbl_codex_step_now_icon), all_done ? "✓" : "›");
+            lv_obj_set_style_text_color(id(lbl_codex_step_now_icon), lv_color_hex(acc), 0);
+            lv_label_set_text(id(lbl_codex_step_now), codex_pet::g_step_now.c_str());
+
+            if (!codex_pet::g_step_next.empty()) {
+              lv_label_set_text(id(lbl_codex_step_next_icon), "○");
+              lv_label_set_text(id(lbl_codex_step_next), codex_pet::g_step_next.c_str());
+              lv_obj_clear_flag(id(lbl_codex_step_next_icon), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(lbl_codex_step_next), LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_obj_add_flag(id(lbl_codex_step_next_icon), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_codex_step_next), LV_OBJ_FLAG_HIDDEN);
+            }
+            int pw = (362 * codex_pet::g_step_cur) / codex_pet::g_step_total;
+            if (pw > 362) pw = 362;
+            lv_obj_set_width(id(codex_step_progress_fill), pw);
+            lv_obj_set_style_bg_color(id(codex_step_progress_fill), lv_color_hex(acc), 0);
+          } else {
+            for (auto *o : step_objs) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(codex_caret), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(lbl_codex_detail), LV_OBJ_FLAG_HIDDEN);
+          }
+
+          if (pending) {
+            lv_obj_clear_flag(id(btn_codex_approve), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(btn_codex_reject), LV_OBJ_FLAG_HIDDEN);
+            id(cycle_paused) = true;
+            id(pause_timer) = 3600;
+            id(last_touch_ms) = millis();
+            if (id(dim_state) != 0) {
+              id(dim_state) = 0;
+              auto call = id(display_backlight).make_call();
+              call.set_brightness(1.0f);
+              call.perform();
+            }
+          } else {
+            lv_obj_add_flag(id(btn_codex_approve), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(btn_codex_reject), LV_OBJ_FLAG_HIDDEN);
+            if (id(pause_timer) > ${pause_timeout}) id(pause_timer) = ${pause_timeout};
+          }
+          if ((pending || codex_pet::g_mode == codex_pet::NEEDS_INPUT) && id(active_tab) != 3) {
+            lv_obj_clear_flag(id(codex_alert_badge), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(id(codex_alert_badge), LV_OBJ_FLAG_HIDDEN);
+          }
+          id(codex_tick).execute();
+      - if:
+          condition:
+            lambda: "return codex_pet::g_mode == codex_pet::PENDING;"
+          then:
+            - script.execute:
+                id: switch_tab
+                tab_idx: 3
+            - script.execute: update_pause_indicator
+
+  # Immediate feedback after a tap, before HA echoes the new state back.
+  - id: codex_sent
+    parameters:
+      verdict: std::string
+    then:
+      - lambda: |-
+          lv_obj_add_flag(id(btn_codex_approve), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(btn_codex_reject), LV_OBJ_FLAG_HIDDEN);
+          codex_pet::set_mode(verdict == "Approved" ? codex_pet::SENT_OK : codex_pet::SENT_NO, millis());
+          id(codex_tick).execute();
+
+  # One animation frame at 10 Hz; nav icon always updates, card only while Codex tab is up.
+  - id: codex_tick
+    then:
+      - lambda: |-
+          using namespace codex_pet;
+          tick_nav(id(nav_codex_box));
+          static Puppet p;
+          static int walk_x = 0, walk_dir = 1;
+          static pet_scenes::TerminalMiningScene scene;
+          const bool card_hidden = lv_obj_has_flag(id(codex_card), LV_OBJ_FLAG_HIDDEN);
+          if (p.root == nullptr) {
+            build(p, id(codex_pet_box), 4);
+            lv_label_set_recolor(id(lbl_codex_status), true);
+            lv_obj_remove_flag(id(codex_bubble), LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_bg_color(id(codex_trail), lv_color_hex(BODY), 0);
+            lv_obj_set_style_border_width(id(codex_trail), 0, 0);
+            scene.build(id(codex_scene_box), id(codex_pet_box), id(codex_bubble), true, 366);
+          }
+          if (card_hidden) return;
+
+          const uint32_t f = g_frame, t = g_frame - g_mode_frame, now = millis();
+          const uint32_t acc = accent(g_mode);
+          const int max_x = 366 - p.w();
+          const int center = max_x / 2;
+
+          bool travelling = false;
+          Pose s;
+          lv_obj_t *trail = id(codex_trail);
+          if (true) {
+            s = animate(g_mode, f, t, p.u);
+            pet_scenes::merge_pose(s, scene.tick(static_cast<pet_scenes::PetMode>(g_mode == TURN_FAILED ? SENT_NO : g_mode), f, t, walk_x));
+            lv_obj_set_width(trail, 0);
+          } else {
+            // ── Where Byte stands ──
+            int target = walk_x;
+            if (g_mode == WORKING) {
+              walk_x += 4 * walk_dir;
+              if (walk_x >= max_x) { walk_x = max_x; walk_dir = -1; }
+              if (walk_x <= 0) { walk_x = 0; walk_dir = 1; }
+            } else {
+              target = (g_mode == IDLE) ? 0 : center;
+              if (g_mode == codex_pet::PENDING) walk_x = target;
+              if (walk_x != target) {
+                int step = walk_x < target ? 12 : -12;
+                walk_dir = step > 0 ? 1 : -1;
+                walk_x = abs(target - walk_x) <= 12 ? target : walk_x + step;
+              }
+            }
+            travelling = g_mode != WORKING && walk_x != target;
+            s = animate(travelling ? WORKING : g_mode, f, travelling ? 0 : t, p.u);
+            if (g_mode == WORKING || travelling) s.eye_dx = walk_dir * (p.u / 2);
+
+            // Motion trail on the floor behind Byte.
+            if (g_mode == WORKING || travelling) {
+              const int len = 44, feet = walk_x + p.w() / 2;
+              int x0 = walk_dir > 0 ? feet - p.w() / 2 - len : feet + p.w() / 2;
+              if (x0 < 0) x0 = 0;
+              lv_obj_set_x(trail, x0);
+              lv_obj_set_width(trail, len);
+              lv_obj_set_style_bg_opa(trail, LV_OPA_70, 0);
+            } else {
+              lv_obj_set_width(trail, 0);
+            }
+          }
+          apply(p, s, g_mode, f);
+          lv_obj_set_x(id(codex_pet_box), walk_x);
+
+          // Floating glyph over Byte's head.
+          lv_obj_t *b = id(codex_bubble);
+          int bx = walk_x + p.w() - 6, by = 86;
+          if (g_mode == IDLE && !travelling) {
+            uint32_t k = f % 30;
+            lv_label_set_text(b, k < 15 ? "z" : "Z");
+            bx += (int) (k / 6);
+            by = 92 - (int) (k / 2);
+            lv_obj_set_style_text_color(b, lv_color_hex(0x6E7681), 0);
+            lv_obj_set_style_text_opa(b, k < 20 ? LV_OPA_COVER : (lv_opa_t) (255 - (k - 20) * 25), 0);
+            lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN);
+          } else if ((g_mode == NEEDS_INPUT || g_mode == codex_pet::PENDING) && !travelling) {
+            lv_label_set_text(b, g_mode == codex_pet::PENDING ? "!" : "?");
+            by = 82 - (int) ((f / 5) % 2);
+            lv_obj_set_style_text_color(b, lv_color_hex(acc), 0);
+            lv_obj_set_style_text_opa(b, LV_OPA_COVER, 0);
+            lv_obj_clear_flag(b, LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
+          }
+          lv_obj_set_pos(b, bx, by);
+
+          // ── Status line ──
+          lv_label_set_text(id(codex_spin), g_mode == WORKING ? spinner(f)
+                            : g_mode == DONE || g_mode == SENT_OK ? "✓"
+                            : g_mode == SENT_NO ? "✕"
+                            : (g_mode == RATE_LIMITED || g_mode == TURN_FAILED) ? "!"
+                            : g_mode == IDLE ? "·" : "✻");
+          lv_obj_set_style_text_color(id(codex_spin), lv_color_hex(acc), 0);
+
+          char line[160];
+          if (g_mode == WORKING) {
+            const char *verb = working_label();
+            const int n = strlen(verb), pos = (int) (f % (n + 8)) - 3;
+            int o = 0;
+            for (int i = 0; i < n && o < 140; i++) {
+              bool hi = abs(i - pos) <= 1;
+              if (hi) o += snprintf(line + o, sizeof(line) - o, "#7EE787 %c#", verb[i]);
+              else line[o++] = verb[i];
+            }
+            line[o] = 0;
+            strncat(line, "…", sizeof(line) - strlen(line) - 1);
+          } else {
+            static const char *const WORDS[] = {"Idle", "", "Waiting for approval", "Needs your input", "Done", "Approved", "Rejected", "Rate limited", "Turn failed"};
+            snprintf(line, sizeof(line), "%s", WORDS[g_mode]);
+          }
+          lv_label_set_text(id(lbl_codex_status), line);
+          lv_obj_set_style_text_color(id(lbl_codex_status), lv_color_hex(acc), 0);
+
+          char tbuf[48] = "";
+          if (g_mode == WORKING || g_mode == NEEDS_INPUT || g_mode == SENT_OK || g_mode == SENT_NO) {
+            fmt_elapsed(tbuf, sizeof(tbuf), now - g_work_start);
+          } else if (g_mode == codex_pet::PENDING) {
+            uint32_t gone = now - g_pending_start, total = ${codex_decision_timeout} * 1000;
+            uint32_t left = gone < total ? total - gone : 0;
+            snprintf(tbuf, sizeof(tbuf), "(%us left)", (unsigned) ((left + 999) / 1000));
+          } else if (g_mode == DONE && g_last_run > 0) {
+            char d[16];
+            fmt_elapsed(d, sizeof(d), g_last_run);
+            snprintf(tbuf, sizeof(tbuf), "(%s)", d);
+          } else if (g_mode == RATE_LIMITED && g_rl_has_reset) {
+            uint64_t rl_left = rl_left_ms(now);
+            char cbuf[24];
+            fmt_countdown(cbuf, sizeof(cbuf), rl_left);
+            if (rl_left == 0) lv_label_set_text(id(lbl_codex_detail), "You can try again");
+            else if (!g_rl_reset_at.empty()) snprintf(tbuf, sizeof(tbuf), "%s · %s", cbuf, g_rl_reset_at.c_str());
+            else snprintf(tbuf, sizeof(tbuf), "%s", cbuf);
+          }
+          lv_label_set_text(id(lbl_codex_time), tbuf);
+          lv_obj_set_style_text_color(id(lbl_codex_time), lv_color_hex(g_mode == RATE_LIMITED ? 0xFF7B72 : 0x6E7681), 0);
+
+          uint64_t rl_left = 0;
+          if (g_mode == RATE_LIMITED && g_rl_has_reset) {
+            rl_left = rl_left_ms(now);
+            lv_obj_clear_flag(id(codex_rl_track), LV_OBJ_FLAG_HIDDEN);
+            if (rl_left == 0) {
+              lv_obj_set_width(id(codex_rl_fill), 0);
+            } else {
+              int w = (int) ((364ULL * rl_left) / g_rl_total_ms);
+              if (w < 4) w = 4;
+              if (w > 364) w = 364;
+              lv_obj_set_width(id(codex_rl_fill), w);
+              uint32_t fill_col = (rl_left * 10 <= g_rl_total_ms) ? 0xFFB020 : 0xF85149;
+              lv_obj_set_style_bg_color(id(codex_rl_fill), lv_color_hex(fill_col), 0);
+            }
+          } else {
+            lv_obj_add_flag(id(codex_rl_track), LV_OBJ_FLAG_HIDDEN);
+          }
+
+          lv_obj_set_style_border_color(id(codex_box), lv_color_hex(
+              g_mode == codex_pet::PENDING ? ((f / 5) % 2 ? 0xFFB020 : 0x8A5D12)
+              : g_mode == NEEDS_INPUT ? 0xA371F7
+              : g_mode == RATE_LIMITED ? (g_rl_has_reset && rl_left == 0 ? 0x2EA043 : 0x9E3632)
+              : 0x30363D), 0);
+          lv_obj_set_style_border_color(id(codex_card), lv_color_hex(
+              g_mode == codex_pet::PENDING ? ((f / 5) % 2 ? 0xFFB020 : 0x8A5D12)
+              : g_mode == SENT_OK ? 0x2EA043
+              : g_mode == SENT_NO ? 0xF85149
+              : g_mode == RATE_LIMITED ? (g_rl_has_reset && rl_left == 0 ? 0x2EA043 : 0x9E3632)
+              : 0x30363D), 0);
+
+interval:
+  - interval: 100ms
+    then:
+      - lambda: "codex_pet::g_frame++;"
+      - script.execute: codex_tick

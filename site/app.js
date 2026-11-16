@@ -19,7 +19,7 @@ function detectGithubRepo() {
 
 const state = {
   deviceId: 'waveshare-349',
-  modules: ['grow', 'music', 'claude', 'codex', 'voice'],
+  modules: ['grow', 'music', 'claude', 'codex', 'voice', 'idle', 'settings'],
   deviceName: 'waveshare-349-voice',
   friendlyName: 'Waveshare 3.49 Display',
   packageSource: 'github',
@@ -30,6 +30,7 @@ const state = {
   gsCount: 7,
   cycleInterval: 15,
   pauseTimeout: 25,
+  idleTimeout: 300,
   growspaces: DEFAULT_GROWSPACES.map((g) => ({ ...g })),
   musicVariant: 'studio',
   musicPlayerEntity: 'sensor.music_assistant_bridge',
@@ -269,6 +270,23 @@ function renderModuleOptions() {
   }
 
   if (has('claude') || has('codex')) {
+    const aiVariants = [
+      ['terminal', 'Terminal (CLI Status + Random Scenes)'],
+      ['stage', 'Stage (Mascot-Forward + Random Scenes)'],
+      ['fishing', 'Stage: Moonlit Pier (Fishing)'],
+      ['mining', 'Stage: Crystal Cavern (Mining)'],
+      ['pingpong', 'Stage: Arcade Rally (Ping-Pong)'],
+      ['campfire', 'Stage: Starlit Campfire'],
+      ['terminal_fishing', 'Terminal: Moonlit Pier (Fishing)'],
+      ['terminal_mining', 'Terminal: Crystal Cavern (Mining)'],
+      ['terminal_pingpong', 'Terminal: Arcade Rally (Ping-Pong)'],
+      ['terminal_campfire', 'Terminal: Starlit Campfire'],
+    ];
+    const renderOpts = (cur) =>
+      aiVariants
+        .map(([val, label]) => `<option value="${val}" ${cur === val ? 'selected' : ''}>${label}</option>`)
+        .join('');
+
     const panel = document.createElement('div');
     panel.className = 'sub-panel';
     panel.innerHTML = `
@@ -278,10 +296,7 @@ function renderModuleOptions() {
           has('claude')
             ? `<label class="field">
                 <span>Claude Code Card</span>
-                <select id="opt-claude-variant">
-                  <option value="stage" ${state.claudeVariant === 'stage' ? 'selected' : ''}>Stage (Mascot-Forward)</option>
-                  <option value="terminal" ${state.claudeVariant === 'terminal' ? 'selected' : ''}>Terminal (CLI Status Line)</option>
-                </select>
+                <select id="opt-claude-variant">${renderOpts(state.claudeVariant)}</select>
               </label>`
             : ''
         }
@@ -289,10 +304,7 @@ function renderModuleOptions() {
           has('codex')
             ? `<label class="field">
                 <span>Codex Card</span>
-                <select id="opt-codex-variant">
-                  <option value="stage" ${state.codexVariant === 'stage' ? 'selected' : ''}>Stage (Mascot-Forward)</option>
-                  <option value="terminal" ${state.codexVariant === 'terminal' ? 'selected' : ''}>Terminal (CLI Status Line)</option>
-                </select>
+                <select id="opt-codex-variant">${renderOpts(state.codexVariant)}</select>
               </label>`
             : ''
         }
@@ -310,6 +322,48 @@ function renderModuleOptions() {
     if (codexSel) {
       codexSel.addEventListener('change', (e) => {
         state.codexVariant = e.target.value;
+        renderOutputAndSummary();
+      });
+    }
+  }
+
+  if (has('idle') || state.deviceId === 'prototype-480x320') {
+    const panel = document.createElement('div');
+    panel.className = 'sub-panel';
+    panel.innerHTML = `
+      <h4>Idle Lock &amp; Hardware Options</h4>
+      <div class="form-grid">
+        ${
+          has('idle')
+            ? `<label class="field">
+                <span>Idle Lock Timeout (sec)</span>
+                <input type="number" id="opt-idle-timeout" min="30" max="3600" value="${state.idleTimeout}" />
+              </label>`
+            : ''
+        }
+        ${
+          state.deviceId === 'prototype-480x320'
+            ? `<label class="field">
+                <span>Battery Sensor Entity (HA)</span>
+                <input type="text" id="opt-battery-entity" value="${state.batteryEntity}" />
+              </label>`
+            : ''
+        }
+      </div>
+    `;
+    els.moduleOptions.appendChild(panel);
+    const idleInput = panel.querySelector('#opt-idle-timeout');
+    if (idleInput) {
+      idleInput.addEventListener('input', (e) => {
+        state.idleTimeout = Math.max(30, Number(e.target.value) || 300);
+        renderOutputAndSummary();
+      });
+    }
+    const batInput = panel.querySelector('#opt-battery-entity');
+    if (batInput) {
+      batInput.addEventListener('input', (e) => {
+        state.batteryEntity = e.target.value;
+        state.dirtyGrowspaces = true;
         renderOutputAndSummary();
       });
     }

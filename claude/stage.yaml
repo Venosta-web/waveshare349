@@ -122,14 +122,14 @@ script:
           id(claude_tick).execute();
       - if:
           condition:
-            lambda: "return clawd::g_mode == clawd::PENDING;"
+            lambda: "return clawd::g_mode == clawd::PENDING || clawd::g_mode == clawd::NEEDS_INPUT;"
           then:
             - lvgl.widget.update:
                 id: ai_alert_badge
                 hidden: false
             - if:
                 condition:
-                  lambda: "return id(active_tab) != 1;"
+                  lambda: "return id(active_tab) != 2;"
                 then:
                   - script.execute:
                       id: switch_tab
