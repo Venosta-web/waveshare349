@@ -123,7 +123,7 @@ script:
           id(codex_tick).execute();
       - if:
           condition:
-            lambda: "return codex_pet::g_mode == codex_pet::PENDING;"
+            lambda: "return (codex_pet::g_mode == codex_pet::PENDING || codex_pet::g_mode == codex_pet::NEEDS_INPUT) && id(active_tab) != 3;"
           then:
             - script.execute:
                 id: switch_tab
