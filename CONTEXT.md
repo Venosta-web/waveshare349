@@ -30,8 +30,17 @@ _Avoid_: Question state, Waiting
 Any AI card state requiring user action (**Permission Request** or **Needs Input**), which surfaces a navigation alert badge and plays an agent-specific audio chime on hardware with a speaker.
 
 **Done**:
-The AI card state after a turn finished with nothing pending for the user.
+The AI card state after a turn finishes successfully with nothing pending for the user.
 _Avoid_: Ready, Finished
+
+**Current Activity**:
+A short label on the Codex card for what the active turn is doing now, such as reading files, editing, running tests, or retrying. It can appear alongside the current and next plan steps.
+
+**Rate Limited**:
+The Codex card state when a usage limit blocks the turn from continuing. The card shows the retry time when available and changes the detail to **You can try again** once a confirmed reset time passes.
+
+**Turn Failed**:
+The Codex card state after Codex confirms a terminal error other than a blocking usage limit. The card directs the user to Codex for the error details.
 
 ## Voice & Display
 

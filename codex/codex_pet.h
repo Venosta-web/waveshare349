@@ -21,11 +21,12 @@
 #include <lvgl.h>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <string>
 
 namespace codex_pet {
 
-enum Mode : uint8_t { IDLE, WORKING, PENDING, NEEDS_INPUT, DONE, SENT_OK, SENT_NO, RATE_LIMITED };
+enum Mode : uint8_t { IDLE, WORKING, PENDING, NEEDS_INPUT, DONE, SENT_OK, SENT_NO, RATE_LIMITED, TURN_FAILED };
 
 constexpr uint32_t BODY = 0x10B981;       // Codex emerald
 constexpr uint32_t BODY_DARK = 0x059669;  // Deep emerald for arms & boots
@@ -43,6 +44,7 @@ inline uint32_t accent(Mode m) {
     case SENT_OK: return 0x3FB950;
     case SENT_NO: return 0xF85149;
     case RATE_LIMITED: return 0xF85149;
+    case TURN_FAILED: return 0xF85149;
     default: return 0x8B949E;
   }
 }
@@ -54,10 +56,12 @@ inline uint32_t g_mode_frame = 0;   // tick when g_mode last changed
 inline uint32_t g_work_start = 0;   // millis() when the current prompt started
 inline uint32_t g_pending_start = 0;
 inline uint32_t g_last_run = 0;      // ms the last finished prompt took (0 = unknown)
-inline uint64_t g_rl_total_ms = 5ULL * 3600ULL * 1000ULL;
+inline uint64_t g_rl_total_ms = 1;
 inline uint64_t g_rl_remaining_ms = 0;
+inline uint64_t g_rl_reset_epoch = 0;
 inline uint32_t g_rl_set_ms = 0;
-inline bool g_rl_is_7d = false;
+inline bool g_rl_has_reset = false;
+inline std::string g_rl_detail;
 inline std::string g_rl_reset_at;
 inline std::string g_project, g_text;
 inline int g_step_cur = 0;
@@ -70,6 +74,7 @@ inline Mode parse_status(const std::string &s) {
   if (s == "Needs Input") return NEEDS_INPUT;
   if (s == "Done" || s == "Ready") return DONE;
   if (s == "Rate Limited") return RATE_LIMITED;
+  if (s == "Turn Failed") return TURN_FAILED;
   return IDLE;
 }
 
@@ -112,6 +117,7 @@ inline void parse_steps(const std::string &s) {
 // round trips inside the same prompt.
 inline void set_mode(Mode m, uint32_t now_ms) {
   if (m == g_mode) return;
+  if (m == RATE_LIMITED) g_rl_detail.clear();
   if (m == WORKING && g_mode != PENDING && g_mode != NEEDS_INPUT && g_mode != SENT_OK && g_mode != SENT_NO)
     g_work_start = now_ms;
   if (m == PENDING) g_pending_start = now_ms;
@@ -127,35 +133,54 @@ inline void fmt_elapsed(char *buf, size_t n, uint32_t ms) {
   else snprintf(buf, n, "%uh %02um", (unsigned) (s / 3600), (unsigned) ((s / 60) % 60));
 }
 
-// Parse "<window>|<remaining_sec>|<reset_str>|<rest>" or fall back to plain text.
+inline const char *working_label() {
+  return g_step_total > 0 && !g_text.empty() && g_text != "Turn in progress" ? g_text.c_str() : "Working";
+}
+
+// Reset fields are present only when the bridge has a confirmed cooldown.
 inline void parse_rate_limit_detail(const std::string &d, uint32_t now_ms) {
+  if (d == g_rl_detail && !d.empty()) return;
+  g_rl_detail = d;
   g_rl_set_ms = now_ms;
-  if (d.rfind("5h|", 0) == 0 || d.rfind("7d|", 0) == 0) {
-    g_rl_is_7d = (d[0] == '7');
-    g_rl_total_ms = (g_rl_is_7d ? 7ULL * 86400ULL : 5ULL * 3600ULL) * 1000ULL;
-    size_t p1 = 3;
-    size_t p2 = d.find('|', p1);
+  g_rl_has_reset = false;
+  g_rl_total_ms = 1;
+  g_rl_remaining_ms = 0;
+  g_rl_reset_epoch = 0;
+  g_rl_reset_at.clear();
+  const bool absolute = d.rfind("reset|", 0) == 0;
+  const bool legacy = d.rfind("5h|", 0) == 0 || d.rfind("7d|", 0) == 0;
+  if (absolute || legacy) {
+    size_t p1 = absolute ? d.find('|', 6) : 2;
+    size_t p2 = p1 == std::string::npos ? p1 : d.find('|', p1 + 1);
     if (p2 != std::string::npos) {
-      uint64_t rem_s = std::strtoull(d.substr(p1, p2 - p1).c_str(), nullptr, 10);
-      g_rl_remaining_ms = rem_s * 1000ULL;
-      if (g_rl_remaining_ms > g_rl_total_ms) g_rl_total_ms = g_rl_remaining_ms;
       size_t p3 = d.find('|', p2 + 1);
-      if (p3 != std::string::npos) {
+      const auto remaining = d.substr(p1 + 1, p2 - p1 - 1);
+      const auto epoch = absolute ? d.substr(6, p1 - 6) : "0";
+      if (p3 != std::string::npos && !remaining.empty() && remaining.size() <= 12 &&
+          remaining.find_first_not_of("0123456789") == std::string::npos && !epoch.empty() &&
+          epoch.size() <= 12 && epoch.find_first_not_of("0123456789") == std::string::npos) {
+        g_rl_remaining_ms = std::strtoull(remaining.c_str(), nullptr, 10) * 1000ULL;
+        g_rl_reset_epoch = std::strtoull(epoch.c_str(), nullptr, 10);
+        g_rl_total_ms = legacy ? (d[0] == '7' ? 604800000ULL : 18000000ULL) : 1;
+        if (g_rl_remaining_ms > g_rl_total_ms) g_rl_total_ms = g_rl_remaining_ms;
+        g_rl_has_reset = true;
         g_rl_reset_at = d.substr(p2 + 1, p3 - p2 - 1);
         split_detail(d.substr(p3 + 1));
         return;
       }
     }
   }
-  g_rl_is_7d = d.find("7d") != std::string::npos || d.find("7-day") != std::string::npos ||
-               d.find("weekly") != std::string::npos || d.find("Weekly") != std::string::npos;
-  g_rl_total_ms = (g_rl_is_7d ? 7ULL * 86400ULL : 5ULL * 3600ULL) * 1000ULL;
-  g_rl_remaining_ms = g_rl_total_ms;
-  g_rl_reset_at.clear();
   split_detail(d);
 }
 
 inline uint64_t rl_left_ms(uint32_t now_ms) {
+  if (g_rl_reset_epoch) {
+    const auto epoch = std::time(nullptr);
+    if (epoch >= 1577836800) {
+      const auto now = static_cast<uint64_t>(epoch);
+      return now < g_rl_reset_epoch ? (g_rl_reset_epoch - now) * 1000ULL : 0;
+    }
+  }
   uint32_t elapsed = now_ms - g_rl_set_ms;
   return elapsed < g_rl_remaining_ms ? g_rl_remaining_ms - elapsed : 0;
 }
@@ -387,7 +412,8 @@ inline Pose animate(Mode m, uint32_t f, uint32_t t, int u) {
       }
       break;
     }
-    case SENT_NO: {  // head shake
+    case SENT_NO:
+    case TURN_FAILED: {  // head shake
       static const int SHAKE[] = {0, 2, -2, 2, -2, 1, -1, 0};
       if (t < 8) s.dx = SHAKE[t] * px;
       s.eye_h = half;

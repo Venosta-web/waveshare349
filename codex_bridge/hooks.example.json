@@ -21,6 +21,17 @@
             "timeout": 18
           }
         ]
+      },
+      {
+        "matcher": "^(Bash|exec_command|apply_patch|web_search|web__run|spawn_agent|update_plan)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/absolute/path/to/codex_ha_bridge.py\" hook",
+            "async": true,
+            "timeout": 18
+          }
+        ]
       }
     ],
     "PostToolUse": [

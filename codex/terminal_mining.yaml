@@ -38,7 +38,8 @@ script:
           codex_pet::parse_steps(id(codex_steps).state);
           const bool pending = codex_pet::g_mode == codex_pet::PENDING;
           const bool rate_limited = codex_pet::g_mode == codex_pet::RATE_LIMITED;
-          const bool show_steps = codex_pet::g_step_total > 0 && !pending && !rate_limited && codex_pet::g_mode != codex_pet::NEEDS_INPUT;
+          const bool show_steps = codex_pet::g_step_total > 0 && !pending && !rate_limited && codex_pet::g_mode != codex_pet::NEEDS_INPUT &&
+                                  codex_pet::g_mode != codex_pet::TURN_FAILED;
 
           if (rate_limited && !codex_pet::g_rl_reset_at.empty()) {
             char rbuf[48];
@@ -49,12 +50,12 @@ script:
           }
           const char *text = codex_pet::g_text.empty()
               ? (codex_pet::g_mode == codex_pet::IDLE ? "Waiting for Codex"
-                 : rate_limited ? (codex_pet::g_rl_is_7d ? "7-day usage limit reached" : "5-hour usage limit reached")
+                 : rate_limited ? "Usage limit reached"
                  : "")
               : codex_pet::g_text.c_str();
           lv_label_set_text(id(lbl_codex_detail), text);
 
-          if (rate_limited) {
+          if (rate_limited && codex_pet::g_rl_has_reset) {
             lv_obj_clear_flag(id(codex_rl_track), LV_OBJ_FLAG_HIDDEN);
           } else {
             lv_obj_add_flag(id(codex_rl_track), LV_OBJ_FLAG_HIDDEN);
@@ -152,10 +153,6 @@ script:
           tick_nav(id(nav_codex_box));
           static Puppet p;
           static int walk_x = 0, walk_dir = 1;
-          static uint32_t verb_for = UINT32_MAX;
-          static const char *verb = "Working";
-          static const char *const VERBS[] = {"Working", "Reasoning", "Synthesizing", "Analyzing", "Compiling",
-                                              "Refactoring", "Tracing", "Verifying", "Building", "Evaluating"};
           static pet_scenes::TerminalMiningScene scene;
           if (p.root == nullptr) {
             build(p, id(codex_pet_box), 4);
@@ -164,10 +161,6 @@ script:
             lv_obj_remove_flag(id(codex_bubble), LV_OBJ_FLAG_CLICKABLE);
             lv_obj_set_style_bg_color(id(codex_trail), lv_color_hex(BODY), 0);
             lv_obj_set_style_border_width(id(codex_trail), 0, 0);
-          }
-          if (g_work_start != verb_for) {
-            verb_for = g_work_start;
-            verb = VERBS[(g_work_start / 7 + g_frame) % (sizeof(VERBS) / sizeof(VERBS[0]))];
           }
           if (lv_obj_has_flag(id(codex_card), LV_OBJ_FLAG_HIDDEN)) return;
 
@@ -178,7 +171,7 @@ script:
 
           const bool travelling = false;
           Pose s = animate(g_mode, f, t, p.u);
-          pet_scenes::merge_pose(s, scene.tick(static_cast<pet_scenes::PetMode>(g_mode), f, t, walk_x));
+          pet_scenes::merge_pose(s, scene.tick(static_cast<pet_scenes::PetMode>(g_mode == TURN_FAILED ? SENT_NO : g_mode), f, t, walk_x));
           apply(p, s, g_mode, f);
           lv_obj_set_x(id(codex_pet_box), walk_x);
           lv_obj_set_width(id(codex_trail), 0);
@@ -209,12 +202,13 @@ script:
           lv_label_set_text(id(codex_spin), g_mode == WORKING ? spinner(f)
                             : g_mode == DONE || g_mode == SENT_OK ? "✓"
                             : g_mode == SENT_NO ? "✕"
-                            : g_mode == RATE_LIMITED ? "!"
+                            : (g_mode == RATE_LIMITED || g_mode == TURN_FAILED) ? "!"
                             : g_mode == IDLE ? "·" : "✻");
           lv_obj_set_style_text_color(id(codex_spin), lv_color_hex(acc), 0);
 
           char line[160];
           if (g_mode == WORKING) {
+            const char *verb = working_label();
             const int n = strlen(verb), pos = (int) (f % (n + 8)) - 3;
             int o = 0;
             for (int i = 0; i < n && o < 140; i++) {
@@ -226,7 +220,7 @@ script:
             line[o] = 0;
             strncat(line, "…", sizeof(line) - strlen(line) - 1);
           } else {
-            static const char *const WORDS[] = {"Idle", "", "Waiting for approval", "Needs your input", "Done", "Approved", "Rejected", "Rate limited"};
+            static const char *const WORDS[] = {"Idle", "", "Waiting for approval", "Needs your input", "Done", "Approved", "Rejected", "Rate limited", "Turn failed"};
             snprintf(line, sizeof(line), "%s", WORDS[g_mode]);
           }
           lv_label_set_text(id(lbl_codex_status), line);
@@ -246,15 +240,15 @@ script:
             char d[16];
             fmt_elapsed(d, sizeof(d), g_last_run);
             snprintf(tbuf, sizeof(tbuf), "(took %s)", d);
-          } else if (g_mode == RATE_LIMITED) {
+          } else if (g_mode == RATE_LIMITED && g_rl_has_reset) {
             rl_left = rl_left_ms(now);
             if (rl_left == 0) {
-              snprintf(tbuf, sizeof(tbuf), "(%s · ready)", g_rl_is_7d ? "7d" : "5h");
+              lv_label_set_text(id(lbl_codex_detail), "You can try again");
               lv_obj_set_width(id(codex_rl_fill), 0);
             } else {
               char d[24];
               fmt_countdown(d, sizeof(d), rl_left);
-              snprintf(tbuf, sizeof(tbuf), "(%s · %s)", g_rl_is_7d ? "7d" : "5h", d);
+              snprintf(tbuf, sizeof(tbuf), "(%s)", d);
               int w = (int) ((538ULL * rl_left) / g_rl_total_ms);
               if (w < 4) w = 4;
               if (w > 538) w = 538;
@@ -271,7 +265,7 @@ script:
           const char *mark = ">";
           if (g_mode == codex_pet::PENDING) { frame = acc; caret = acc; mark = "!"; }
           else if (g_mode == NEEDS_INPUT) { frame = acc; caret = acc; mark = "?"; }
-          else if (g_mode == RATE_LIMITED) { frame = rl_left == 0 ? 0x2EA043 : 0x9E3632; caret = acc; mark = "!"; }
+          else if (g_mode == RATE_LIMITED) { frame = g_rl_has_reset && rl_left == 0 ? 0x2EA043 : 0x9E3632; caret = acc; mark = "!"; }
           else if (g_mode == WORKING) { caret = BODY; }
           lv_obj_set_style_border_color(id(codex_box), lv_color_hex(frame), 0);
           lv_label_set_text(id(codex_caret), mark);
@@ -282,7 +276,7 @@ script:
           if (g_mode == codex_pet::PENDING) border = (f / 5) % 2 ? 0xFFB020 : 0x8A5D12;
           else if (g_mode == SENT_OK) border = 0x2EA043;
           else if (g_mode == SENT_NO) border = 0xF85149;
-          else if (g_mode == RATE_LIMITED) border = rl_left == 0 ? 0x2EA043 : 0x9E3632;
+          else if (g_mode == RATE_LIMITED) border = g_rl_has_reset && rl_left == 0 ? 0x2EA043 : 0x9E3632;
           lv_obj_set_style_border_color(id(codex_card), lv_color_hex(border), 0);
 
 interval:

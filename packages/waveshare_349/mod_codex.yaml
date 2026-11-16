@@ -19,6 +19,10 @@ esphome:
               id(switch_tab).execute(3);
             }
 
+time:
+  - platform: homeassistant
+    id: codex_time
+
 lvgl:
   pages:
     - id: !extend home_page
