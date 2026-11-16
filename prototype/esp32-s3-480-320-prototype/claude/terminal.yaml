@@ -128,7 +128,7 @@ script:
           id(claude_tick).execute();
       - if:
           condition:
-            lambda: "return clawd::g_mode == clawd::PENDING;"
+            lambda: "return (clawd::g_mode == clawd::PENDING || clawd::g_mode == clawd::NEEDS_INPUT) && id(active_tab) != 2;"
           then:
             - script.execute:
                 id: switch_tab
