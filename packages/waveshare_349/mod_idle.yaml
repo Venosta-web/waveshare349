@@ -44,3 +44,6 @@ script:
   - id: !extend switch_tab
     then:
       - script.execute: reset_idle_timer
+  - id: !extend lock_screen_now
+    then:
+      - script.execute: lock_idle_screen

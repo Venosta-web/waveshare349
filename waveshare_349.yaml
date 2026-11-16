@@ -87,6 +87,12 @@ substitutions:
   music_variant: "studio"
   music_player_entity: "sensor.music_assistant_bridge"
 
+  # Voice Assistant dual output (display text + onboard/HA TTS speakers)
+  voice_tts_entity: "tts.piper"
+  voice_tts_speaker: "media_player.music_assistant_player"
+  voice_output_mode: "Onboard + HA Speakers"
+  voice_answer_hold: "10s"
+
   # Timing (seconds)
   cycle_interval: "15"
   pause_timeout: "25"
@@ -119,6 +125,7 @@ packages:
   mod_codex: !include packages/waveshare_349/mod_codex.yaml
   mod_voice: !include packages/waveshare_349/mod_voice.yaml
   mod_idle: !include packages/waveshare_349/mod_idle.yaml
+  mod_settings: !include packages/waveshare_349/mod_settings.yaml
 
 wifi:
   on_connect:

@@ -1,0 +1,955 @@
+# Feature Module: Device Settings Menu (Waveshare 3.49 — 640x172)
+# Provides Display (Brightness dimmer, Idle Lock timeout, Lock Now),
+# Growspace (Auto-Cycle toggle, Cycle Speed), and System (Mic Mute, Wi-Fi/Battery status, Safe Restart).
+
+globals:
+  - id: settings_active_cat
+    type: int
+    initial_value: "0"
+  - id: settings_restart_armed
+    type: int
+    initial_value: "0"
+
+esphome:
+  on_boot:
+    - priority: -146
+      then:
+        - lambda: "lv_obj_set_parent(id(nav_settings), id(nav_rail));"
+        - script.execute: sync_settings_ui
+    - priority: -156
+      then:
+        - lambda: |-
+            if (id(active_tab) < 0) {
+              id(switch_tab).execute(4);
+            }
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - button:
+            id: nav_settings
+            width: 64
+            height: 50
+            styles: nav_btn
+            widgets:
+              - label:
+                  id: nav_settings_icon
+                  text: "\U000F0493"
+                  text_font: icons_20
+                  text_color: 0x8B949E
+                  align: CENTER
+            on_click:
+              then:
+                - script.execute:
+                    id: switch_tab
+                    tab_idx: 4
+
+        - obj:
+            id: settings_card
+            width: 560
+            height: 160
+            align: RIGHT_MID
+            x: -6
+            y: 0
+            styles: card_style
+            hidden: true
+            scrollbar_mode: "off"
+            widgets:
+              # ── Left Category Rail (120 x 140) ──────────────────────────
+              - obj:
+                  id: set_cat_rail
+                  width: 120
+                  height: 140
+                  align: LEFT_MID
+                  x: 0
+                  y: 0
+                  bg_opa: TRANSP
+                  border_width: 0
+                  pad_all: 0
+                  radius: 0
+                  scrollbar_mode: "off"
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                    pad_row: 7
+                  widgets:
+                    - button:
+                        id: set_cat_display
+                        width: 120
+                        height: 42
+                        radius: 8
+                        bg_color: 0x1F6FEB
+                        bg_opa: COVER
+                        border_color: 0x58A6FF
+                        border_width: 1
+                        pad_left: 10
+                        pad_right: 8
+                        widgets:
+                          - label:
+                              id: set_cat_display_icon
+                              text: "\U000F00E0"
+                              text_font: icons_20
+                              text_color: 0xFFFFFF
+                              align: LEFT_MID
+                          - label:
+                              id: set_cat_display_lbl
+                              text: "Display"
+                              text_font: font_14
+                              text_color: 0xFFFFFF
+                              align: LEFT_MID
+                              x: 26
+                        on_click:
+                          then:
+                            - script.execute:
+                                id: select_settings_cat
+                                cat_idx: 0
+
+                    - button:
+                        id: set_cat_grow
+                        width: 120
+                        height: 42
+                        radius: 8
+                        bg_color: 0x0D1117
+                        bg_opa: COVER
+                        border_color: 0x21262D
+                        border_width: 1
+                        pad_left: 10
+                        pad_right: 8
+                        widgets:
+                          - label:
+                              id: set_cat_grow_icon
+                              text: "\U000F0E66"
+                              text_font: icons_20
+                              text_color: 0x8B949E
+                              align: LEFT_MID
+                          - label:
+                              id: set_cat_grow_lbl
+                              text: "Grow"
+                              text_font: font_14
+                              text_color: 0x8B949E
+                              align: LEFT_MID
+                              x: 26
+                        on_click:
+                          then:
+                            - script.execute:
+                                id: select_settings_cat
+                                cat_idx: 1
+
+                    - button:
+                        id: set_cat_system
+                        width: 120
+                        height: 42
+                        radius: 8
+                        bg_color: 0x0D1117
+                        bg_opa: COVER
+                        border_color: 0x21262D
+                        border_width: 1
+                        pad_left: 10
+                        pad_right: 8
+                        widgets:
+                          - label:
+                              id: set_cat_system_icon
+                              text: "\U000F062E"
+                              text_font: icons_20
+                              text_color: 0x8B949E
+                              align: LEFT_MID
+                          - label:
+                              id: set_cat_system_lbl
+                              text: "System"
+                              text_font: font_14
+                              text_color: 0x8B949E
+                              align: LEFT_MID
+                              x: 26
+                        on_click:
+                          then:
+                            - script.execute:
+                                id: select_settings_cat
+                                cat_idx: 2
+
+              # ── Right Detail Container (412 x 140) ──────────────────────
+              - obj:
+                  id: set_detail_box
+                  width: 412
+                  height: 140
+                  align: RIGHT_MID
+                  x: 0
+                  y: 0
+                  bg_color: 0x0D1117
+                  bg_opa: COVER
+                  border_color: 0x21262D
+                  border_width: 1
+                  radius: 10
+                  pad_all: 10
+                  scrollbar_mode: "off"
+                  widgets:
+                    # ── Pane 0: Display (Brightness & Idle Lock) ────────────
+                    - obj:
+                        id: set_pane_display
+                        width: 390
+                        height: 118
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        radius: 0
+                        scrollbar_mode: "off"
+                        widgets:
+                          - label:
+                              text: "Brightness"
+                              text_font: font_14
+                              text_color: 0xE6EDF3
+                              x: 0
+                              y: 4
+                          - label:
+                              id: set_bri_val
+                              text: "100%"
+                              text_font: font_12
+                              text_color: 0x58A6FF
+                              x: 0
+                              y: 24
+
+                          - button:
+                              id: set_bri_25
+                              width: 62
+                              height: 40
+                              x: 118
+                              y: 3
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_bri_25_lbl
+                                    text: "25%"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_brightness_level
+                                      level: 25
+
+                          - button:
+                              id: set_bri_50
+                              width: 62
+                              height: 40
+                              x: 186
+                              y: 3
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_bri_50_lbl
+                                    text: "50%"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_brightness_level
+                                      level: 50
+
+                          - button:
+                              id: set_bri_75
+                              width: 62
+                              height: 40
+                              x: 254
+                              y: 3
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_bri_75_lbl
+                                    text: "75%"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_brightness_level
+                                      level: 75
+
+                          - button:
+                              id: set_bri_100
+                              width: 62
+                              height: 40
+                              x: 322
+                              y: 3
+                              radius: 8
+                              bg_color: 0x1F6FEB
+                              bg_opa: COVER
+                              border_color: 0x58A6FF
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_bri_100_lbl
+                                    text: "100%"
+                                    text_font: font_14
+                                    text_color: 0xFFFFFF
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_brightness_level
+                                      level: 100
+
+                          - obj:
+                              width: 390
+                              height: 1
+                              x: 0
+                              y: 55
+                              bg_color: 0x21262D
+                              bg_opa: COVER
+                              border_width: 0
+                              radius: 0
+
+                          - label:
+                              text: "Idle Lock"
+                              text_font: font_14
+                              text_color: 0xE6EDF3
+                              x: 0
+                              y: 66
+                          - label:
+                              id: set_idle_val
+                              text: "5 min"
+                              text_font: font_12
+                              text_color: 0x58A6FF
+                              x: 0
+                              y: 86
+
+                          - button:
+                              id: set_idle_60
+                              width: 48
+                              height: 40
+                              x: 118
+                              y: 66
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_idle_60_lbl
+                                    text: "1m"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_idle_timeout_sec
+                                      seconds: 60
+
+                          - button:
+                              id: set_idle_300
+                              width: 48
+                              height: 40
+                              x: 171
+                              y: 66
+                              radius: 8
+                              bg_color: 0x1F6FEB
+                              bg_opa: COVER
+                              border_color: 0x58A6FF
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_idle_300_lbl
+                                    text: "5m"
+                                    text_font: font_14
+                                    text_color: 0xFFFFFF
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_idle_timeout_sec
+                                      seconds: 300
+
+                          - button:
+                              id: set_idle_600
+                              width: 48
+                              height: 40
+                              x: 224
+                              y: 66
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_idle_600_lbl
+                                    text: "10m"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_idle_timeout_sec
+                                      seconds: 600
+
+                          - button:
+                              id: set_idle_0
+                              width: 48
+                              height: 40
+                              x: 277
+                              y: 66
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_idle_0_lbl
+                                    text: "Off"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_idle_timeout_sec
+                                      seconds: 0
+
+                          - button:
+                              id: set_btn_lock_now
+                              width: 52
+                              height: 40
+                              x: 332
+                              y: 66
+                              radius: 8
+                              bg_color: 0x21262D
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    text: "\U000F033E"
+                                    text_font: icons_20
+                                    text_color: 0xE6EDF3
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute: lock_screen_now
+
+                    # ── Pane 1: Growspace (Auto-Cycle & Cycle Speed) ────────
+                    - obj:
+                        id: set_pane_grow
+                        width: 390
+                        height: 118
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        radius: 0
+                        hidden: true
+                        scrollbar_mode: "off"
+                        widgets:
+                          - label:
+                              text: "Auto-Cycle"
+                              text_font: font_14
+                              text_color: 0xE6EDF3
+                              x: 0
+                              y: 4
+                          - label:
+                              text: "Rotate growspaces"
+                              text_font: font_12
+                              text_color: 0x8B949E
+                              x: 0
+                              y: 24
+
+                          - button:
+                              id: set_btn_autocycle
+                              width: 116
+                              height: 40
+                              align: TOP_RIGHT
+                              x: 0
+                              y: 3
+                              radius: 8
+                              bg_color: 0x163322
+                              bg_opa: COVER
+                              border_color: 0x3FB950
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_autocycle_lbl
+                                    text: "Active"
+                                    text_font: font_14
+                                    text_color: 0x3FB950
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - lambda: |-
+                                      id(settings_cycle_enabled) = !id(settings_cycle_enabled);
+                                      id(cycle_paused) = !id(settings_cycle_enabled);
+                                      id(pause_timer) = 0;
+                                  - script.execute: sync_settings_ui
+
+                          - obj:
+                              width: 390
+                              height: 1
+                              x: 0
+                              y: 55
+                              bg_color: 0x21262D
+                              bg_opa: COVER
+                              border_width: 0
+                              radius: 0
+
+                          - label:
+                              text: "Cycle Speed"
+                              text_font: font_14
+                              text_color: 0xE6EDF3
+                              x: 0
+                              y: 66
+                          - label:
+                              id: set_cycle_val
+                              text: "15s"
+                              text_font: font_12
+                              text_color: 0x58A6FF
+                              x: 0
+                              y: 86
+
+                          - button:
+                              id: set_cyc_10
+                              width: 62
+                              height: 40
+                              x: 118
+                              y: 66
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_cyc_10_lbl
+                                    text: "10s"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_cycle_interval_sec
+                                      seconds: 10
+
+                          - button:
+                              id: set_cyc_15
+                              width: 62
+                              height: 40
+                              x: 186
+                              y: 66
+                              radius: 8
+                              bg_color: 0x1F6FEB
+                              bg_opa: COVER
+                              border_color: 0x58A6FF
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_cyc_15_lbl
+                                    text: "15s"
+                                    text_font: font_14
+                                    text_color: 0xFFFFFF
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_cycle_interval_sec
+                                      seconds: 15
+
+                          - button:
+                              id: set_cyc_30
+                              width: 62
+                              height: 40
+                              x: 254
+                              y: 66
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_cyc_30_lbl
+                                    text: "30s"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_cycle_interval_sec
+                                      seconds: 30
+
+                          - button:
+                              id: set_cyc_60
+                              width: 62
+                              height: 40
+                              x: 322
+                              y: 66
+                              radius: 8
+                              bg_color: 0x161B22
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_cyc_60_lbl
+                                    text: "60s"
+                                    text_font: font_14
+                                    text_color: 0x8B949E
+                                    align: CENTER
+                              on_click:
+                                then:
+                                  - script.execute:
+                                      id: set_cycle_interval_sec
+                                      seconds: 60
+
+                    # ── Pane 2: System (Mic Mute, Network/Battery, Restart) ─
+                    - obj:
+                        id: set_pane_system
+                        width: 390
+                        height: 118
+                        bg_opa: TRANSP
+                        border_width: 0
+                        pad_all: 0
+                        radius: 0
+                        hidden: true
+                        scrollbar_mode: "off"
+                        widgets:
+                          - label:
+                              text: "Microphone"
+                              text_font: font_14
+                              text_color: 0xE6EDF3
+                              x: 0
+                              y: 4
+                          - label:
+                              id: set_mic_val
+                              text: "Active"
+                              text_font: font_12
+                              text_color: 0x3FB950
+                              x: 0
+                              y: 24
+
+                          - button:
+                              id: set_btn_mic
+                              width: 116
+                              height: 40
+                              align: TOP_RIGHT
+                              x: 0
+                              y: 3
+                              radius: 8
+                              bg_color: 0x163322
+                              bg_opa: COVER
+                              border_color: 0x3FB950
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_mic_btn_icon
+                                    text: "\U000F036C"
+                                    text_font: icons_20
+                                    text_color: 0x3FB950
+                                    align: LEFT_MID
+                                    x: 12
+                                - label:
+                                    id: set_mic_btn_lbl
+                                    text: "Mute"
+                                    text_font: font_14
+                                    text_color: 0xE6EDF3
+                                    align: LEFT_MID
+                                    x: 38
+                              on_click:
+                                then:
+                                  - script.execute: toggle_voice_mute
+                                  - script.execute: sync_settings_ui
+
+                          - obj:
+                              width: 390
+                              height: 1
+                              x: 0
+                              y: 55
+                              bg_color: 0x21262D
+                              bg_opa: COVER
+                              border_width: 0
+                              radius: 0
+
+                          - label:
+                              id: set_wifi_icon
+                              text: "\U000F05A9"
+                              text_font: icons_20
+                              text_color: 0x58A6FF
+                              x: 0
+                              y: 68
+                          - label:
+                              id: set_wifi_lbl
+                              text: "Wi-Fi: --"
+                              text_font: font_12
+                              text_color: 0xE6EDF3
+                              x: 26
+                              y: 66
+                          - label:
+                              id: set_batt_lbl
+                              text: "Battery: --"
+                              text_font: font_12
+                              text_color: 0x8B949E
+                              x: 26
+                              y: 86
+
+                          - button:
+                              id: set_btn_restart
+                              width: 116
+                              height: 40
+                              align: TOP_RIGHT
+                              x: 0
+                              y: 66
+                              radius: 8
+                              bg_color: 0x21262D
+                              bg_opa: COVER
+                              border_color: 0x30363D
+                              border_width: 1
+                              widgets:
+                                - label:
+                                    id: set_restart_icon
+                                    text: "\U000F0450"
+                                    text_font: icons_20
+                                    text_color: 0xE6EDF3
+                                    align: LEFT_MID
+                                    x: 12
+                                - label:
+                                    id: set_restart_lbl
+                                    text: "Restart"
+                                    text_font: font_14
+                                    text_color: 0xE6EDF3
+                                    align: LEFT_MID
+                                    x: 38
+                              on_click:
+                                then:
+                                  - lambda: |-
+                                      if (id(settings_restart_armed) == 0) {
+                                        id(settings_restart_armed) = 4;
+                                        id(sync_settings_ui).execute();
+                                      } else {
+                                        ESP_LOGW("settings", "Restart confirmed by user");
+                                      #ifndef USE_HOST
+                                        App.safe_reboot();
+                                      #else
+                                        id(settings_restart_armed) = 0;
+                                        id(sync_settings_ui).execute();
+                                      #endif
+                                      }
+
+        # Non-clickable software dimmer overlay for Brightness setting
+        - obj:
+            id: brightness_dim_overlay
+            width: 640
+            height: 172
+            align: CENTER
+            bg_color: 0x000000
+            bg_opa: 0%
+            border_width: 0
+            radius: 0
+            clickable: false
+            hidden: true
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (id(settings_restart_armed) > 0) {
+            id(settings_restart_armed)--;
+            if (id(settings_restart_armed) == 0) {
+              id(sync_settings_ui).execute();
+            }
+          }
+          if (id(active_tab) == 4 && id(settings_active_cat) == 2) {
+            id(sync_settings_ui).execute();
+          }
+
+script:
+  - id: !extend switch_tab
+    then:
+      - lambda: |-
+          bool active = (tab_idx == 4);
+          if (active) {
+            lv_obj_clear_flag(id(settings_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_settings), lv_color_hex(0x1F6FEB), 0);
+            lv_obj_set_style_border_color(id(nav_settings), lv_color_hex(0x58A6FF), 0);
+            lv_obj_set_style_text_color(id(nav_settings_icon), lv_color_hex(0xFFFFFF), 0);
+            id(settings_restart_armed) = 0;
+            id(sync_settings_ui).execute();
+          } else {
+            lv_obj_add_flag(id(settings_card), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(id(nav_settings), lv_color_hex(0x161B22), 0);
+            lv_obj_set_style_border_color(id(nav_settings), lv_color_hex(0x30363D), 0);
+            lv_obj_set_style_text_color(id(nav_settings_icon), lv_color_hex(0x8B949E), 0);
+          }
+
+  - id: select_settings_cat
+    parameters:
+      cat_idx: int
+    then:
+      - lambda: |-
+          id(settings_active_cat) = cat_idx;
+          id(settings_restart_armed) = 0;
+      - script.execute: sync_settings_ui
+
+  - id: set_brightness_level
+    parameters:
+      level: int
+    then:
+      - lambda: |-
+          id(settings_brightness) = level;
+          uint8_t opa = 0;
+          if (level <= 25) opa = 185;
+          else if (level <= 50) opa = 128;
+          else if (level <= 75) opa = 64;
+          if (opa == 0) {
+            lv_obj_add_flag(id(brightness_dim_overlay), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_set_style_bg_opa(id(brightness_dim_overlay), opa, 0);
+            lv_obj_clear_flag(id(brightness_dim_overlay), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(id(brightness_dim_overlay));
+          }
+      - script.execute: sync_settings_ui
+
+  - id: set_idle_timeout_sec
+    parameters:
+      seconds: int
+    then:
+      - lambda: |-
+          id(settings_idle_timeout) = seconds;
+      - script.execute: reset_idle_timer
+      - script.execute: sync_settings_ui
+
+  - id: set_cycle_interval_sec
+    parameters:
+      seconds: int
+    then:
+      - lambda: |-
+          id(settings_cycle_interval) = seconds;
+      - script.execute: sync_settings_ui
+
+  - id: !extend sync_settings_ui
+    then:
+      - lambda: |-
+          auto style_pill = [](lv_obj_t* btn, lv_obj_t* lbl, bool active) {
+            lv_obj_set_style_bg_color(btn, lv_color_hex(active ? 0x1F6FEB : 0x161B22), 0);
+            lv_obj_set_style_border_color(btn, lv_color_hex(active ? 0x58A6FF : 0x30363D), 0);
+            lv_obj_set_style_text_color(lbl, lv_color_hex(active ? 0xFFFFFF : 0x8B949E), 0);
+          };
+
+          auto style_cat = [](lv_obj_t* btn, lv_obj_t* icon, lv_obj_t* lbl, bool active) {
+            lv_obj_set_style_bg_color(btn, lv_color_hex(active ? 0x1F6FEB : 0x0D1117), 0);
+            lv_obj_set_style_border_color(btn, lv_color_hex(active ? 0x58A6FF : 0x21262D), 0);
+            lv_obj_set_style_text_color(icon, lv_color_hex(active ? 0xFFFFFF : 0x8B949E), 0);
+            lv_obj_set_style_text_color(lbl, lv_color_hex(active ? 0xFFFFFF : 0x8B949E), 0);
+          };
+
+          int cat = id(settings_active_cat);
+          style_cat(id(set_cat_display), id(set_cat_display_icon), id(set_cat_display_lbl), cat == 0);
+          style_cat(id(set_cat_grow), id(set_cat_grow_icon), id(set_cat_grow_lbl), cat == 1);
+          style_cat(id(set_cat_system), id(set_cat_system_icon), id(set_cat_system_lbl), cat == 2);
+
+          if (cat == 0) lv_obj_clear_flag(id(set_pane_display), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(set_pane_display), LV_OBJ_FLAG_HIDDEN);
+
+          if (cat == 1) lv_obj_clear_flag(id(set_pane_grow), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(set_pane_grow), LV_OBJ_FLAG_HIDDEN);
+
+          if (cat == 2) lv_obj_clear_flag(id(set_pane_system), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(set_pane_system), LV_OBJ_FLAG_HIDDEN);
+
+          // Brightness pills
+          int bri = id(settings_brightness);
+          char buf[32];
+          snprintf(buf, sizeof(buf), "%d%%", bri);
+          lv_label_set_text(id(set_bri_val), buf);
+          style_pill(id(set_bri_25), id(set_bri_25_lbl), bri == 25);
+          style_pill(id(set_bri_50), id(set_bri_50_lbl), bri == 50);
+          style_pill(id(set_bri_75), id(set_bri_75_lbl), bri == 75);
+          style_pill(id(set_bri_100), id(set_bri_100_lbl), bri == 100);
+
+          // Idle lock timeout pills
+          int it = id(settings_idle_timeout);
+          if (it <= 0) {
+            lv_label_set_text(id(set_idle_val), "Off");
+          } else if (it < 60) {
+            snprintf(buf, sizeof(buf), "%ds", it);
+            lv_label_set_text(id(set_idle_val), buf);
+          } else {
+            snprintf(buf, sizeof(buf), "%d min", it / 60);
+            lv_label_set_text(id(set_idle_val), buf);
+          }
+          style_pill(id(set_idle_60), id(set_idle_60_lbl), it == 60);
+          style_pill(id(set_idle_300), id(set_idle_300_lbl), it == 300);
+          style_pill(id(set_idle_600), id(set_idle_600_lbl), it == 600);
+          style_pill(id(set_idle_0), id(set_idle_0_lbl), it <= 0);
+
+          // Auto-Cycle & Cycle Speed
+          bool cyc_on = id(settings_cycle_enabled);
+          lv_obj_set_style_bg_color(id(set_btn_autocycle), lv_color_hex(cyc_on ? 0x163322 : 0x2D2009), 0);
+          lv_obj_set_style_border_color(id(set_btn_autocycle), lv_color_hex(cyc_on ? 0x3FB950 : 0xFFB020), 0);
+          lv_label_set_text(id(set_autocycle_lbl), cyc_on ? "Active" : "Paused");
+          lv_obj_set_style_text_color(id(set_autocycle_lbl), lv_color_hex(cyc_on ? 0x3FB950 : 0xFFB020), 0);
+
+          int cs = id(settings_cycle_interval);
+          snprintf(buf, sizeof(buf), "%ds", cs);
+          lv_label_set_text(id(set_cycle_val), buf);
+          style_pill(id(set_cyc_10), id(set_cyc_10_lbl), cs == 10);
+          style_pill(id(set_cyc_15), id(set_cyc_15_lbl), cs == 15);
+          style_pill(id(set_cyc_30), id(set_cyc_30_lbl), cs == 30);
+          style_pill(id(set_cyc_60), id(set_cyc_60_lbl), cs == 60);
+
+          // Microphone Mute
+          bool muted = id(voice_muted);
+          lv_label_set_text(id(set_mic_val), muted ? "Muted" : "Active");
+          lv_obj_set_style_text_color(id(set_mic_val), lv_color_hex(muted ? 0xF85149 : 0x3FB950), 0);
+          lv_obj_set_style_bg_color(id(set_btn_mic), lv_color_hex(muted ? 0x3B1219 : 0x163322), 0);
+          lv_obj_set_style_border_color(id(set_btn_mic), lv_color_hex(muted ? 0xF85149 : 0x3FB950), 0);
+          lv_label_set_text(id(set_mic_btn_icon), muted ? "\U000F036D" : "\U000F036C");
+          lv_obj_set_style_text_color(id(set_mic_btn_icon), lv_color_hex(muted ? 0xF85149 : 0x3FB950), 0);
+          lv_label_set_text(id(set_mic_btn_lbl), muted ? "Unmute" : "Mute");
+
+          // Wi-Fi & Battery Telemetry
+          if (id(idle_wifi_connected)) {
+            std::string ssid = id(idle_wifi_ssid);
+            if (ssid.empty()) ssid = "Connected";
+            if (ssid.length() > 14) ssid = ssid.substr(0, 13) + ".";
+            if (id(idle_wifi_rssi) != 0) {
+              snprintf(buf, sizeof(buf), "%s • %d dBm", ssid.c_str(), id(idle_wifi_rssi));
+            } else {
+              snprintf(buf, sizeof(buf), "%s", ssid.c_str());
+            }
+            lv_label_set_text(id(set_wifi_lbl), buf);
+            lv_obj_set_style_text_color(id(set_wifi_icon), lv_color_hex(0x58A6FF), 0);
+          } else {
+            lv_label_set_text(id(set_wifi_lbl), "Wi-Fi: Disconnected");
+            lv_obj_set_style_text_color(id(set_wifi_icon), lv_color_hex(0x6E7681), 0);
+          }
+
+          if (id(idle_battery_pct) >= 0) {
+            snprintf(buf, sizeof(buf), "Battery: %d%%", id(idle_battery_pct));
+            lv_label_set_text(id(set_batt_lbl), buf);
+          } else {
+            lv_label_set_text(id(set_batt_lbl), "Power: USB / External");
+          }
+
+          // Safe 2-tap Restart button
+          bool armed = (id(settings_restart_armed) > 0);
+          lv_obj_set_style_bg_color(id(set_btn_restart), lv_color_hex(armed ? 0x3B1219 : 0x21262D), 0);
+          lv_obj_set_style_border_color(id(set_btn_restart), lv_color_hex(armed ? 0xF85149 : 0x30363D), 0);
+          lv_obj_set_style_text_color(id(set_restart_icon), lv_color_hex(armed ? 0xF85149 : 0xE6EDF3), 0);
+          lv_obj_set_style_text_color(id(set_restart_lbl), lv_color_hex(armed ? 0xF85149 : 0xE6EDF3), 0);
+          lv_label_set_text(id(set_restart_lbl), armed ? "Confirm?" : "Restart");
