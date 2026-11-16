@@ -211,12 +211,14 @@ switch:
           voice_icon::set_mode(voice_icon::MUTED);
       - micro_wake_word.stop:
       - script.execute: voice_tick
+      - script.execute: sync_settings_ui
     turn_off_action:
       - lambda: |-
           id(voice_muted) = false;
           voice_icon::set_mode(voice_icon::IDLE);
       - micro_wake_word.start:
       - script.execute: voice_tick
+      - script.execute: sync_settings_ui
 
 lvgl:
   pages:
@@ -365,6 +367,16 @@ lvgl:
                   y: -12
 
 script:
+  - id: !extend toggle_voice_mute
+    then:
+      - if:
+          condition:
+            lambda: "return id(voice_muted);"
+          then:
+            - switch.turn_on: mic_mute_switch
+          else:
+            - switch.turn_off: mic_mute_switch
+
   - id: set_voice_overlay
     parameters:
       visible: bool
