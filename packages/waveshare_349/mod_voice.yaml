@@ -26,19 +26,6 @@ esphome:
             voice_icon::tick_nav(id(nav_voice_box), id(nav_mic));
         - script.execute: apply_voice_output_mode
 
-i2s_audio:
-  - id: i2s_audio_bus
-    i2s_lrclk_pin: GPIO46
-    i2s_bclk_pin: GPIO15
-    i2s_mclk_pin: GPIO7
-
-audio_dac:
-  - platform: es8311
-    id: es8311_dac
-    i2c_id: sys_i2c
-    bits_per_sample: 16bit
-    sample_rate: 16000
-
 microphone:
   - platform: i2s_audio
     id: mic_i2s
@@ -47,16 +34,6 @@ microphone:
     adc_type: external
     bits_per_sample: 16bit
     pdm: false
-
-speaker:
-  - platform: i2s_audio
-    id: spk_i2s
-    i2s_audio_id: i2s_audio_bus
-    dac_type: external
-    i2s_dout_pin: GPIO6
-    audio_dac: es8311_dac
-    bits_per_sample: 16bit
-    sample_rate: 16000
 
 micro_wake_word:
   id: mww
@@ -79,6 +56,7 @@ voice_assistant:
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   on_listening:
+    - lambda: "id(voice_active) = true;"
     - script.stop: voice_overlay_auto_hide
     - script.execute: unlock_idle_screen
     - lambda: |-
@@ -145,6 +123,7 @@ voice_assistant:
                 media_player_entity_id: "${voice_tts_speaker}"
                 message: !lambda "return x;"
   on_end:
+    - lambda: "id(voice_active) = false;"
     - lambda: |-
         voice_icon::set_mode(id(voice_muted) ? voice_icon::MUTED : voice_icon::IDLE);
     - script.execute: voice_tick
@@ -159,6 +138,7 @@ voice_assistant:
         else:
           - script.execute: dismiss_voice_overlay
   on_error:
+    - lambda: "id(voice_active) = false;"
     - script.stop: voice_overlay_auto_hide
     - script.execute: unlock_idle_screen
     - lambda: |-

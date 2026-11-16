@@ -70,6 +70,9 @@ text_sensor:
     id: claude_status
     entity_id: input_text.claude_status
     on_value:
+      - script.execute:
+          id: play_ai_chime
+          chime_id: !lambda "return static_cast<int>(ai_sounds::claude_tracker().on_status<clawd::Mode>(x, clawd::parse_status, false));"
       - script.execute: update_ai_ui
       - if:
           condition:

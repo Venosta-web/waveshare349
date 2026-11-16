@@ -64,3 +64,59 @@ touchscreen:
     id: my_touchscreen
     i2c_id: touch_i2c
     display: my_display
+
+i2s_audio:
+  - id: i2s_audio_bus
+    i2s_lrclk_pin: GPIO46
+    i2s_bclk_pin: GPIO15
+    i2s_mclk_pin: GPIO7
+
+audio_dac:
+  - platform: es8311
+    id: es8311_dac
+    i2c_id: sys_i2c
+    bits_per_sample: 16bit
+    sample_rate: 16000
+
+speaker:
+  - platform: i2s_audio
+    id: spk_i2s
+    i2s_audio_id: i2s_audio_bus
+    dac_type: external
+    i2s_dout_pin: GPIO6
+    audio_dac: es8311_dac
+    bits_per_sample: 16bit
+    sample_rate: 16000
+
+switch:
+  - platform: template
+    id: ai_sound_enabled
+    name: "AI Sound Effects"
+    icon: "mdi:volume-high"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+number:
+  - platform: template
+    id: ai_sound_volume
+    name: "AI Sound Volume"
+    icon: "mdi:volume-medium"
+    optimistic: true
+    restore_value: true
+    initial_value: 70
+    min_value: 0
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+
+script:
+  - id: !extend play_ai_chime
+    then:
+      - lambda: |-
+          ai_sounds::maybe_play(
+            id(spk_i2s),
+            static_cast<ai_sounds::ChimeId>(chime_id),
+            id(ai_sound_enabled).state,
+            id(ai_sound_volume).state,
+            id(voice_active)
+          );

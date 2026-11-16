@@ -19,12 +19,15 @@ The primary Home Assistant sensor exposed by Growspace Manager for a growspace, 
 A flattened Home Assistant template sensor that extracts grow-stage and VPD target fields from an Overview Sensor so ESPHome can subscribe to them as top-level attributes.
 
 **Permission Request**:
-Claude Code asking whether a specific tool call may run; the only Claude moment that can be answered (Approve / Reject) from the display.
+An AI coding agent (Claude Code or Codex) asking whether a specific tool call may run; the only agent moment that can be answered (Approve / Reject) from the display.
 _Avoid_: Approval prompt
 
 **Needs Input**:
-The AI card state for any moment where Claude is waiting on the user and the display cannot answer: a multiple-choice question, a turn that ended with a question or a command for the user to run, an MCP input dialog, or an idle nudge. The detail shows what Claude asked.
+The AI card state for any moment where Claude Code or Codex is waiting on the user and the display cannot answer: a multiple-choice question, a turn that ended with a question or a command for the user to run, an MCP input dialog, or an idle nudge. The detail shows what the agent asked.
 _Avoid_: Question state, Waiting
+
+**Attention State**:
+Any AI card state requiring user action (**Permission Request** or **Needs Input**), which surfaces a navigation alert badge and plays an agent-specific audio chime on hardware with a speaker.
 
 **Done**:
 The AI card state after a turn finished with nothing pending for the user.
