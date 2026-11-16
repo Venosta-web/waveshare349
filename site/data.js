@@ -8,7 +8,7 @@ export const TARGET_DEVICES = [
     packageDir: 'packages/waveshare_349',
     defaultDeviceName: 'waveshare-349-voice',
     defaultFriendlyName: 'Waveshare 3.49 Display',
-    supportedModules: ['grow', 'music', 'claude', 'codex', 'voice'],
+    supportedModules: ['grow', 'music', 'claude', 'codex', 'voice', 'idle', 'settings'],
     unsupportedReasons: {},
   },
   {
@@ -20,7 +20,7 @@ export const TARGET_DEVICES = [
     packageDir: 'packages/prototype_480x320',
     defaultDeviceName: 'infoscreen-480x320',
     defaultFriendlyName: '480x320 Prototype Display',
-    supportedModules: ['grow', 'music', 'claude', 'codex'],
+    supportedModules: ['grow', 'music', 'claude', 'codex', 'idle', 'settings'],
     unsupportedReasons: {
       voice: 'No onboard I2S mic/speaker codec on this board.',
     },
@@ -63,6 +63,20 @@ export const FEATURE_MODULES = [
     description: 'On-device "Okay Nabu" micro_wake_word, ES8311 I2S audio, push-to-talk button, and live voice overlay.',
     defaultEnabled: true,
   },
+  {
+    id: 'idle',
+    name: 'Idle Lock Screen',
+    kind: 'Lock Overlay',
+    description: 'Aurora ambient nightstand clock and status overlay with configurable inactivity timeout and manual lock.',
+    defaultEnabled: true,
+  },
+  {
+    id: 'settings',
+    name: 'Device Settings',
+    kind: 'Display View',
+    description: 'On-device Display (brightness, lock timeout), Growspace (auto-cycle, speed), and System (telemetry, safe restart) menu.',
+    defaultEnabled: true,
+  },
 ];
 
 export const PRESETS = [
@@ -70,7 +84,7 @@ export const PRESETS = [
     id: 'waveshare-349-full-suite',
     deviceId: 'waveshare-349',
     name: 'Full Suite',
-    modules: ['grow', 'music', 'claude', 'codex', 'voice'],
+    modules: ['grow', 'music', 'claude', 'codex', 'voice', 'idle', 'settings'],
     defaults: { musicVariant: 'studio', claudeVariant: 'terminal', codexVariant: 'terminal' },
   },
   {
@@ -105,8 +119,15 @@ export const PRESETS = [
     id: 'prototype-480x320-full',
     deviceId: 'prototype-480x320',
     name: 'Full Prototype',
-    modules: ['grow', 'music', 'claude', 'codex'],
+    modules: ['grow', 'music', 'claude', 'codex', 'idle', 'settings'],
     defaults: { musicVariant: 'studio', claudeVariant: 'terminal', codexVariant: 'terminal' },
+  },
+  {
+    id: 'prototype-480x320-ai-desk',
+    deviceId: 'prototype-480x320',
+    name: 'AI Desk Companion',
+    modules: ['claude', 'codex', 'idle', 'settings'],
+    defaults: { claudeVariant: 'terminal', codexVariant: 'terminal' },
   },
   {
     id: 'prototype-480x320-grow-music',

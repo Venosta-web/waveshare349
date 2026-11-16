@@ -10,8 +10,11 @@ on:
       - 'packages/**/*.yaml'
       - 'claude/**'
       - 'codex/**'
+      - 'grow/**'
+      - 'idle/**'
       - 'music/**'
       - 'prototype/**'
+      - 'pet_scenes.h'
       - '.github/workflows/pages-wizard.yml'
   workflow_dispatch:
 
@@ -37,6 +40,7 @@ jobs:
           - waveshare-349-ai-desk
           - waveshare-349-grow-only
           - prototype-480x320-full
+          - prototype-480x320-ai-desk
           - prototype-480x320-grow-music
           - prototype-480x320-grow-only
     steps:

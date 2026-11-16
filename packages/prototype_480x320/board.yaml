@@ -65,7 +65,7 @@ touchscreen:
             id(dim_state) = 0;
             id(wake_lock) = true;
             auto call = id(display_backlight).make_call();
-            call.set_brightness(1.0f);
+            call.set_brightness(id(settings_brightness) / 100.0f);
             call.perform();
             return;
           }

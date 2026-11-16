@@ -1,5 +1,5 @@
 # Feature Module: Codex Status & Approval Card (480x320 Prototype)
-# Requires substitutions: codex_variant ("stage" | "terminal"), codex_decision_timeout
+# Requires substitutions: codex_variant ("stage" | "terminal" | "fishing" | "mining" | "pingpong" | "campfire" | "terminal_fishing" | "terminal_mining" | "terminal_pingpong" | "terminal_campfire"), codex_decision_timeout
 
 packages:
   codex_variant: !include ../../prototype/esp32-s3-480-320-prototype/codex/${codex_variant}.yaml
@@ -7,6 +7,7 @@ packages:
 esphome:
   includes:
     - ../../codex/codex_pet.h
+    - ../../pet_scenes.h
   on_boot:
     - priority: -146
       then:
