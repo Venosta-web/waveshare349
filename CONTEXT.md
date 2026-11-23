@@ -63,3 +63,10 @@ _Avoid_: plugin, addon
 **Target Device**:
 A supported hardware board profile (such as `Waveshare 3.49` or `480x320 Prototype`) that defines display geometry, pinout, and which Feature Modules are compatible.
 _Avoid_: board type, hardware variant
+
+**Setup & Build Wizard**:
+The GitHub Pages web app (`site/`) where users choose a **Target Device**, **Feature Modules**, and **Presets**, customize `substitutions` and package sources, export `esphome.yaml`, and optionally flash pre-built preset firmware via USB Web Serial.
+_Avoid_: feature selector, config generator
+
+**Preset**:
+A named, pre-configured combination of a **Target Device** and **Feature Modules** (in `presets/`) that CI compiles into flashable firmware binaries for the **Setup & Build Wizard**.

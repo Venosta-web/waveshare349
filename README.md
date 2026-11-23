@@ -92,12 +92,47 @@ Target board: **Waveshare ESP32-S3-Touch-LCD-3.49** (`esp32-s3-devkitc-1`, ESP-I
 ## Getting Started
 
 ### Prerequisites
-- [ESPHome](https://esphome.io/) (`>= 2025.11.0`)
-- [Home Assistant](https://www.home-assistant.io/) with [Growspace Manager](https://github.com/holt-dev/growspace_manager) (v1.3.1+)
+- [ESPHome](https://esphome.io/) (`>= 2025.11.0`) — only needed if compiling custom `esphome.yaml` locally or using ESPHome Builder (not needed for one-click USB preset flashing)
+- [Home Assistant](https://www.home-assistant.io/) with [Growspace Manager](https://github.com/holt-dev/growspace_manager) (v1.3.1+) *(if enabling the `Growspace` Feature Module)*
 - *(Optional, for desktop simulator)* SDL2 development headers (`libsdl2-dev` on Debian/Ubuntu)
 - *(Optional, for Claude Code / Codex bridges)* Python 3 with `websockets` / `requests` and hook configuration
 
-### 1. Home Assistant Setup
+### Option A: Setup & Build Wizard (Recommended)
+
+Use the hosted **[Setup & Build Wizard](https://venosta-web.github.io/waveshare349/)** ([`site/`](site/)) to configure your build interactively without editing YAML by hand:
+
+1. **Select a Target Device**
+   | Target Device | Resolution | Hardware Notes |
+   |---|---|---|
+   | **Waveshare 3.49"** (`waveshare-349`) | `640 × 172` | ESP32-S3 + Octal PSRAM + ES8311 I2S audio; supports all 7 Feature Modules |
+   | **480×320 Prototype** (`prototype-480x320`) | `480 × 320` | ESP32-S3 16MB + Octal PSRAM + Backlight PWM; supports all modules except `Voice Satellite` (no onboard I2S codec) |
+
+2. **Pick Feature Modules (or a Preset)**
+   Enable only the capabilities you need—single-view builds automatically hide the navigation rail—or start from a pre-configured **Preset** (`Full Suite`, `Grow + Voice`, `Grow + Music`, `AI Desk Companion`, `Grow Only`, etc.):
+   | Feature Module | Kind | Capability |
+   |---|---|---|
+   | **Growspace** (`grow`) | Display View | VPD gauge, target range, temp/humidity, equipment status, and auto-cycling across 1–7 growspaces |
+   | **Music Assistant** (`music`) | Display View | Media player controls, track info, shuffle/repeat, and volume (`studio` or `deck` layout) |
+   | **Claude Code** (`claude`) | Display View | Live agent status, step tracker, rate-limit countdown, and touch Approve/Reject for Permission Requests |
+   | **Codex** (`codex`) | Display View | OpenAI Codex status, step tracker, and touch Approve/Reject for Permission Requests |
+   | **Voice Satellite** (`voice`) | Assist Pipeline | On-device `Okay Nabu` wake word, ES8311 I2S audio, push-to-talk, and voice overlay *(Waveshare 3.49" only)* |
+   | **Idle Lock Screen** (`idle`) | Lock Overlay | `Aurora` ambient clock and status overlay with configurable inactivity timeout and manual lock |
+   | **Device Settings** (`settings`) | Display View | On-device Display (brightness, lock timeout), Growspace (auto-cycle, speed), and System (telemetry, safe restart) menu |
+
+3. **Customize Configuration & Generate `esphome.yaml`**
+   - Set your `device_name` and `friendly_name`.
+   - Choose **Package Source**: **GitHub Remote Packages** (for standalone pasting into ESPHome Builder) or **Local Repo Paths** (`packages/...` for local CLI builds).
+   - Choose Wi-Fi provisioning (**Improv Wi-Fi & Captive Portal** for Web Serial flashing, or `!secret wifi_ssid` / `!secret wifi_password`) and optional `!secret api_encryption_key`.
+   - Configure module-specific `substitutions` (growspace count/names/intervals, `music_variant`, `claude_variant`, `codex_variant`, `idle_timeout`, etc.).
+   - **Copy** or **Download** the generated `esphome.yaml` and compile with ESPHome Builder or `esphome run <file>.yaml`.
+
+4. **Flash Firmware & Follow Home Assistant Setup**
+   - If your selected Target Device + Feature Modules match a CI-built **Preset**, you can flash it directly over USB in Chrome or Edge using **ESP Web Tools** right inside Step 4.
+   - Step 4 also displays a **Home Assistant Companion Setup** checklist filtered to only the Feature Modules you enabled.
+
+### Option B: Manual CLI Setup
+
+#### 1. Home Assistant Setup
 
 1. **Metrics Bridge** — Include [`ha_metrics_bridge.yaml`](ha_metrics_bridge.yaml) in your Home Assistant `configuration.yaml` (e.g., via `packages:`) and update the source `sensor.<growspace>` entity IDs to match your Overview Sensors.
 2. **Music Bridge *(optional)*** — Include [`ha_music_bridge.yaml`](ha_music_bridge.yaml) to auto-detect the active Music Assistant player and remember the last one used.
@@ -107,7 +142,7 @@ Target board: **Waveshare ESP32-S3-Touch-LCD-3.49** (`esp32-s3-devkitc-1`, ESP-I
    - `script.switch_display_view`
    - `script.open_music_view_and_play`
 
-### 2. Configure & Flash the Device
+#### 2. Configure & Flash the Device
 
 1. Edit the `substitutions:` block at the top of [`waveshare_349.yaml`](waveshare_349.yaml) (or pick a composable preset under [`presets/`](presets/)):
    - Set `wifi_ssid` and `wifi_password`
@@ -222,8 +257,10 @@ ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml
 ├── pet_scenes.h                # Shared activity diorama scenes (fishing, mining, pingpong, campfire)
 ├── packages/
 │   ├── common/                 # Shared Wi-Fi packages (static / Improv)
+│   ├── prototype_480x320/      # Composable Feature Modules for 480x320 Prototype
 │   └── waveshare_349/          # Composable Feature Modules (board, core_ui, mod_*)
 ├── presets/                    # Ready-to-flash device presets
+├── site/                       # GitHub Pages Setup & Build Wizard (YAML generator + ESP Web Tools)
 ├── claude/                     # Clawd mascot header & Claude card variants
 ├── claude_bridge/              # Claude Code <-> Home Assistant hook bridge & tests
 ├── codex/                      # Byte mascot header & Codex card variants
@@ -236,7 +273,8 @@ ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml
 │   └── images/                 # Animated GIF captures for README showcase
 ├── CONTEXT.md                  # Domain glossary and terminology
 └── .github/workflows/
-    └── esphome-lint.yml        # CI validation with `esphome config`
+    ├── esphome-lint.yml        # CI validation with `esphome config`
+    └── pages-wizard.yml        # CI preset firmware builds & GitHub Pages deployment
 ```
 
 ---
