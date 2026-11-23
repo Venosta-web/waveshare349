@@ -31,6 +31,7 @@ ESPHome LVGL firmware and SDL2 desktop simulator for the **Waveshare ESP32-S3-To
 - Connects local Claude Code sessions (CLI and Desktop) to the display via [`claude_bridge/claude_ha_bridge.py`](claude_bridge/claude_ha_bridge.py) and Home Assistant `input_text` helpers.
 - Surfaces live session states: `Working`, `Pending Approval`, `Needs Input`, `Done`, and `Rate Limited` (with 5h/7d countdown bar and reset time).
 - **Touchscreen Permission Requests**: When Claude Code requests tool/command permission, the display switches to the `AI` view and lets you tap **APPROVE** or **REJECT** (fires `esphome.claude_command` back to the waiting hook; silently falls back to the normal Claude prompt after `claude_decision_timeout`, default `110s`).
+- **Two-Way Claude Channel (`claude/channel`)**: Run `claude_ha_bridge.py channel` as an MCP Channel server (see [ADR-0007](docs/adr/0007-hybrid-claude-channel-and-global-hooks.md)) to send prompts or answers from the **Voice Satellite** (`script.send_to_claude` in [`ha_assist_tools.yaml`](ha_assist_tools.yaml)) into the active CLI session and receive concise replies (`reply_to_device`) on the display and speaker.
 
 | State / Variant | Preview |
 |---|---|
@@ -106,6 +107,7 @@ Target board: **Waveshare ESP32-S3-Touch-LCD-3.49** (`esp32-s3-devkitc-1`, ESP-I
    - `media_player.music_assistant_player` (or your configured player)
    - `script.switch_display_view`
    - `script.open_music_view_and_play`
+   - `script.send_to_claude`
 
 ### 2. Configure & Flash the Device
 
@@ -152,6 +154,13 @@ See [`claude_bridge/README.md`](claude_bridge/README.md) for full details. Quick
    python3 claude_bridge/claude_ha_bridge.py test
    ```
 4. Merge [`claude_bridge/hooks.example.json`](claude_bridge/hooks.example.json) into the `"hooks"` key of `~/.claude/settings.json`.
+5. *(Optional, for two-way Voice Satellite prompts & replies)* Register the **Claude Channel** globally and launch CLI sessions with it enabled:
+   ```bash
+   claude mcp add --scope user waveshare-display -- \
+     /usr/bin/python3 /home/maxi/dev/EspHome/Waveshare349/claude_bridge/claude_ha_bridge.py channel
+   claude --dangerously-load-development-channels server:waveshare-display
+   ```
+   To have `reply_to_device` speak replies to device-initiated turns, set `CLAUDE_TTS_ENTITY` (e.g. `tts.piper`) and `CLAUDE_TTS_SPEAKER` in `~/.config/claude-ha-bridge/config.env`.
 
 ### 5. Set Up the Codex Desktop Bridge *(optional)*
 

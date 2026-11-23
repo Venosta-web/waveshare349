@@ -42,6 +42,10 @@ The Codex card state when a usage limit blocks the turn from continuing. The car
 **Turn Failed**:
 The Codex card state after Codex confirms a terminal error other than a blocking usage limit. The card directs the user to Codex for the error details.
 
+**Claude Channel**:
+A Claude Code MCP server (`claude/channel`) attached to a CLI session that enables two-way communication between the **Target Device** and Claude Code—pushing **Voice Satellite** prompts into the session and returning concise replies.
+_Avoid_: Remote Control, `/rc` client
+
 ## Voice & Display
 
 **Voice Satellite**:

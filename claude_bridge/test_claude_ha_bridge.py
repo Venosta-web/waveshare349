@@ -212,3 +212,101 @@ def test_run_hook_user_prompt_submit_cleans_task_notification(monkeypatch, tmp_p
     bridge.run_hook()
 
     assert calls == [("Working", 'farm-town-map-rework-8cea43 | Agent "Explore map" completed')]
+
+
+def test_channel_initialize_and_tools_list(monkeypatch, tmp_path):
+    monkeypatch.setattr(bridge, "ACTIVE_CHANNEL_FILE", tmp_path / "active_channel.json")
+    srv = bridge.ClaudeChannelServer(project="Waveshare349")
+
+    init_resp = srv.handle_rpc({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {"protocolVersion": "2024-11-05"},
+    })
+    assert init_resp["result"]["capabilities"]["experimental"] == {"claude/channel": {}}
+    assert "tools" in init_resp["result"]["capabilities"]
+    assert init_resp["result"]["serverInfo"]["name"] == "waveshare-display"
+
+    list_resp = srv.handle_rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    tools = list_resp["result"]["tools"]
+    assert [t["name"] for t in tools] == ["reply_to_device"]
+
+
+def test_channel_ha_event_routing_and_active_session(monkeypatch, tmp_path):
+    active_file = tmp_path / "active_channel.json"
+    monkeypatch.setattr(bridge, "ACTIVE_CHANNEL_FILE", active_file)
+    monkeypatch.setattr(bridge, "OWNER_FILE", tmp_path / "owner.json")
+    monkeypatch.setattr(bridge, "request_pending", lambda: False)
+    display_calls = []
+    monkeypatch.setattr(
+        bridge,
+        "set_display",
+        lambda status=None, detail=None, request=None, steps=None: display_calls.append((status, detail)),
+    )
+
+    emitted_a, emitted_b = [], []
+    srv_a = bridge.ClaudeChannelServer(project="proj-a", emit_fn=emitted_a.append)
+    srv_b = bridge.ClaudeChannelServer(project="proj-b", emit_fn=emitted_b.append)
+    srv_a.claim_active()
+    srv_b.claim_active()  # B is now most recently active (same live PID, different channel_id)
+
+    # Approve/reject events are ignored by Channel
+    assert not srv_b.handle_ha_event({"action": "approve", "request_id": "abc"})
+    # Inactive A ignores prompt; active B receives it
+    assert not srv_a.handle_ha_event({"action": "prompt", "text": "Run tests"})
+    assert srv_b.handle_ha_event({"action": "prompt", "text": "Run tests"})
+
+    assert emitted_a == []
+    assert len(emitted_b) == 1
+    assert emitted_b[0]["method"] == "notifications/claude/channel"
+    assert emitted_b[0]["params"]["content"] == "Run tests"
+    assert emitted_b[0]["params"]["meta"]["project"] == "proj-b"
+    assert srv_b.device_initiated is True
+    assert display_calls == [("Working", "proj-b | Run tests")]
+
+    # Dead PID in active_channel.json is reclaimed by A
+    active_file.write_text(json.dumps({"channel_id": "dead", "project": "old", "pid": 99999999, "at": 0}))
+    assert srv_a.handle_ha_event({"action": "reply", "text": "Use option 2"})
+    assert len(emitted_a) == 1
+
+
+def test_channel_reply_to_device_tts_and_stop_dedup(monkeypatch, tmp_path):
+    monkeypatch.setattr(bridge, "HA_TOKEN", "test-token")
+    monkeypatch.setattr(bridge, "ACTIVE_CHANNEL_FILE", tmp_path / "active_channel.json")
+    monkeypatch.setattr(bridge, "CHANNEL_REPLY_FILE", tmp_path / "channel_reply.json")
+    monkeypatch.setattr(bridge, "OWNER_FILE", tmp_path / "owner.json")
+    monkeypatch.setattr(bridge, "request_pending", lambda: False)
+    display_calls = []
+    tts_calls = []
+    monkeypatch.setattr(
+        bridge,
+        "set_display",
+        lambda status=None, detail=None, request=None, steps=None: display_calls.append((status, detail, steps)),
+    )
+    monkeypatch.setattr(bridge, "rest_tts_speak", lambda msg: tts_calls.append(msg) or True)
+
+    srv = bridge.ClaudeChannelServer(project="Waveshare349")
+    srv.device_initiated = True
+    resp = srv.handle_rpc({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {"name": "reply_to_device", "arguments": {"message": "All 14 tests passed."}},
+    })
+    assert not resp["result"].get("isError")
+    assert display_calls == [("Done", "Waveshare349 | All 14 tests passed.", None)]
+    assert tts_calls == ["All 14 tests passed."]
+    assert srv.device_initiated is False
+
+    # Subsequent Stop hook for same project must NOT overwrite the reply with generic Done
+    stop_payload = {
+        "hook_event_name": "Stop",
+        "session_id": "s1",
+        "cwd": "/tmp/Waveshare349",
+        "last_assistant_message": "All 14 tests passed.",
+    }
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(stop_payload)))
+    bridge.run_hook()
+    assert len(display_calls) == 2
+    assert display_calls[1] == (None, None, "")  # only steps updated, status/detail preserved
