@@ -64,3 +64,33 @@ helpers and mirror the active Claude Code feed simultaneously:
 - Make sure every physical/simulator display is paired in Home Assistant's
   ESPHome integration and has *Allow the device to perform Home Assistant
   actions* enabled.
+
+## Two-way Claude Channel (Voice Satellite → Claude → Display/TTS)
+
+In addition to global hooks, `claude_ha_bridge.py channel` runs as a Claude Code
+MCP Channel server (`claude/channel`), letting you send prompts from the
+**Voice Satellite** (via Home Assistant Assist) and receive concise replies back
+on the display and speaker.
+
+1. **Register the Channel globally in Claude Code**:
+   ```bash
+   claude mcp add --scope user waveshare-display -- \
+     /usr/bin/python3 /home/maxi/dev/EspHome/Waveshare349/claude_bridge/claude_ha_bridge.py channel
+   ```
+2. **Enable the Channel when launching a CLI session**:
+   ```bash
+   claude --dangerously-load-development-channels server:waveshare-display
+   ```
+3. **Expose the Assist tool**: add `script.send_to_claude` from
+   `ha_assist_tools.yaml` to Home Assistant and expose it under
+   Settings → Voice assistants → Expose.
+4. **Optional TTS readout**: to have `reply_to_device` speak replies to
+   device-initiated turns, add to `~/.config/claude-ha-bridge/config.env`:
+   ```env
+   CLAUDE_TTS_ENTITY=tts.piper
+   CLAUDE_TTS_SPEAKER=media_player.music_assistant_player
+   ```
+
+When multiple Channel sessions are open, incoming prompts route to the most
+recently active Channel session. Global hooks continue handling
+`PermissionRequest` and passive status for all sessions (including Desktop).

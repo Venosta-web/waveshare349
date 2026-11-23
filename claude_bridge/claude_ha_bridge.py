@@ -3,12 +3,14 @@
 
 Subcommands:
   hook        Claude Code hook entry point (reads hook JSON on stdin).
+  channel     Claude Code MCP Channel server (stdio JSON-RPC 2.0 + HA WebSocket).
   statusline  Optional: read Claude Code statusLine JSON on stdin to cache rate_limits.
   setup       Create the input_text helpers in Home Assistant if missing.
   check       Verify the token and that the helpers exist.
   test        Send a fake permission request to the display and print the tap.
 
 Config: ~/.config/claude-ha-bridge/config.env (HA_URL=..., HA_TOKEN=...).
+Optional TTS: CLAUDE_TTS_ENTITY=tts.piper, CLAUDE_TTS_SPEAKER=media_player....
 
 Safety rule: the hook never denies on its own. If the display does not answer
 in time, Home Assistant is unreachable, or anything fails, it prints nothing
@@ -30,6 +32,9 @@ CONFIG_FILE = Path.home() / ".config" / "claude-ha-bridge" / "config.env"
 # Which session's Needs Input is on the display (other sessions must not hide it).
 OWNER_FILE = Path.home() / ".cache" / "claude-ha-bridge" / "needs_input_owner.json"
 RATE_LIMIT_CACHE = Path.home() / ".cache" / "claude-ha-bridge" / "rate_limits.json"
+ACTIVE_CHANNEL_FILE = Path.home() / ".cache" / "claude-ha-bridge" / "active_channel.json"
+CHANNEL_REPLY_FILE = Path.home() / ".cache" / "claude-ha-bridge" / "channel_reply.json"
+CHANNEL_REPLY_TTL = 15
 OWNER_MAX_AGE = 12 * 3600  # forget a Needs Input whose session never came back
 WRAP_UP_TOOL = "mcp__ccd_turn__wrap_up"  # desktop app's end-of-turn box
 EVENT_TYPE = "esphome.claude_command"
@@ -49,7 +54,7 @@ CONNECT_TIMEOUT = 3
 SKIP_TOOLS = {"AskUserQuestion"}
 
 
-def load_config():
+def load_config_all():
     cfg = {}
     try:
         for line in CONFIG_FILE.read_text().splitlines():
@@ -61,10 +66,17 @@ def load_config():
         pass
     url = (os.environ.get("HA_URL") or cfg.get("HA_URL") or "http://homeassistant.local:8123").rstrip("/")
     token = os.environ.get("HA_TOKEN") or cfg.get("HA_TOKEN") or ""
+    tts_entity = os.environ.get("CLAUDE_TTS_ENTITY") or cfg.get("CLAUDE_TTS_ENTITY") or ""
+    tts_speaker = os.environ.get("CLAUDE_TTS_SPEAKER") or cfg.get("CLAUDE_TTS_SPEAKER") or ""
+    return url, token, tts_entity, tts_speaker
+
+
+def load_config():
+    url, token, _, _ = load_config_all()
     return url, token
 
 
-HA_URL, HA_TOKEN = load_config()
+HA_URL, HA_TOKEN, CLAUDE_TTS_ENTITY, CLAUDE_TTS_SPEAKER = load_config_all()
 HA_WS = re.sub(r"^http", "ws", HA_URL) + "/api/websocket"
 
 
@@ -86,6 +98,27 @@ def rest_set(entity_id, value, limit):
     )
     try:
         urllib.request.urlopen(req, timeout=2).read()
+        return True
+    except Exception:
+        return False
+
+
+def rest_tts_speak(message):
+    """Best-effort TTS readout on the configured Home Assistant speaker."""
+    if not (HA_TOKEN and CLAUDE_TTS_ENTITY and CLAUDE_TTS_SPEAKER and message):
+        return False
+    req = urllib.request.Request(
+        f"{HA_URL}/api/services/tts/speak",
+        data=json.dumps({
+            "entity_id": CLAUDE_TTS_ENTITY,
+            "media_player_entity_id": CLAUDE_TTS_SPEAKER,
+            "message": ascii_clip(message, 255),
+        }).encode(),
+        headers={"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=3).read()
         return True
     except Exception:
         return False
@@ -118,24 +151,52 @@ def request_pending():
 
 # ---------------------------------------------------------------- Needs Input owner
 
-def load_owner():
+def _write_json_atomic(path, payload):
     try:
-        owner = json.loads(OWNER_FILE.read_text())
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(f".{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(payload))
+        tmp.replace(path)
+    except OSError:
+        pass
+
+
+def _read_json(path):
+    try:
+        return json.loads(path.read_text())
     except (OSError, ValueError):
         return None
-    if time.time() - owner.get("at", 0) > OWNER_MAX_AGE:
+
+
+def _pid_alive(pid):
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def recent_channel_reply(project):
+    """True when reply_to_device recently posted a reply for this project."""
+    data = _read_json(CHANNEL_REPLY_FILE)
+    if not data:
+        return False
+    if time.time() - data.get("at", 0) > CHANNEL_REPLY_TTL:
+        return False
+    return data.get("project") == project
+
+
+def load_owner():
+    owner = _read_json(OWNER_FILE)
+    if not owner or time.time() - owner.get("at", 0) > OWNER_MAX_AGE:
         return None
     return owner
 
 
 def save_owner(session, status, detail):
-    try:
-        OWNER_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tmp = OWNER_FILE.with_suffix(f".{os.getpid()}.tmp")
-        tmp.write_text(json.dumps({"session": session, "status": status, "detail": detail, "at": time.time()}))
-        tmp.replace(OWNER_FILE)
-    except OSError:
-        pass
+    _write_json_atomic(OWNER_FILE, {"session": session, "status": status, "detail": detail, "at": time.time()})
 
 
 def clear_owner():
@@ -798,6 +859,11 @@ def run_hook():
         waiting_on = ask or guess_waiting_on(combined)
         if waiting_on:
             show(session, "Needs Input", f"{project} | {waiting_on}", needs_input=True, steps=steps)
+        elif recent_channel_reply(project):
+            # reply_to_device already wrote the turn's concise summary to the display.
+            owner = load_owner()
+            if not request_pending() and not (owner and owner.get("session") != session):
+                set_display(steps=steps)
         else:
             show(session, "Done", f"{project} | Finished. Waiting for the next prompt.", steps=steps)
     elif event == "StopFailure":
@@ -827,6 +893,249 @@ def run_hook():
             # Don't replace this session's own, more specific question.
             show(session, "Needs Input", f"{project} | {msg or 'Claude is waiting for you'}",
                  needs_input=True)
+
+
+# ---------------------------------------------------------------- MCP Channel server
+
+CHANNEL_SERVER_NAME = "waveshare-display"
+CHANNEL_INSTRUCTIONS = (
+    f'Messages from the Waveshare 3.49 display / Voice Satellite arrive as '
+    f'<channel source="{CHANNEL_SERVER_NAME}" ...>. '
+    f'When replying to a device-originated message (or when asked to notify the display), '
+    f'call reply_to_device with a concise <=255 char ASCII summary.'
+)
+CHANNEL_TOOLS = [
+    {
+        "name": "reply_to_device",
+        "description": (
+            "Send a concise reply (<=255 ASCII chars) to the Waveshare 3.49 display "
+            "and optionally speak it via the Voice Satellite."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Concise summary to show on the display (max 255 chars).",
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["Done", "Needs Input", "Working"],
+                    "description": "Display card status (default: Done).",
+                },
+                "speak": {
+                    "type": "boolean",
+                    "description": "Speak via Voice Satellite TTS (defaults to true for device-initiated turns).",
+                },
+            },
+            "required": ["message"],
+        },
+    }
+]
+CHANNEL_PROMPT_ACTIONS = {"prompt", "reply", "answer"}
+
+
+class ClaudeChannelServer:
+    """MCP Channel server (claude/channel) bridging HA Voice Satellite <-> Claude Code."""
+
+    def __init__(self, project=None, emit_fn=None):
+        self.channel_id = uuid.uuid4().hex[:12]
+        self.project = project or Path(os.getcwd()).name
+        self.pid = os.getpid()
+        self.emit_fn = emit_fn or self._stdout_emit
+        self.device_initiated = False
+
+    @staticmethod
+    def _stdout_emit(payload):
+        sys.stdout.write(json.dumps(payload) + "\n")
+        sys.stdout.flush()
+
+    def claim_active(self):
+        _write_json_atomic(
+            ACTIVE_CHANNEL_FILE,
+            {"channel_id": self.channel_id, "project": self.project, "pid": self.pid, "at": time.time()},
+        )
+
+    def is_active(self):
+        data = _read_json(ACTIVE_CHANNEL_FILE)
+        if not data:
+            self.claim_active()
+            return True
+        if data.get("channel_id") == self.channel_id:
+            return True
+        if not _pid_alive(data.get("pid")):
+            self.claim_active()
+            return True
+        return False
+
+    def release_active(self):
+        data = _read_json(ACTIVE_CHANNEL_FILE)
+        if data and data.get("channel_id") == self.channel_id:
+            try:
+                ACTIVE_CHANNEL_FILE.unlink()
+            except OSError:
+                pass
+
+    def handle_ha_event(self, data):
+        """Process an esphome.claude_command event; returns True if pushed to Claude."""
+        action = str((data or {}).get("action", "")).lower()
+        if action not in CHANNEL_PROMPT_ACTIONS:
+            return False
+        text = str(data.get("text") or data.get("prompt") or data.get("message") or "").strip()
+        if not text or not self.is_active():
+            return False
+        self.device_initiated = True
+        if not request_pending():
+            clear_owner()
+            set_display("Working", f"{self.project} | {text}")
+        self.emit_fn({
+            "jsonrpc": "2.0",
+            "method": "notifications/claude/channel",
+            "params": {
+                "content": text,
+                "meta": {
+                    "source": CHANNEL_SERVER_NAME,
+                    "action": action,
+                    "project": self.project,
+                },
+            },
+        })
+        return True
+
+    def _call_reply_to_device(self, args):
+        message = str((args or {}).get("message") or "").strip()
+        if not message:
+            return {"content": [{"type": "text", "text": "Error: message is required."}], "isError": True}
+        status = args.get("status") or "Done"
+        if status not in ("Done", "Needs Input", "Working"):
+            status = "Done"
+        speak = args.get("speak")
+        should_speak = self.device_initiated if speak is None else bool(speak)
+        self.device_initiated = False
+        self.claim_active()
+
+        detail = f"{self.project} | {message}"
+        if status == "Needs Input":
+            save_owner(f"channel:{self.channel_id}", status, detail)
+        else:
+            clear_owner()
+        _write_json_atomic(
+            CHANNEL_REPLY_FILE,
+            {"project": self.project, "status": status, "detail": detail, "at": time.time()},
+        )
+        if not request_pending():
+            set_display(status, detail)
+        spoken = rest_tts_speak(message) if should_speak else False
+        note = "Sent to display" + (" and spoken via TTS." if spoken else ".")
+        return {"content": [{"type": "text", "text": note}]}
+
+    def handle_rpc(self, msg):
+        """Handle one JSON-RPC 2.0 request/notification; returns response dict or None."""
+        if not isinstance(msg, dict):
+            return None
+        method = msg.get("method", "")
+        msg_id = msg.get("id")
+        params = msg.get("params") or {}
+
+        if method == "initialize":
+            proto = params.get("protocolVersion") or "2024-11-05"
+            self.claim_active()
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "protocolVersion": proto,
+                    "capabilities": {
+                        "experimental": {"claude/channel": {}},
+                        "tools": {},
+                    },
+                    "serverInfo": {"name": CHANNEL_SERVER_NAME, "version": "1.0.0"},
+                    "instructions": CHANNEL_INSTRUCTIONS,
+                },
+            }
+        if method == "ping" and msg_id is not None:
+            return {"jsonrpc": "2.0", "id": msg_id, "result": {}}
+        if method == "tools/list" and msg_id is not None:
+            return {"jsonrpc": "2.0", "id": msg_id, "result": {"tools": CHANNEL_TOOLS}}
+        if method == "tools/call" and msg_id is not None:
+            name = params.get("name")
+            if name == "reply_to_device":
+                result = self._call_reply_to_device(params.get("arguments") or {})
+                return {"jsonrpc": "2.0", "id": msg_id, "result": result}
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32601, "message": f"Unknown tool: {name}"},
+            }
+        if msg_id is not None:
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32601, "message": f"Method not found: {method}"},
+            }
+        return None
+
+
+async def _channel_ha_loop(server):
+    """Maintain an HA WebSocket subscription and forward device prompts to Claude."""
+    backoff = 1
+    while True:
+        client = None
+        try:
+            client = await HAWebSocket.open()
+            await client.call({"type": "subscribe_events", "event_type": EVENT_TYPE})
+            backoff = 1
+            while True:
+                msg = await client.next_event(timeout=300)
+                data = msg.get("event", {}).get("data", {})
+                server.handle_ha_event(data)
+        except asyncio.CancelledError:
+            raise
+        except asyncio.TimeoutError:
+            backoff = 1
+        except Exception:
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 30)
+        finally:
+            if client is not None:
+                try:
+                    await client.close()
+                except Exception:
+                    pass
+
+
+async def _run_channel_async():
+    server = ClaudeChannelServer()
+    server.claim_active()
+    ha_task = asyncio.create_task(_channel_ha_loop(server)) if HA_TOKEN else None
+    loop = asyncio.get_running_loop()
+    try:
+        while True:
+            line = await loop.run_in_executor(None, sys.stdin.readline)
+            if not line:
+                break
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+            except ValueError:
+                continue
+            resp = server.handle_rpc(msg)
+            if resp is not None:
+                server.emit_fn(resp)
+    finally:
+        if ha_task is not None:
+            ha_task.cancel()
+            try:
+                await ha_task
+            except (asyncio.CancelledError, Exception):
+                pass
+        server.release_active()
+
+
+def run_channel():
+    asyncio.run(_run_channel_async())
 
 
 # ---------------------------------------------------------------- setup / check / test
@@ -891,6 +1200,8 @@ def main():
             run_hook()
         except BaseException:
             pass  # a hook must never break Claude Code
+    elif cmd == "channel":
+        run_channel()
     elif cmd == "statusline":
         try:
             run_statusline()

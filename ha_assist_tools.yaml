@@ -16,6 +16,7 @@
 #   - media_player.music_assistant_player       (or your configured media_player for tts.speak)
 #   - script.open_music_view_and_play
 #   - script.switch_display_view
+#   - script.send_to_claude
 #
 # Dual Output (Display Text + Speakers):
 #   In `mod_voice.yaml`, `on_tts_start` displays the answer on the scrollable
@@ -59,3 +60,18 @@ script:
       - service: media_player.media_play
         target:
           entity_id: media_player.music_assistant_player
+
+  send_to_claude:
+    alias: "Send Prompt to Claude Code"
+    description: "Send a voice prompt, question, or answer to the active Claude Code Channel session."
+    fields:
+      prompt:
+        description: "The prompt, instruction, or answer to send to Claude Code"
+        required: true
+        selector:
+          text:
+    sequence:
+      - event: esphome.claude_command
+        event_data:
+          action: prompt
+          text: "{{ prompt }}"
