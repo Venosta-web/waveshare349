@@ -11,6 +11,7 @@ esphome:
   on_boot:
     - priority: -144
       then:
+        - lambda: "id(has_claude_module) = true;"
         - lambda: "lv_obj_set_parent(id(nav_ai), id(nav_rail));"
     - priority: -154
       then:

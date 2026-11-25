@@ -87,8 +87,9 @@ export function generateEsphomeYaml(state) {
 
   if (has('idle')) {
     lines.push('');
-    lines.push('  # Idle / Lock Clock Screen');
-    lines.push('  idle_variant: "aurora"');
+    lines.push('  # Lock Screen');
+    const idleVariant = state.deviceId === 'waveshare-349' ? state.idleVariant || 'aurora' : 'aurora';
+    lines.push(`  idle_variant: ${quoteYaml(idleVariant)}`);
     lines.push(`  idle_timeout: ${quoteYaml(state.idleTimeout || 300)}`);
   }
 

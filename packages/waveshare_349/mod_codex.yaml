@@ -11,6 +11,7 @@ esphome:
   on_boot:
     - priority: -146
       then:
+        - lambda: "id(has_codex_module) = true;"
         - lambda: "lv_obj_set_parent(id(nav_codex), id(nav_rail));"
     - priority: -156
       then:

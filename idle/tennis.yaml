@@ -1,0 +1,92 @@
+# Lock Screen Variant "Tennis" — fonts, clock/badge updates and the rally tick
+# for idle/tennis_card.yaml. Waveshare 3.49 only (640 x 172).
+
+esphome:
+  includes:
+    - ../claude/clawd.h
+    - ../codex/codex_pet.h
+    - tennis_court.h
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 800
+    id: tennis_time_52
+    size: 52
+    bpp: 4
+    glyphs: "0123456789:-"
+
+  - file: "../fonts/DejaVuSansMono-Bold.ttf"
+    id: tennis_meta_12
+    size: 12
+    bpp: 4
+    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-/%"
+
+  - file: "../fonts/materialdesignicons-webfont.ttf"
+    id: tennis_icons_20
+    size: 20
+    bpp: 4
+    glyphs:
+      - "\U000F05AA" # wifi-off
+
+script:
+  - id: update_idle_ui
+    mode: queued
+    then:
+      - lambda: |-
+          char buf[16];
+          if (id(idle_time_valid)) {
+            snprintf(buf, sizeof(buf), "%02d:%02d", id(idle_hour), id(idle_minute));
+            lv_label_set_text(id(tennis_time_lbl), buf);
+            lv_label_set_text(id(tennis_date_lbl), id(idle_date_str).c_str());
+          } else {
+            lv_label_set_text(id(tennis_time_lbl), "--:--");
+            lv_label_set_text(id(tennis_date_lbl), "SYNCING TIME");
+          }
+
+          // Battery badge
+          int bat = id(idle_battery_pct);
+          if (bat < 0) {
+            lv_label_set_text(id(tennis_bat_icon), "\U000F0091");
+            lv_obj_set_style_text_color(id(tennis_bat_icon), lv_color_hex(0x64748B), 0);
+            lv_label_set_text(id(tennis_bat_pct), "--%");
+          } else {
+            if (bat > 100) bat = 100;
+            uint32_t bc = bat >= 50 ? 0x10B981 : (bat >= 20 ? 0xF59E0B : 0xFF5252);
+            const char* bi = id(idle_battery_charging) ? "\U000F0084"
+                           : bat >= 90 ? "\U000F0079"
+                           : bat >= 65 ? "\U000F0081"
+                           : bat >= 40 ? "\U000F007E"
+                           : bat >= 15 ? "\U000F007B"
+                           : "\U000F0083";
+            lv_label_set_text(id(tennis_bat_icon), bi);
+            lv_obj_set_style_text_color(id(tennis_bat_icon), lv_color_hex(bc), 0);
+            snprintf(buf, sizeof(buf), "%d%%", bat);
+            lv_label_set_text(id(tennis_bat_pct), buf);
+          }
+
+          // Wi-Fi badge: 4 bars, or a dimmed wifi-off glyph when disconnected
+          lv_obj_t* bars[] = { id(tennis_bar_1), id(tennis_bar_2), id(tennis_bar_3), id(tennis_bar_4) };
+          if (id(idle_wifi_connected)) {
+            int rssi = id(idle_wifi_rssi);
+            int level = rssi >= -55 ? 4 : (rssi >= -67 ? 3 : (rssi >= -78 ? 2 : 1));
+            uint32_t wc = level >= 3 ? 0x38BDF8 : (level == 2 ? 0xF59E0B : 0xFF5252);
+            for (int i = 0; i < 4; i++) {
+              lv_obj_set_style_bg_color(bars[i], lv_color_hex(i < level ? wc : 0x1E293B), 0);
+            }
+            lv_obj_clear_flag(id(tennis_wifi_bars), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(tennis_wifi_off), LV_OBJ_FLAG_HIDDEN);
+          } else {
+            lv_obj_add_flag(id(tennis_wifi_bars), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(tennis_wifi_off), LV_OBJ_FLAG_HIDDEN);
+          }
+
+interval:
+  # Rally animation: runs only while the Lock Screen is shown.
+  - interval: 50ms
+    then:
+      - lambda: |-
+          if (!id(screen_locked)) return;
+          if (tennis::g.court == nullptr) tennis::build(id(tennis_court), id(has_claude_module), id(has_codex_module));
+          tennis::tick();

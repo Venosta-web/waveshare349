@@ -60,6 +60,25 @@ _Avoid_: voice backend, AI pipeline
 A top-level LVGL screen selectable by touch or an exposed Home Assistant entity (such as `Growspace` or `Music`).
 _Avoid_: tab, mode, screen
 
+**Lock Screen**:
+The full-screen clock overlay, with battery and Wi-Fi status, shown after inactivity or when the lock button is tapped; a tap dismisses it. It sits on top of whichever **Display View** is active and is not itself a Display View.
+_Avoid_: Idle screen, idle clock
+
+**Lock Screen Variant**:
+One selectable design of the **Lock Screen** (such as `Aurora` or `Tennis`). Every variant shows the clock, battery and Wi-Fi.
+_Avoid_: Idle variant, style, theme
+
+**Clawd**:
+The Claude Code mascot as drawn on the display, in AI card scenes and in the `Tennis` **Lock Screen Variant**.
+_Avoid_: Claude mascot, pet
+
+**Byte**:
+The Codex mascot as drawn on the display, in Codex card scenes and in the `Tennis` **Lock Screen Variant**.
+_Avoid_: Codex mascot, robot
+
+**Matchup**:
+The pair of mascots playing in the `Tennis` **Lock Screen Variant**, set by which AI **Feature Modules** are in the build: Claude only (or neither) is **Clawd** vs **Clawd**, Codex only is **Byte** vs **Byte**, and both is **Clawd** vs **Byte**.
+
 **Feature Module**:
 An optional, selectable capability in a device build (such as `Growspace`, `Music`, `Claude`, `Codex`, or `Voice Satellite`) that contributes a Display View, a hardware/pipeline capability, or both.
 _Avoid_: plugin, addon

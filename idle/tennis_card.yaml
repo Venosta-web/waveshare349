@@ -1,0 +1,151 @@
+# Lock Screen Variant "Tennis": Clawd vs Clawd rally on a side-view court,
+# hero clock and date centred above, battery badge top-left, Wi-Fi badge top-right.
+# The court, players and ball are built in C++ by idle/tennis_court.h.
+id: idle_lock_overlay
+width: 640
+height: 172
+align: TOP_LEFT
+x: 0
+y: 0
+bg_color: 0x060A12
+bg_opa: COVER
+border_width: 0
+radius: 0
+pad_all: 0
+scrollbar_mode: "off"
+hidden: true
+clickable: true
+on_click:
+  then:
+    - script.execute: unlock_idle_screen
+widgets:
+  # ── COURT (filled by tennis::build) ───────────────────────────────────────
+  - obj:
+      id: tennis_court
+      width: 640
+      height: 172
+      align: TOP_LEFT
+      x: 0
+      y: 0
+      bg_opa: TRANSP
+      border_width: 0
+      radius: 0
+      pad_all: 0
+      clickable: false
+      scrollbar_mode: "off"
+
+  # ── HERO CLOCK & DATE ─────────────────────────────────────────────────────
+  - label:
+      id: tennis_time_lbl
+      text: "--:--"
+      text_font: tennis_time_52
+      text_color: 0xF8FAFC
+      width: 240
+      text_align: CENTER
+      align: TOP_MID
+      x: 0
+      y: 4
+
+  - label:
+      id: tennis_date_lbl
+      text: "SYNCING TIME"
+      text_font: tennis_meta_12
+      text_color: 0x2DD4BF
+      width: 240
+      text_align: CENTER
+      align: TOP_MID
+      x: 0
+      y: 64
+
+  # ── TOP-LEFT: BATTERY BADGE ───────────────────────────────────────────────
+  - label:
+      id: tennis_bat_icon
+      text: "\U000F0091"
+      text_font: icons_20
+      text_color: 0x64748B
+      align: TOP_LEFT
+      x: 14
+      y: 12
+
+  - label:
+      id: tennis_bat_pct
+      text: "--%"
+      text_font: font_14
+      text_color: 0xCBD5E1
+      align: TOP_LEFT
+      x: 38
+      y: 15
+
+  # ── TOP-RIGHT: WI-FI BADGE ────────────────────────────────────────────────
+  - obj:
+      id: tennis_wifi_bars
+      width: 30
+      height: 20
+      align: TOP_RIGHT
+      x: -16
+      y: 12
+      bg_opa: TRANSP
+      border_width: 0
+      radius: 0
+      pad_all: 0
+      clickable: false
+      scrollbar_mode: "off"
+      widgets:
+        - obj:
+            id: tennis_bar_1
+            width: 5
+            height: 6
+            align: BOTTOM_LEFT
+            x: 0
+            y: 0
+            bg_color: 0x1E293B
+            bg_opa: COVER
+            border_width: 0
+            radius: 1
+            clickable: false
+        - obj:
+            id: tennis_bar_2
+            width: 5
+            height: 10
+            align: BOTTOM_LEFT
+            x: 8
+            y: 0
+            bg_color: 0x1E293B
+            bg_opa: COVER
+            border_width: 0
+            radius: 1
+            clickable: false
+        - obj:
+            id: tennis_bar_3
+            width: 5
+            height: 15
+            align: BOTTOM_LEFT
+            x: 16
+            y: 0
+            bg_color: 0x1E293B
+            bg_opa: COVER
+            border_width: 0
+            radius: 1
+            clickable: false
+        - obj:
+            id: tennis_bar_4
+            width: 5
+            height: 20
+            align: BOTTOM_LEFT
+            x: 24
+            y: 0
+            bg_color: 0x1E293B
+            bg_opa: COVER
+            border_width: 0
+            radius: 1
+            clickable: false
+
+  - label:
+      id: tennis_wifi_off
+      text: "\U000F05AA"
+      text_font: tennis_icons_20
+      text_color: 0x475569
+      align: TOP_RIGHT
+      x: -18
+      y: 12
+      hidden: true
