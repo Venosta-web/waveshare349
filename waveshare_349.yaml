@@ -100,7 +100,8 @@ substitutions:
 
   # Idle / Lock Clock Screen
   idle_variant: "aurora"
-  # Waveshare 3.49 battery voltage divider ratio on GPIO4 (typically 3.0 or 2.0)
+  # Waveshare 3.49 battery voltage divider ratio on GPIO4 (typically 3.0 or 2.0;
+  # default lives in packages/waveshare_349/board.yaml)
   battery_divider: "3.0"
 
   # Claude Code card: "terminal" (CLI status line, default), "stage" (mascot-forward), or "fishing" / "mining" / "pingpong" / "campfire"
@@ -127,66 +128,3 @@ packages:
   mod_idle: !include packages/waveshare_349/mod_idle.yaml
   mod_settings: !include packages/waveshare_349/mod_settings.yaml
 
-wifi:
-  on_connect:
-    - lambda: "id(idle_wifi_connected) = true;"
-    - if:
-        condition:
-          lambda: "return id(screen_locked);"
-        then:
-          - script.execute: update_idle_ui
-  on_disconnect:
-    - lambda: "id(idle_wifi_connected) = false;"
-    - if:
-        condition:
-          lambda: "return id(screen_locked);"
-        then:
-          - script.execute: update_idle_ui
-
-sensor:
-  - platform: adc
-    pin: GPIO4
-    id: battery_voltage
-    name: "Battery Voltage"
-    attenuation: 12db
-    update_interval: 30s
-    filters:
-      - multiply: ${battery_divider}
-    on_value:
-      - lambda: |-
-          float pct = ((x - 3.20f) / (4.20f - 3.20f)) * 100.0f;
-          if (pct < 0.0f) pct = 0.0f;
-          if (pct > 100.0f) pct = 100.0f;
-          id(idle_battery_pct) = (int)roundf(pct);
-      - if:
-          condition:
-            lambda: "return id(screen_locked);"
-          then:
-            - script.execute: update_idle_ui
-
-  - platform: wifi_signal
-    id: wifi_rssi_sensor
-    name: "WiFi Signal"
-    update_interval: 15s
-    on_value:
-      - lambda: |-
-          id(idle_wifi_rssi) = (int)roundf(x);
-          id(idle_wifi_connected) = true;
-      - if:
-          condition:
-            lambda: "return id(screen_locked);"
-          then:
-            - script.execute: update_idle_ui
-
-text_sensor:
-  - platform: wifi_info
-    ssid:
-      id: wifi_ssid_sensor
-      name: "WiFi SSID"
-      on_value:
-        - lambda: "id(idle_wifi_ssid) = x;"
-        - if:
-            condition:
-              lambda: "return id(screen_locked);"
-            then:
-              - script.execute: update_idle_ui

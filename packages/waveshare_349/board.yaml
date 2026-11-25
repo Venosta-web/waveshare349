@@ -1,5 +1,9 @@
 # Hardware base for Waveshare ESP32-S3-Touch-LCD-3.49 (172x640 rotated 90°).
 
+substitutions:
+  # Battery voltage divider ratio on GPIO4 (typically 3.0 or 2.0)
+  battery_divider: "3.0"
+
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
@@ -23,6 +27,49 @@ logger:
   level: INFO
 
 api:
+
+# ── Device status: battery, Wi-Fi signal & SSID ─────────────────────────────
+# Feeds the idle_battery_* / idle_wifi_* globals (core_ui.yaml) that the lock
+# screen and Settings pane render. Lives here so every hardware config — the
+# top-level file, every preset and wizard output — gets it; the host simulator
+# skips board.yaml and fakes these values itself.
+sensor:
+  - platform: adc
+    pin: GPIO4
+    id: battery_voltage
+    name: "Battery Voltage"
+    attenuation: 12db
+    update_interval: 30s
+    filters:
+      - multiply: ${battery_divider}
+    on_value:
+      - lambda: |-
+          float pct = ((x - 3.20f) / (4.20f - 3.20f)) * 100.0f;
+          if (pct < 0.0f) pct = 0.0f;
+          if (pct > 100.0f) pct = 100.0f;
+          id(idle_battery_pct) = (int)roundf(pct);
+
+  - platform: wifi_signal
+    id: wifi_rssi_sensor
+    name: "WiFi Signal"
+    update_interval: 15s
+    on_value:
+      - lambda: |-
+          if (!std::isnan(x)) id(idle_wifi_rssi) = (int)roundf(x);
+
+text_sensor:
+  - platform: wifi_info
+    ssid:
+      id: wifi_ssid_sensor
+      name: "WiFi SSID"
+      on_value:
+        - lambda: "id(idle_wifi_ssid) = x;"
+
+interval:
+  - interval: 2s
+    then:
+      - lambda: |-
+          id(idle_wifi_connected) = wifi::global_wifi_component->is_connected();
 
 ota:
   - platform: esphome
