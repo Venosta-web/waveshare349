@@ -55,11 +55,15 @@ Select `fishing`, `mining`, `pingpong`, or `campfire` (or `terminal_fishing`, `t
 
 ![Codex Stage Working](docs/images/codex-stage-working.gif)
 
-### 5. Idle / Lock Clock Screen (`idle_variant: aurora`)
+### 5. Lock Screen (`idle_variant: aurora` | `tennis`)
 - Automatically engages after `idle_timeout` (default `300s`) or when tapping the lock button in the nav rail, and automatically unlocks on incoming Claude/Codex activity.
 - Displays battery arc & percentage, live clock and date, Wi-Fi signal strength & SSID, and tap-to-unlock ([`idle/aurora.yaml`](idle/aurora.yaml)).
 
 ![Idle Aurora Lock Clock](docs/images/idle-aurora.gif)
+
+- **Tennis** (Waveshare 3.49 only): two mascots rally on a side-view court under a large clock and date, with compact battery and Wi-Fi badges in the top corners ([`idle/tennis.yaml`](idle/tennis.yaml), [`idle/tennis_court.h`](idle/tennis_court.h)). The matchup follows the AI modules in your build: Claude only (or neither) plays Clawd vs Clawd, Codex only plays Byte vs Byte, and both plays Clawd vs Byte.
+
+![Tennis Lock Screen](docs/images/idle-tennis.gif)
 
 ### 6. Voice Satellite & Local Assist Pipeline
 - **On-device wake word & audio** ([`waveshare_349.yaml`](waveshare_349.yaml)): `micro_wake_word` (`okay_nabu`), ES8311 I2S audio codec, noise suppression, auto-gain, push-to-talk (`on_voice_ptt`), and a `Mute Microphone` switch (`mic_mute_switch`).
@@ -124,7 +128,7 @@ Use the hosted **[Setup & Build Wizard](https://venosta-web.github.io/waveshare3
    | **Claude Code** (`claude`) | Display View | Live agent status, step tracker, rate-limit countdown, and touch Approve/Reject for Permission Requests |
    | **Codex** (`codex`) | Display View | OpenAI Codex status, step tracker, and touch Approve/Reject for Permission Requests |
    | **Voice Satellite** (`voice`) | Assist Pipeline | On-device `Okay Nabu` wake word, ES8311 I2S audio, push-to-talk, and voice overlay *(Waveshare 3.49" only)* |
-   | **Idle Lock Screen** (`idle`) | Lock Overlay | `Aurora` ambient clock and status overlay with configurable inactivity timeout and manual lock |
+   | **Idle Lock Screen** (`idle`) | Lock Overlay | `Aurora` or `Tennis` clock and status overlay with configurable inactivity timeout and manual lock |
    | **Labyrinth** (`labyrinth`) | Display View | Tilt-controlled marble maze *(Waveshare 3.49" only)* |
    | **Device Settings** (`settings`) | Display View | On-device Display (brightness, lock timeout), Growspace (auto-cycle, speed), and System (telemetry, safe restart) menu |
 
@@ -221,7 +225,7 @@ Key `substitutions` shared across [`waveshare_349.yaml`](waveshare_349.yaml) and
 | `cycle_interval` | `"15"` | Seconds between automatic growspace rotations |
 | `pause_timeout` | `"25"` | Seconds to pause auto-cycle after manual interaction |
 | `idle_timeout` | `"300"` | Seconds before locking to the idle clock screen |
-| `idle_variant` | `"aurora"` | Idle clock layout: `"aurora"` |
+| `idle_variant` | `"aurora"` | Lock Screen Variant: `"aurora"` or `"tennis"` (Waveshare 3.49 only) |
 | `vpd_gauge_min` / `vpd_gauge_max` | `"0.4"` / `"1.8"` | VPD gauge scale bounds (kPa) |
 | `music_variant` | `"studio"` | Music card layout: `"studio"` or `"deck"` |
 | `music_player_entity` | `"media_player.music_assistant_player"` / `"sensor.music_assistant_bridge"` | Home Assistant media player or Music Bridge entity ID |
@@ -253,6 +257,7 @@ ESPHOME_SNAPSHOT_DIR=out esphome -s codex_variant stage run codex_preview.yaml
 
 # Idle lock clock preview (outputs to out/)
 ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml
+ESPHOME_SNAPSHOT_DIR=out esphome -s idle_variant tennis run idle_preview.yaml
 ```
 
 ---
@@ -283,7 +288,7 @@ ESPHOME_SNAPSHOT_DIR=out esphome run idle_preview.yaml
 ├── codex/                      # Byte mascot header & Codex card variants
 ├── codex_bridge/               # Codex <-> Home Assistant hook bridge & tests
 ├── music/                      # Music Assistant card variants (studio, deck)
-├── idle/                       # Idle lock clock variants (aurora)
+├── idle/                       # Lock Screen Variants (aurora, tennis)
 ├── fonts/                      # Bundled DejaVu & Material Design Icons fonts
 ├── docs/
 │   ├── adr/                    # Architecture Decision Records

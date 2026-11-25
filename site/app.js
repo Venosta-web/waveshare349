@@ -31,6 +31,7 @@ const state = {
   cycleInterval: 15,
   pauseTimeout: 25,
   idleTimeout: 300,
+  idleVariant: 'aurora',
   growspaces: DEFAULT_GROWSPACES.map((g) => ({ ...g })),
   musicVariant: 'studio',
   musicPlayerEntity: 'sensor.music_assistant_bridge',
@@ -85,6 +86,7 @@ function findMatchingPreset() {
   if (defaults.musicVariant && state.musicVariant !== defaults.musicVariant) return null;
   if (defaults.claudeVariant && state.claudeVariant !== defaults.claudeVariant) return null;
   if (defaults.codexVariant && state.codexVariant !== defaults.codexVariant) return null;
+  if (state.idleVariant !== (defaults.idleVariant || 'aurora')) return null;
   return preset;
 }
 
@@ -102,6 +104,7 @@ function selectDevice(deviceId) {
   }
   if (dev.id === 'prototype-480x320') {
     state.claudeVariant = 'terminal';
+    state.idleVariant = 'aurora'; // Tennis is Waveshare 3.49 only
     state.musicPlayerEntity = 'sensor.music_assistant_bridge';
   } else {
     state.claudeVariant = 'terminal';
@@ -132,6 +135,7 @@ function applyPreset(preset) {
   if (preset.defaults.musicVariant) state.musicVariant = preset.defaults.musicVariant;
   if (preset.defaults.claudeVariant) state.claudeVariant = preset.defaults.claudeVariant;
   if (preset.defaults.codexVariant) state.codexVariant = preset.defaults.codexVariant;
+  state.idleVariant = preset.defaults.idleVariant || 'aurora';
   renderAll();
 }
 
@@ -342,6 +346,17 @@ function renderModuleOptions() {
             : ''
         }
         ${
+          has('idle') && state.deviceId === 'waveshare-349'
+            ? `<label class="field">
+                <span>Lock Screen Variant</span>
+                <select id="opt-idle-variant">
+                  <option value="aurora" ${state.idleVariant === 'aurora' ? 'selected' : ''}>Aurora (Battery Arc + Wi-Fi Card)</option>
+                  <option value="tennis" ${state.idleVariant === 'tennis' ? 'selected' : ''}>Tennis (Clawd vs Clawd Rally)</option>
+                </select>
+              </label>`
+            : ''
+        }
+        ${
           state.deviceId === 'prototype-480x320'
             ? `<label class="field">
                 <span>Battery Sensor Entity (HA)</span>
@@ -356,6 +371,13 @@ function renderModuleOptions() {
     if (idleInput) {
       idleInput.addEventListener('input', (e) => {
         state.idleTimeout = Math.max(30, Number(e.target.value) || 300);
+        renderOutputAndSummary();
+      });
+    }
+    const idleVariantSel = panel.querySelector('#opt-idle-variant');
+    if (idleVariantSel) {
+      idleVariantSel.addEventListener('change', (e) => {
+        state.idleVariant = e.target.value;
         renderOutputAndSummary();
       });
     }
