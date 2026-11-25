@@ -64,6 +64,16 @@ touchscreen:
     id: my_touchscreen
     i2c_id: touch_i2c
     display: my_display
+    # The AXS15231B touch firmware on this board reports coordinates in the
+    # landscape frame (raw X along the 640px axis, raw Y along the 172px axis),
+    # while the display's native frame is 172x640 portrait. Map raw touches
+    # back into the native portrait frame here; LVGL's `rotation: 90` then
+    # rotates them together with the picture. Without this, raw X clamps at
+    # 172 and LVGL reports y:0 for almost every touch.
+    transform:
+      swap_xy: true
+      mirror_x: false
+      mirror_y: true
 
 i2s_audio:
   - id: i2s_audio_bus
