@@ -5,15 +5,44 @@ substitutions:
   voice_tts_speaker: "media_player.music_assistant_player"
   voice_output_mode: "Onboard + HA Speakers"
   voice_answer_hold: "10s"
+  voice_error_hold: "8s"
+  # Cloud fallback: when the pipeline fails in its provider (e.g. Gemini STT
+  # 503 "high demand" / 429 quota), switch this satellite's Assist pipeline
+  # select to a local pipeline, re-open the mic once, and switch back after
+  # voice_fallback_hold. Leave voice_fallback_pipeline empty to disable.
+  # voice_pipeline_select is the "Assistant" select HA's ESPHome integration
+  # creates for this device (check its entity_id in HA, it is language-dependent).
+  voice_pipeline_select: "select.waveshare_349_voice_assistant"
+  voice_fallback_pipeline: ""
+  voice_fallback_hold: "15min"
 
 globals:
   - id: voice_has_answer
     type: bool
     initial_value: "false"
+  - id: voice_error_shown
+    type: bool
+    initial_value: "false"
+  # Set once a fallback retry fired for the current user request, so a failing
+  # local pipeline can't loop.
+  - id: voice_fallback_retried
+    type: bool
+    initial_value: "false"
+  # Pipeline option that was selected before falling back (restored later).
+  - id: voice_primary_pipeline
+    type: std::string
+    initial_value: '""'
+
+text_sensor:
+  - platform: homeassistant
+    id: voice_current_pipeline
+    entity_id: "${voice_pipeline_select}"
+    internal: true
 
 esphome:
   includes:
     - ../../voice/voice_icon.h
+    - ../../voice/voice_errors.h
   on_boot:
     - priority: -148
       then:
@@ -46,6 +75,7 @@ micro_wake_word:
           lambda: "return !id(voice_muted);"
         then:
           - script.execute: unlock_idle_screen
+          - lambda: "id(voice_fallback_retried) = false;"
           - voice_assistant.start:
 
 voice_assistant:
@@ -56,7 +86,9 @@ voice_assistant:
   auto_gain: 31dBFS
   volume_multiplier: 2.0
   on_listening:
-    - lambda: "id(voice_active) = true;"
+    - lambda: |-
+        id(voice_active) = true;
+        id(voice_error_shown) = false;
     - script.stop: voice_overlay_auto_hide
     - script.execute: unlock_idle_screen
     - lambda: |-
@@ -136,32 +168,90 @@ voice_assistant:
               lv_obj_invalidate(lv_scr_act());
           - script.execute: voice_overlay_auto_hide
         else:
-          - script.execute: dismiss_voice_overlay
+          # on_end follows on_error; keep the error visible (on_error hides it).
+          - if:
+              condition:
+                lambda: "return !id(voice_error_shown);"
+              then:
+                - script.execute: dismiss_voice_overlay
   on_error:
-    - lambda: "id(voice_active) = false;"
+    - lambda: |-
+        id(voice_active) = false;
+        id(voice_has_answer) = false;
+        id(voice_error_shown) = true;
+        ESP_LOGW("voice", "Assist error code=%s message=%s (provider detail is in the HA log)",
+                 code.c_str(), message.c_str());
     - script.stop: voice_overlay_auto_hide
     - script.execute: unlock_idle_screen
-    - lambda: |-
-        id(voice_has_answer) = false;
-        voice_icon::set_mode(voice_icon::ERROR);
-    - script.execute: voice_tick
-    - script.execute:
-        id: set_voice_overlay
-        visible: true
-        title_text: "Voice Error"
-        body_text: !lambda "return message;"
-        hint_text: "Tap to dismiss"
-        badge_text: "ERROR"
-        icon_glyph: "\U000F0029"
-        accent_hex: 0xF85149
-        tint_hex: 0xFF7B72
-        bg_hex: 0x1C0D10
-    - delay: 3s
     - if:
         condition:
-          lambda: "return !id(va).is_running() && !id(voice_has_answer);"
+          lambda: |-
+            std::string fallback = "${voice_fallback_pipeline}";
+            if (fallback.empty() || id(voice_fallback_retried)) return false;
+            if (!voice_errors::describe(code).provider_failure) return false;
+            const std::string &current = id(voice_current_pipeline).state;
+            if (current.empty() || current == "unknown" || current == "unavailable") {
+              ESP_LOGW("voice", "Fallback skipped: ${voice_pipeline_select} has no state");
+              return false;
+            }
+            return current != fallback;
         then:
-          - script.execute: dismiss_voice_overlay
+          # Switch to the local pipeline and re-open the mic once.
+          - lambda: |-
+              id(voice_fallback_retried) = true;
+              id(voice_primary_pipeline) = id(voice_current_pipeline).state;
+              ESP_LOGW("voice", "Falling back from '%s' to '${voice_fallback_pipeline}'",
+                       id(voice_primary_pipeline).c_str());
+              voice_icon::set_mode(voice_icon::THINKING);
+          - script.execute: voice_tick
+          - script.execute:
+              id: set_voice_overlay
+              visible: true
+              title_text: "Switching to Local Assist"
+              body_text: !lambda |-
+                return std::string(voice_errors::describe(code).title) +
+                  " on '" + id(voice_primary_pipeline) +
+                  "'. Using '${voice_fallback_pipeline}' — please repeat your request.\n[" +
+                  code + "] " + message;
+              hint_text: "Tap to cancel"
+              badge_text: "FALLBACK"
+              icon_glyph: "\U000F0029"
+              accent_hex: 0xFFB020
+              tint_hex: 0xFFD166
+              bg_hex: 0x1A1408
+          - homeassistant.action:
+              action: select.select_option
+              data:
+                entity_id: "${voice_pipeline_select}"
+                option: "${voice_fallback_pipeline}"
+          - script.execute: voice_restore_primary_pipeline
+          - delay: 2500ms
+          - if:
+              condition:
+                lambda: "return !id(va).is_running() && !id(voice_muted) && id(voice_error_shown);"
+              then:
+                - voice_assistant.start:
+        else:
+          - lambda: "voice_icon::set_mode(voice_icon::ERROR);"
+          - script.execute: voice_tick
+          - script.execute:
+              id: set_voice_overlay
+              visible: true
+              title_text: !lambda "return std::string(voice_errors::describe(code).title);"
+              body_text: !lambda "return voice_errors::body(code, message);"
+              hint_text: "Tap to dismiss"
+              badge_text: "ERROR"
+              icon_glyph: "\U000F0029"
+              accent_hex: 0xF85149
+              tint_hex: 0xFF7B72
+              bg_hex: 0x1C0D10
+          - delay: ${voice_error_hold}
+          - if:
+              condition:
+                lambda: "return !id(va).is_running() && id(voice_error_shown);"
+              then:
+                - lambda: "id(voice_error_shown) = false;"
+                - script.execute: dismiss_voice_overlay
 
 select:
   - platform: template
@@ -406,8 +496,31 @@ script:
           else:
             - speaker.mute_on: spk_i2s
 
+  - id: voice_restore_primary_pipeline
+    mode: restart
+    then:
+      - delay: ${voice_fallback_hold}
+      - if:
+          condition:
+            lambda: |-
+              return !id(voice_primary_pipeline).empty()
+                && id(voice_current_pipeline).state == "${voice_fallback_pipeline}";
+          then:
+            - logger.log:
+                level: INFO
+                tag: voice
+                format: "Restoring Assist pipeline '%s'"
+                args: ["id(voice_primary_pipeline).c_str()"]
+            - homeassistant.action:
+                action: select.select_option
+                data:
+                  entity_id: "${voice_pipeline_select}"
+                  option: !lambda "return id(voice_primary_pipeline);"
+      - lambda: 'id(voice_primary_pipeline) = "";'
+
   - id: dismiss_voice_overlay
     then:
+      - lambda: "id(voice_error_shown) = false;"
       - script.stop: voice_overlay_auto_hide
       - script.execute: reset_idle_timer
       - if:
@@ -457,6 +570,7 @@ script:
                 condition:
                   lambda: "return !id(voice_muted);"
                 then:
+                  - lambda: "id(voice_fallback_retried) = false;"
                   - voice_assistant.start:
                 else:
                   - lambda: "voice_icon::set_mode(voice_icon::MUTED);"
