@@ -55,6 +55,15 @@ display:
     cs_pin: GPIO9
     reset_pin: GPIO21
     update_interval: never
+    # The AXS15231 model preset uses draw_rounding: 8, but the native panel
+    # width (172) is not a multiple of 8. With LVGL's software `rotation: 90`,
+    # dirty areas touching the bottom landscape row get rounded to y2=175,
+    # which maps to a negative native column (x1 = 172 - 168 - 8 = -4). The
+    # resulting invalid CASET window smears stale pixels (orange UI colours)
+    # along the bottom edge. 4 divides both 172 and 640, so every rounded area
+    # stays on-panel. Native columns were already only 4-aligned under the old
+    # setting (172 = 8*21 + 4), so the controller is known to accept this.
+    draw_rounding: 4
 
 lvgl:
   rotation: 90
