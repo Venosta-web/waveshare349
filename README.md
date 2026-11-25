@@ -92,7 +92,7 @@ Target board: **Waveshare ESP32-S3-Touch-LCD-3.49** (`esp32-s3-devkitc-1`, ESP-I
 | Display | QSPI (`WAVESHARE-ESP32-S3-TOUCH-LCD-3.49`, 172×640 rotated 90°) | CLK `GPIO10`, D0–D3 `GPIO11`–`GPIO14`, CS `GPIO9`, RST `GPIO21` |
 | Touchscreen | I²C (`axs15231`) | SDA `GPIO17`, SCL `GPIO18` |
 | System I²C | I²C (`sys_i2c`) | SDA `GPIO47`, SCL `GPIO48` |
-| Motion sensor | QMI8658 on `sys_i2c` | Address `0x6A` |
+| Motion sensor | QMI8658 on `sys_i2c` | Defaults to `0x6B`. Set `labyrinth_imu_address: "0x6A"` for units that respond at `0x6A`. |
 | Audio Codec & I²S | `es8311` + I²S Mic & Speaker (16-bit, 16 kHz) | LRCLK `GPIO46`, BCLK `GPIO15`, MCLK `GPIO7`, DIN `GPIO45`, DOUT `GPIO6` |
 
 ---
