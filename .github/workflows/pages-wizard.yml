@@ -81,12 +81,9 @@ jobs:
           path: dist/firmware/${{ matrix.preset }}.factory.bin
           retention-days: 1
 
-  deploy_pages:
+  build_site:
     needs: build_presets
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -131,6 +128,15 @@ jobs:
         with:
           path: _site
 
+  # Deploy runs in its own job so the github-pages artifact is fully
+  # registered before deploy-pages looks it up (avoids a listing race).
+  deploy_pages:
+    needs: build_site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
