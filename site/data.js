@@ -8,7 +8,7 @@ export const TARGET_DEVICES = [
     packageDir: 'packages/waveshare_349',
     defaultDeviceName: 'waveshare-349-voice',
     defaultFriendlyName: 'Waveshare 3.49 Display',
-    supportedModules: ['grow', 'music', 'claude', 'codex', 'voice', 'idle', 'settings'],
+    supportedModules: ['grow', 'music', 'claude', 'codex', 'voice', 'idle', 'labyrinth', 'settings'],
     unsupportedReasons: {},
   },
   {
@@ -23,6 +23,7 @@ export const TARGET_DEVICES = [
     supportedModules: ['grow', 'music', 'claude', 'codex', 'idle', 'settings'],
     unsupportedReasons: {
       voice: 'No onboard I2S mic/speaker codec on this board.',
+      labyrinth: 'Requires the Waveshare 3.49 motion sensor.',
     },
   },
 ];
@@ -71,6 +72,13 @@ export const FEATURE_MODULES = [
     defaultEnabled: true,
   },
   {
+    id: 'labyrinth',
+    name: 'Labyrinth',
+    kind: 'Display View',
+    description: 'Tilt the display to roll a marble into the marked goal hole. Requires ESPHome 2026.7.0 or later.',
+    defaultEnabled: true,
+  },
+  {
     id: 'settings',
     name: 'Device Settings',
     kind: 'Display View',
@@ -84,7 +92,7 @@ export const PRESETS = [
     id: 'waveshare-349-full-suite',
     deviceId: 'waveshare-349',
     name: 'Full Suite',
-    modules: ['grow', 'music', 'claude', 'codex', 'voice', 'idle', 'settings'],
+    modules: ['grow', 'music', 'claude', 'codex', 'voice', 'idle', 'labyrinth', 'settings'],
     defaults: { musicVariant: 'studio', claudeVariant: 'terminal', codexVariant: 'terminal' },
   },
   {

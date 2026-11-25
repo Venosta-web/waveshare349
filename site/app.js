@@ -19,7 +19,7 @@ function detectGithubRepo() {
 
 const state = {
   deviceId: 'waveshare-349',
-  modules: ['grow', 'music', 'claude', 'codex', 'voice', 'idle', 'settings'],
+  modules: [...PRESETS[0].modules],
   deviceName: 'waveshare-349-voice',
   friendlyName: 'Waveshare 3.49 Display',
   packageSource: 'github',

@@ -114,6 +114,9 @@ export function generateEsphomeYaml(state) {
     pkgFiles.push(['mod_voice', `${device.packageDir}/mod_voice.yaml`]);
   }
   if (has('idle')) pkgFiles.push(['mod_idle', `${device.packageDir}/mod_idle.yaml`]);
+  if (has('labyrinth') && device.id === 'waveshare-349') {
+    pkgFiles.push(['mod_labyrinth', `${device.packageDir}/mod_labyrinth.yaml`]);
+  }
   if (has('settings')) pkgFiles.push(['mod_settings', `${device.packageDir}/mod_settings.yaml`]);
 
   if (state.packageSource === 'github') {

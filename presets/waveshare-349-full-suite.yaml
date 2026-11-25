@@ -81,4 +81,5 @@ packages:
   mod_codex: !include ../packages/waveshare_349/mod_codex.yaml
   mod_voice: !include ../packages/waveshare_349/mod_voice.yaml
   mod_idle: !include ../packages/waveshare_349/mod_idle.yaml
+  mod_labyrinth: !include ../packages/waveshare_349/mod_labyrinth.yaml
   mod_settings: !include ../packages/waveshare_349/mod_settings.yaml
