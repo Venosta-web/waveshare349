@@ -1,8 +1,9 @@
 # Feature Module: Labyrinth (Waveshare 3.49 landscape).
 substitutions:
+  labyrinth_imu_address: "0x6B"
   # Map QMI8658 axes to downhill screen directions in the 90° landscape view.
-  labyrinth_axis_x: "-y"
-  labyrinth_axis_y: "-x"
+  labyrinth_axis_x: "+x"
+  labyrinth_axis_y: "-y"
 
 esphome:
   min_version: 2026.7.0
@@ -69,7 +70,7 @@ motion:
   - platform: qmi8658
     id: labyrinth_imu
     i2c_id: sys_i2c
-    address: 0x6A
+    address: ${labyrinth_imu_address}
     update_interval: 20ms
     accelerometer_range: 2G
     accelerometer_odr: 125HZ
