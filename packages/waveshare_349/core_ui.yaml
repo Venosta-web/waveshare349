@@ -37,6 +37,9 @@ globals:
   - id: settings_idle_timeout
     type: int
     initial_value: "${idle_timeout}"
+  - id: idle_lock_inhibited
+    type: bool
+    initial_value: "false"
   - id: idle_battery_pct
     type: int
     initial_value: "-1"
@@ -170,6 +173,7 @@ select:
           else if (x == "AI") target = 2;
           else if (x == "Codex") target = 3;
           else if (x == "Settings") target = 4;
+          else if (x == "Labyrinth") target = 5;
           id(switch_tab).execute(target);
 
 lvgl:
@@ -255,8 +259,8 @@ script:
     then:
       - lambda: |-
           id(active_tab) = tab_idx;
-          const char* opts[] = { "Growspace", "Music", "AI", "Codex", "Settings" };
-          if (tab_idx >= 0 && tab_idx < 5 && id(display_view).current_option() != opts[tab_idx]) {
+          const char* opts[] = { "Growspace", "Music", "AI", "Codex", "Settings", "Labyrinth" };
+          if (tab_idx >= 0 && tab_idx < 6 && id(display_view).current_option() != opts[tab_idx]) {
             id(display_view).publish_state(opts[tab_idx]);
           }
           lv_obj_invalidate(lv_scr_act());

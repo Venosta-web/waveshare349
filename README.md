@@ -75,6 +75,12 @@ Select `fishing`, `mining`, `pingpong`, or `campfire` (or `terminal_fishing`, `t
 |---|
 | ![Voice Satellite muted and error states](docs/images/voice-muted-error.gif) |
 
+### 7. Labyrinth (`Labyrinth` Display View)
+
+Open **Labyrinth** immediately before **Settings** in the navigation rail. Hold the Waveshare comfortably and tap **Start** to set your neutral tilt. Tilt the device to roll the marble into the gold Goal Hole and avoid the dark Trap Holes. Tap **Play again** after a win or loss.
+
+Labyrinth is enabled in the main Waveshare firmware and Full Suite preset. Custom Waveshare builds can select the [Labyrinth Feature Module](packages/waveshare_349/mod_labyrinth.yaml) in the setup wizard. The game uses the onboard QMI8658 and requires ESPHome 2026.7.0 or later.
+
 ---
 
 ## Hardware & Pinout
@@ -86,6 +92,7 @@ Target board: **Waveshare ESP32-S3-Touch-LCD-3.49** (`esp32-s3-devkitc-1`, ESP-I
 | Display | QSPI (`WAVESHARE-ESP32-S3-TOUCH-LCD-3.49`, 172×640 rotated 90°) | CLK `GPIO10`, D0–D3 `GPIO11`–`GPIO14`, CS `GPIO9`, RST `GPIO21` |
 | Touchscreen | I²C (`axs15231`) | SDA `GPIO17`, SCL `GPIO18` |
 | System I²C | I²C (`sys_i2c`) | SDA `GPIO47`, SCL `GPIO48` |
+| Motion sensor | QMI8658 on `sys_i2c` | Address `0x6A` |
 | Audio Codec & I²S | `es8311` + I²S Mic & Speaker (16-bit, 16 kHz) | LRCLK `GPIO46`, BCLK `GPIO15`, MCLK `GPIO7`, DIN `GPIO45`, DOUT `GPIO6` |
 
 ---
@@ -93,7 +100,7 @@ Target board: **Waveshare ESP32-S3-Touch-LCD-3.49** (`esp32-s3-devkitc-1`, ESP-I
 ## Getting Started
 
 ### Prerequisites
-- [ESPHome](https://esphome.io/) (`>= 2025.11.0`) — only needed if compiling custom `esphome.yaml` locally or using ESPHome Builder (not needed for one-click USB preset flashing)
+- [ESPHome](https://esphome.io/) 2025.11.0 or later for local builds and ESPHome Builder. Builds with Labyrinth require 2026.7.0 or later. The wizard can flash prebuilt USB presets directly.
 - [Home Assistant](https://www.home-assistant.io/) with [Growspace Manager](https://github.com/holt-dev/growspace_manager) (v1.3.1+) *(if enabling the `Growspace` Feature Module)*
 - *(Optional, for desktop simulator)* SDL2 development headers (`libsdl2-dev` on Debian/Ubuntu)
 - *(Optional, for Claude Code / Codex bridges)* Python 3 with `websockets` / `requests` and hook configuration
@@ -105,8 +112,8 @@ Use the hosted **[Setup & Build Wizard](https://venosta-web.github.io/waveshare3
 1. **Select a Target Device**
    | Target Device | Resolution | Hardware Notes |
    |---|---|---|
-   | **Waveshare 3.49"** (`waveshare-349`) | `640 × 172` | ESP32-S3 + Octal PSRAM + ES8311 I2S audio; supports all 7 Feature Modules |
-   | **480×320 Prototype** (`prototype-480x320`) | `480 × 320` | ESP32-S3 16MB + Octal PSRAM + Backlight PWM; supports all modules except `Voice Satellite` (no onboard I2S codec) |
+   | **Waveshare 3.49"** (`waveshare-349`) | `640 × 172` | ESP32-S3 with Octal PSRAM, ES8311 I2S audio, and QMI8658 motion sensor. Supports all 8 Feature Modules. |
+   | **480×320 Prototype** (`prototype-480x320`) | `480 × 320` | ESP32-S3 16MB with Octal PSRAM and backlight PWM. Supports Growspace, Music, Claude, Codex, Idle Lock, and Settings. |
 
 2. **Pick Feature Modules (or a Preset)**
    Enable only the capabilities you need—single-view builds automatically hide the navigation rail—or start from a pre-configured **Preset** (`Full Suite`, `Grow + Voice`, `Grow + Music`, `AI Desk Companion`, `Grow Only`, etc.):
@@ -118,6 +125,7 @@ Use the hosted **[Setup & Build Wizard](https://venosta-web.github.io/waveshare3
    | **Codex** (`codex`) | Display View | OpenAI Codex status, step tracker, and touch Approve/Reject for Permission Requests |
    | **Voice Satellite** (`voice`) | Assist Pipeline | On-device `Okay Nabu` wake word, ES8311 I2S audio, push-to-talk, and voice overlay *(Waveshare 3.49" only)* |
    | **Idle Lock Screen** (`idle`) | Lock Overlay | `Aurora` ambient clock and status overlay with configurable inactivity timeout and manual lock |
+   | **Labyrinth** (`labyrinth`) | Display View | Tilt-controlled marble maze *(Waveshare 3.49" only)* |
    | **Device Settings** (`settings`) | Display View | On-device Display (brightness, lock timeout), Growspace (auto-cycle, speed), and System (telemetry, safe restart) menu |
 
 3. **Customize Configuration & Generate `esphome.yaml`**

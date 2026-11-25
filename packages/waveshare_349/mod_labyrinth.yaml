@@ -1,0 +1,267 @@
+# Feature Module: Labyrinth (Waveshare 3.49 landscape).
+substitutions:
+  # Map QMI8658 axes to downhill screen directions in the 90° landscape view.
+  labyrinth_axis_x: "-y"
+  labyrinth_axis_y: "-x"
+
+esphome:
+  min_version: 2026.7.0
+  includes:
+    - labyrinth_game.h
+  on_boot:
+    - priority: -146.5
+      then:
+        - lambda: |-
+            lv_obj_set_parent(id(nav_labyrinth), id(nav_rail));
+
+            // Keep the Home Assistant selector in the same order as the rail.
+            auto &view = *id(display_view);
+            view.traits.set_options({view.option_at(0), view.option_at(1),
+                                     view.option_at(2), view.option_at(3),
+                                     "Labyrinth", view.option_at(4)});
+
+            using namespace labyrinth;
+            auto tile = [](lv_obj_t *parent, int x, int y, int w, int h,
+                           uint32_t color, int radius) {
+              auto *obj = lv_obj_create(parent);
+              lv_obj_remove_style_all(obj);
+              lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+              lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+              lv_obj_set_pos(obj, x, y);
+              lv_obj_set_size(obj, w, h);
+              lv_obj_set_style_bg_color(obj, lv_color_hex(color), 0);
+              lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
+              lv_obj_set_style_radius(obj, radius, 0);
+              return obj;
+            };
+
+            auto *board = id(labyrinth_board);
+            for (const Wall &wall : walls) {
+              auto *face = tile(board, wall.x, wall.y, wall.width, wall.height, 0x54838A, 0);
+              tile(face, 0, 0, 2, wall.height, 0x8DB4B6, 0);
+            }
+
+            for (const Hole &hole : holes) {
+              constexpr int diameter = 2 * hole_radius;
+              const int x = hole.center.x;
+              const int y = hole.center.y;
+              tile(board, x - 13, y - 13, 26, 26,
+                   hole.goal ? 0xF6CF76 : 0x63828A, LV_RADIUS_CIRCLE);
+              tile(board, x - hole_radius, y - hole_radius, diameter, diameter,
+                   0x060B11, LV_RADIUS_CIRCLE);
+              if (hole.goal) {
+                tile(board, x - 3, y - 3, 6, 6, 0xF6CF76, LV_RADIUS_CIRCLE);
+              }
+            }
+            lv_obj_move_foreground(id(labyrinth_marble));
+
+            id(labyrinth_imu).add_listener([](const esphome::motion::MotionData &data) {
+              labyrinth::game().sample({data.acceleration[0], data.acceleration[1]}, millis());
+            });
+        - script.execute: render_labyrinth_state
+    - priority: -156.5
+      then:
+        - lambda: |-
+            if (id(active_tab) < 0)
+              id(switch_tab).execute(5);
+
+motion:
+  - platform: qmi8658
+    id: labyrinth_imu
+    i2c_id: sys_i2c
+    address: 0x6A
+    update_interval: 20ms
+    accelerometer_range: 2G
+    accelerometer_odr: 125HZ
+    gyroscope_odr: 125HZ
+    axis_map:
+      x: ${labyrinth_axis_x}
+      y: ${labyrinth_axis_y}
+      z: "-z"
+
+font:
+  - id: !extend icons_20
+    glyphs:
+      - "\U000F0297" # gamepad-variant
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - button:
+            id: nav_labyrinth
+            width: 64
+            height: 50
+            styles: nav_btn
+            widgets:
+              - label:
+                  id: nav_labyrinth_icon
+                  text: "\U000F0297"
+                  text_font: icons_20
+                  text_color: 0x8B949E
+                  align: CENTER
+            on_click:
+              - script.execute:
+                  id: switch_tab
+                  tab_idx: 5
+
+        - obj:
+            id: labyrinth_card
+            width: 560
+            height: 160
+            align: RIGHT_MID
+            x: -6
+            styles: card_style
+            pad_all: 0
+            border_width: 0
+            scrollable: false
+            hidden: true
+            widgets:
+              - obj:
+                  id: labyrinth_board
+                  x: 9
+                  y: 9
+                  width: 410
+                  height: 142
+                  bg_color: 0x132B33
+                  bg_opa: COVER
+                  border_width: 0
+                  outline_width: 1
+                  outline_color: 0x47616A
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
+                  widgets:
+                    - obj:
+                        id: labyrinth_marble
+                        width: 12
+                        height: 12
+                        radius: 6
+                        bg_color: 0xF3FCFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xA7D1DA
+                        pad_all: 0
+                        scrollable: false
+
+              - label:
+                  text: "Labyrinth"
+                  x: 432
+                  y: 15
+                  text_font: font_20
+                  text_color: 0xF0F6FC
+              - label:
+                  id: labyrinth_hint
+                  x: 433
+                  y: 50
+                  text_font: font_14
+                  text_color: 0xCDD9E5
+                  text: "Tilt to roll.\nAim for gold."
+              - button:
+                  id: labyrinth_start
+                  x: 432
+                  y: 103
+                  width: 116
+                  height: 44
+                  bg_color: 0xF6CF76
+                  bg_opa: COVER
+                  radius: 8
+                  pad_all: 0
+                  on_click:
+                    - lambda: |-
+                        if (labyrinth::game().begin(millis())) {
+                          id(reset_idle_timer).execute();
+                          id(render_labyrinth_state).execute();
+                        } else {
+                          lv_label_set_text(id(labyrinth_hint), "Motion sensor\nunavailable");
+                        }
+                  widgets:
+                    - label:
+                        id: labyrinth_start_label
+                        text: "Start"
+                        text_font: font_14
+                        text_color: 0x21190B
+                        align: CENTER
+
+interval:
+  - interval: 32ms
+    then:
+      - lambda: |-
+          using labyrinth::Phase;
+          auto &game = labyrinth::game();
+          if (game.phase() != Phase::Rolling)
+            return;
+
+          const uint32_t now = millis();
+          if (!game.has_motion(now)) {
+            game.reset();
+            id(render_labyrinth_state).execute();
+            lv_label_set_text(id(labyrinth_hint), "Motion sensor\nunavailable");
+            return;
+          }
+
+          game.advance(now);
+          if (game.phase() == Phase::Rolling) {
+            const auto position = game.position();
+            lv_obj_set_pos(id(labyrinth_marble), lroundf(position.x) - labyrinth::marble_radius,
+                           lroundf(position.y) - labyrinth::marble_radius);
+          } else {
+            id(render_labyrinth_state).execute();
+          }
+
+script:
+  - id: render_labyrinth_state
+    then:
+      - lambda: |-
+          using labyrinth::Phase;
+          const auto phase = labyrinth::game().phase();
+          const auto position = labyrinth::game().position();
+          lv_obj_set_pos(id(labyrinth_marble), lroundf(position.x) - labyrinth::marble_radius,
+                         lroundf(position.y) - labyrinth::marble_radius);
+
+          const bool rolling = phase == Phase::Rolling;
+          const bool finished = phase == Phase::Won || phase == Phase::Lost;
+          lv_obj_set_flag(id(labyrinth_marble), LV_OBJ_FLAG_HIDDEN, finished);
+          lv_obj_set_flag(id(labyrinth_start), LV_OBJ_FLAG_HIDDEN, rolling);
+          lv_label_set_text(id(labyrinth_start_label), finished ? "Play again" : "Start");
+
+          const char *hint = "Tilt to roll.\nAim for gold.";
+          if (phase == Phase::Won)
+            hint = "Goal reached!";
+          else if (phase == Phase::Lost)
+            hint = "Trap hole";
+          else if (rolling)
+            hint = "Find the\ngold hole.";
+          lv_label_set_text(id(labyrinth_hint), hint);
+          lv_obj_set_style_text_color(id(labyrinth_hint), lv_color_hex(
+              phase == Phase::Won ? 0xF6CF76 : phase == Phase::Lost ? 0xFFADA4 : 0xCDD9E5), 0);
+
+          if (id(idle_lock_inhibited) && !rolling)
+            id(reset_idle_timer).execute();
+          id(idle_lock_inhibited) = rolling;
+
+  - id: !extend switch_tab
+    then:
+      - lambda: |-
+          const bool selected = tab_idx == 5;
+          lv_obj_set_flag(id(labyrinth_card), LV_OBJ_FLAG_HIDDEN, !selected);
+          lv_obj_set_style_bg_color(id(nav_labyrinth),
+                                    lv_color_hex(selected ? 0x1F6FEB : 0x161B22), 0);
+          lv_obj_set_style_border_color(id(nav_labyrinth),
+                                        lv_color_hex(selected ? 0x58A6FF : 0x30363D), 0);
+          lv_obj_set_style_text_color(id(nav_labyrinth_icon),
+                                      lv_color_hex(selected ? 0xFFFFFF : 0x8B949E), 0);
+          if (selected) {
+            lv_obj_scroll_to_view(id(nav_labyrinth), LV_ANIM_OFF);
+          } else if (labyrinth::game().phase() != labyrinth::Phase::Ready) {
+            labyrinth::game().reset();
+            id(render_labyrinth_state).execute();
+          }
+
+  - id: !extend lock_screen_now
+    then:
+      - lambda: |-
+          if (id(idle_lock_inhibited)) {
+            labyrinth::game().reset();
+            id(render_labyrinth_state).execute();
+          }

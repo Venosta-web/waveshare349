@@ -1,6 +1,9 @@
 # Shared state, time sync, and 5-minute inactivity lock/unlock engine
 # for the Waveshare 3.49 Idle / Lock Clock Screen.
 
+substitutions:
+  idle_inhibited: "false"
+
 globals:
   - id: screen_locked
     type: bool
@@ -105,7 +108,7 @@ interval:
           }
 
           // 2. Count down inactivity timer when unlocked (0 = Off)
-          if (!id(screen_locked) && id(settings_idle_timeout) > 0) {
+          if (!${idle_inhibited} && !id(screen_locked) && id(settings_idle_timeout) > 0) {
             if (id(idle_timer) > 0) {
               id(idle_timer)--;
             }

@@ -1,6 +1,9 @@
 # Feature Module: 5-Minute Idle / Lock Clock Screen (Waveshare 3.49)
 # Requires substitutions: idle_variant ("aurora"), idle_timeout ("300")
 
+substitutions:
+  idle_inhibited: "id(idle_lock_inhibited)"
+
 packages:
   idle_common: !include ../../idle/common.yaml
   idle_variant: !include ../../idle/${idle_variant}.yaml
@@ -32,7 +35,7 @@ lvgl:
                   align: CENTER
             on_click:
               then:
-                - script.execute: lock_idle_screen
+                - script.execute: lock_screen_now
 
         - obj: !include ../../idle/${idle_variant}_card.yaml
 

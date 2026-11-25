@@ -12,11 +12,11 @@ globals:
 
 esphome:
   on_boot:
-    - priority: -146
+    - priority: -147
       then:
         - lambda: "lv_obj_set_parent(id(nav_settings), id(nav_rail));"
         - script.execute: sync_settings_ui
-    - priority: -156
+    - priority: -157
       then:
         - lambda: |-
             if (id(active_tab) < 0) {

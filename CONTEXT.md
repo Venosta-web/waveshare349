@@ -74,3 +74,22 @@ _Avoid_: feature selector, config generator
 
 **Preset**:
 A named, pre-configured combination of a **Target Device** and **Feature Modules** (in `presets/`) that CI compiles into flashable firmware binaries for the **Setup & Build Wizard**.
+
+## Marble Labyrinth
+
+**Labyrinth**:
+The Display View where the player tilts the Waveshare 3.49 to roll a Marble through a maze.
+
+**Run**:
+One attempt at the maze, started by the player and ended by a win, a failure, or leaving Labyrinth.
+
+**Marble**:
+The ball the player rolls through the labyrinth by tilting the Target Device.
+
+**Goal Hole**:
+The hole that wins the game when the Marble falls into it.
+_Avoid_: Correct hole
+
+**Trap Hole**:
+A hole that ends the game in failure when the Marble falls into it.
+_Avoid_: Wrong hole
